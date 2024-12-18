@@ -1,0 +1,106 @@
+name: Playwright Visual Tests with NordLayer Tunnel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  visual-tests:
+    name: Run Applitools Visual Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Cache Node Modules
+        uses: actions/cache@v3
+        id: cache-node-modules
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm install
+
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v3
+        id: cache-playwright-browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}
+          restore-keys: |
+            playwright-browsers-${{ runner.os }}
+
+      - name: Install Playwright Browsers
+        if: steps.cache-playwright-browsers.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps
+
+      - name: Install NordLayer CLI
+        run: |
+          sudo apt-get update
+          
+          # Install the repository configuration package
+          sudo dpkg -i ./nordlayer/nordlayer-latest_1.0.0_all.deb
+          sudo apt-get install -f -y
+          
+          # Update package lists to include the new repository
+          sudo apt-get update
+          
+          # Install the actual nordlayer package
+          sudo apt-get install -y nordlayer
+          
+          # Restart the nordlayer service
+          sudo systemctl daemon-reload
+          sudo systemctl restart nordlayer.service
+          sleep 2
+          
+          # Fix socket permissions
+          sudo chown -R runner:runner /run/nordlayer/
+          sudo chmod 755 /run/nordlayer
+          sudo chmod 666 /run/nordlayer/nordlayer.sock
+
+      - name: Authenticate with NordLayer
+        run: |
+          nordlayer login \
+            --email "${{ secrets.NORDLAYER_EMAIL }}" \
+            --password "${{ secrets.NORDLAYER_PASSWORD }}" \
+            --organization "dydxopsdao"
+
+      - name: Connect to NordLayer Server
+        run: |
+          nordlayer gateways
+          nordlayer connect "dos-server-BQG2cKQV"
+
+      - name: Verify VPN Connection
+        run: |
+          echo "Verifying VPN IP..."
+          curl ifconfig.me
+
+      - name: Run Playwright tests with Applitools
+        id: playwright-test-run
+        run: npx playwright test
+        env:
+          APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
+
+      - name: Debug NordLayer Status
+        if: always()
+        run: nordlayer status
+
+      - name: Disconnect from NordLayer Server
+        if: always()
+        run: nordlayer disconnect || echo "Already disconnected"
+
+      - name: Upload Playwright Test Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: playwright-test-report-${{ github.run_id }}
+          path: playwright-report/
