@@ -3,10 +3,10 @@ import { defineConfig, ReporterDescription } from "@playwright/test";
 
 export default defineConfig<EyesFixture>({
   testDir: "./tests",
-  fullyParallel: false,
+  fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  workers: 1,
+  workers: 2,
   reporter: [
     ["@applitools/eyes-playwright/reporter"] as ReporterDescription,
     ["html", { outputFolder: "playwright-report" }] as ReporterDescription,
