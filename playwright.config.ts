@@ -1,37 +1,61 @@
+require("dotenv").config({ path: process.env.ENV_PATH || ".env" });
 import { EyesFixture } from "@applitools/eyes-playwright/fixture";
 import { defineConfig, ReporterDescription } from "@playwright/test";
+import { PATHS, TEST_TIMEOUTS } from "./constants";
+
+const isApplitoolsRun = process.env.USE_APPLITOOLS === "true";
+const isLocalRun = process.env.LOCAL_RUN === "true";
+
 
 export default defineConfig<EyesFixture>({
-  testDir: "./tests",
+  testDir: "./tests/",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
   workers: 2,
   reporter: [
-    ["@applitools/eyes-playwright/reporter"] as ReporterDescription,
+    ...(isApplitoolsRun
+      ? [["@applitools/eyes-playwright/reporter"] as ReporterDescription]
+      : []),
     ["html", { outputFolder: "playwright-report" }] as ReporterDescription,
   ],
   use: {
-    eyesConfig: {
-      apiKey: process.env.APPLITOOLS_API_KEY || "YOUR_APPLITOOLS_API_KEY",
-      serverUrl: "https://eyes.applitools.com/",
-      appName: "dydx.trade",
-      matchLevel: "Layout",
-      waitBeforeScreenshots: 10,
-    },
+    ...(isApplitoolsRun
+      ? {
+          eyesConfig: {
+            apiKey: process.env.APPLITOOLS_API_KEY || "",
+            serverUrl: "https://eyes.applitools.com/",
+            appName: "dydx.trade",
+            matchLevel: "Layout",
+            waitBeforeScreenshots: 10,
+          },
+        }
+      : {}),
     viewport: { width: 1920, height: 1080 },
-    trace: "on-first-retry",
-    navigationTimeout: 30000,
-    actionTimeout: 15000,
-    headless: true,
+    trace: "retain-on-failure",
+    navigationTimeout: TEST_TIMEOUTS.NAVIGATION,
+    actionTimeout: TEST_TIMEOUTS.ACTION,
+    headless: !isLocalRun,
     screenshot: "only-on-failure",
   },
   projects: [
     {
       name: "chromium",
-      use: { browserName: "chromium" },
+      use: {
+        browserName: "chromium",
+        launchOptions: {
+          args: [
+            "--disable-blink-features=AutomationControlled",
+            "--disable-infobars",
+            "--disable-dev-shm-usage",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+          ],
+        },
+        ignoreHTTPSErrors: true,
+      },
     },
   ],
-  timeout: 60000,
-  expect: { timeout: 10000 },
+  timeout: TEST_TIMEOUTS.TEST,
+  expect: { timeout: TEST_TIMEOUTS.ELEMENT },
 });

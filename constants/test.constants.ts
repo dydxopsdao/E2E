@@ -1,0 +1,8 @@
+export const TEST_TIMEOUTS = {
+  DEFAULT: 2000,
+  ELEMENT: 10000,
+  NAVIGATION: 30000,
+  ACTION: 15000,
+  PAGE_LOAD: 30000,
+  TEST: 60000,
+} as const;

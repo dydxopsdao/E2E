@@ -5,3 +5,5 @@
 /playwright/.cache/
 node_modules/
 .DS_Store
+/Interactions/wallets/metamask/metamask-extension
+.env.local

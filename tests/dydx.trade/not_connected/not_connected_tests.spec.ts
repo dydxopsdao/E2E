@@ -1,7 +1,7 @@
 import { test } from "@applitools/eyes-playwright/fixture";
 import { Page } from "@playwright/test";
+import { TEST_TIMEOUTS } from "../../../constants";
 
-const ELEMENT_TIMEOUT = 10000;
 
 const urls = [
   {
@@ -43,7 +43,7 @@ async function waitForPageLoad(page: Page, elementLocator: string) {
     // Wait for the main element to be visible
     await page
       .locator(elementLocator)
-      .waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+      .waitFor({ state: "visible", timeout: TEST_TIMEOUTS.ELEMENT });
   } catch (error) {
     console.warn(
       `URL: ${page.url()} - Element with locator ${elementLocator} not found, tests may be unstable`
@@ -53,7 +53,7 @@ async function waitForPageLoad(page: Page, elementLocator: string) {
 
 for (const { url, name, elementLocator } of urls) {
   test(`Visual check for ${name}`, async ({ page, eyes }) => {
-    await page.goto(url);
+    await page.goto(url, { timeout: TEST_TIMEOUTS.NAVIGATION });
     await waitForPageLoad(page, elementLocator);
 
     /* Full page visual check */

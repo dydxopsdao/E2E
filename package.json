@@ -11,5 +11,10 @@
     "@applitools/eyes-playwright": "^1.33.2",
     "@playwright/test": "^1.49.1",
     "@types/node": "^22.10.2"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "unzipper": "^0.12.3"
   }
 }
