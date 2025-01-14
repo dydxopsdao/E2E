@@ -1,32 +1,46 @@
-import { test } from "@applitools/eyes-playwright/fixture";
-import { navigateToDydxPage } from "../../../Interactions/dydx/general/actions/navigation.actions";
-import { triggerWalletConnectionModal } from "../../../Interactions/dydx/connect-wallet/actions/connect-wallet.actions";
-import { ConnectWalletSelectors } from "../../../Interactions/dydx/connect-wallet/selectors/connect-wallet-selectors";
-import { TEST_TIMEOUTS } from "../../../constants";
+import { navigateToDydxPage } from "@dydx/general/actions/navigation.actions";
+import { triggerWalletConnectionModal } from "@dydx/connect-wallet/actions/connect-wallet.actions";
+import { ConnectWalletSelectors } from "@dydx/connect-wallet/selectors/connect-wallet-selectors";
+import { TEST_TIMEOUTS } from "@constants/test.constants.js";
+import { logger } from "@utils/logger/logging-utils";
+import { Page } from "@playwright/test";
+import { Eyes } from "@applitools/eyes-playwright";
+import { eyesTest as test } from "@fixtures/eyesFixture";
+import { visualCheck } from "@utils/visual-check";
 
-
-   test("Language Dropdown Works", async ({ page, eyes }) => {
+test("Language Dropdown Works", async ({ page, eyes }: { page: Page, eyes: Eyes }) => {
+  try {
+    // Arrange
+    logger.step("Setting up test environment");
     await navigateToDydxPage(page, "/portfolio/overview");
+    logger.info("Navigated to portfolio overview page");
 
-    // Click the "Connect wallet" button to open the modal
+    // Act
+    logger.step("Opening wallet connection modal");
     await triggerWalletConnectionModal(page);
-
-    // Wait for modal to open
     await page
       .locator(ConnectWalletSelectors.walletConnectModal)
       .waitFor({ state: "visible", timeout: TEST_TIMEOUTS.DEFAULT });
+    logger.success("Wallet connection modal opened");
 
-    // Click the language dropdown
+    logger.step("Testing language dropdown");
     await page.locator(ConnectWalletSelectors.languageDropdown).click();
 
-    // Wait for options to be visible
+    // Assert
+    logger.step("Verifying dropdown visibility");
     await page
       .locator(ConnectWalletSelectors.languageDropdownMenu)
       .waitFor({ state: "visible", timeout: TEST_TIMEOUTS.DEFAULT });
+    logger.success("Language dropdown menu is visible");
 
-    await eyes.check("Language Dropdown Open", {
-      fully: true,
-      matchLevel: "Layout",
+    logger.step("Performing visual check");
+    await visualCheck(eyes, {
+      name: "Language Dropdown Open"
     });
-  });
+    logger.success("Visual check completed");
+  } catch (error) {
+    logger.error("Language dropdown test failed", error as Error);
+    throw error;
+  }
+});
 

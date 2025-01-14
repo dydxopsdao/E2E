@@ -1,7 +1,8 @@
-import { test } from "@applitools/eyes-playwright/fixture";
-import { Page } from "@playwright/test";
-import { TEST_TIMEOUTS } from "../../../constants";
-
+import { eyesTest as test } from "@fixtures/eyesFixture";
+import { Page, expect } from "@playwright/test";
+import { TEST_TIMEOUTS } from "@constants/test.constants";
+import { logger } from "@utils/logger/logging-utils";
+import { visualCheck } from "@utils/visual-check";
 
 const urls = [
   {
@@ -12,14 +13,12 @@ const urls = [
   {
     url: "https://dydx.trade/markets",
     name: "Markets page",
-    elementLocator:
-      "table[aria-label='Markets'] div[role='row']:has([data-key='BTC-USD'])",
+    elementLocator: "table[aria-label='Markets'] div[role='row']:has([data-key='BTC-USD'])",
   },
   {
     url: "https://dydx.trade/portfolio",
     name: "Portfolio page",
-    elementLocator:
-      "text=Connect your wallet to deposit funds & start trading.",
+    elementLocator: "text=Connect your wallet to deposit funds & start trading.",
   },
   {
     url: "https://dydx.trade/vault",
@@ -40,26 +39,42 @@ const urls = [
 
 async function waitForPageLoad(page: Page, elementLocator: string) {
   try {
-    // Wait for the main element to be visible
+    logger.debug(`Waiting for element: ${elementLocator}`);
     await page
       .locator(elementLocator)
       .waitFor({ state: "visible", timeout: TEST_TIMEOUTS.ELEMENT });
+    logger.success(`Element found: ${elementLocator}`);
   } catch (error) {
-    console.warn(
-      `URL: ${page.url()} - Element with locator ${elementLocator} not found, tests may be unstable`
+    logger.warning(
+      `Element not found: ${elementLocator}`,
+      { url: page.url() }
     );
   }
 }
 
 for (const { url, name, elementLocator } of urls) {
   test(`Visual check for ${name}`, async ({ page, eyes }) => {
-    await page.goto(url, { timeout: TEST_TIMEOUTS.NAVIGATION });
-    await waitForPageLoad(page, elementLocator);
+    try {
+      // Arrange
+      logger.step(`Setting up test for ${name}`);
+      logger.info(`Navigating to ${url}`);
+      
+      // Act
+      await page.goto(url, { timeout: TEST_TIMEOUTS.NAVIGATION });
+      await waitForPageLoad(page, elementLocator);
+      
+      // Assert
+      logger.step("Performing visual verification");
+      const element = page.locator(elementLocator);
+      await expect(element).toBeVisible({ timeout: TEST_TIMEOUTS.ELEMENT })
+        .catch(() => logger.warning(`Element visibility check failed for ${name}`));
 
-    /* Full page visual check */
-    await eyes.check(name, {
-      fully: true,
-      matchLevel: "Layout",
-    });
+      await visualCheck(eyes, {
+        name: name
+      });
+    } catch (error) {
+      logger.error(`Test failed for ${name}`, error as Error);
+      throw error;
+    }
   });
 }

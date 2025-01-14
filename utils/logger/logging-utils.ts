@@ -61,6 +61,10 @@ class ConsoleLogger implements Logger {
   error(message: string, error?: Error, metadata?: LogMetadata): void {
     this.log("error", message, metadata, error);
   }
+
+  warn(message: string, metadata?: LogMetadata): void {
+    this.warning(message, metadata);
+  }
 }
 
 // Create a singleton instance

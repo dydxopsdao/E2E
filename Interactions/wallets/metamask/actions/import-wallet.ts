@@ -1,9 +1,8 @@
-// src/interactions/wallets/metamask/actions/import-wallet.ts
-
 import type { Page } from "playwright";
-import { MetamaskSelectors } from "../selectors/metamask-selectors";
-import { logger } from "../../../../utils/logger/logging-utils";
-import { TEST_TIMEOUTS } from "../../../../constants";
+import { MetamaskSelectors } from "@wallets/metamask/selectors/metamask-selectors";
+import { logger } from "@utils/logger/logging-utils";
+import { TEST_TIMEOUTS } from "@constants/test.constants";
+import { metamaskState } from "@wallets/metamask/actions/metamask-state";
 
 interface ImportWalletOptions {
   seedPhrase: string;
@@ -99,6 +98,20 @@ async function setupPassword(
 }
 
 /**
+ * Saves the MetaMask extension ID for later use
+ */
+function saveExtensionId(page: Page): void {
+  const url = page.url();
+  const match = url.match(/chrome-extension:\/\/([^/]+)/);
+
+  if (match && match[1]) {
+    metamaskState.setExtensionId(match[1]);
+  } else {
+    logger.warning("Could not extract extension ID from URL", { url });
+  }
+}
+
+/**
  * Imports a wallet into MetaMask using the provided seed phrase and password
  * @param page - Playwright Page object
  * @param options - Import options containing seed phrase and password
@@ -110,6 +123,9 @@ export async function importWallet(
   logger.step("Starting wallet import process");
 
   try {
+    // Save extension ID at the start
+    saveExtensionId(page);
+
     // Initial setup steps
     const initialSteps: StepConfig[] = [
       {
@@ -168,13 +184,16 @@ export async function importWallet(
       await executeStep(page, step);
     }
 
+    logger.success("Wallet import completed successfully", {
+      extensionId: metamaskState.getExtensionId(),
+    });
     await page.close();
-    logger.success("Wallet import completed successfully");
   } catch (error) {
     logger.error("Wallet import failed", error as Error, {
       seedPhraseLength: seedPhrase.split(" ").length,
+      hasExtensionId: metamaskState.hasExtensionId(),
     });
     throw error;
+    
   }
 }
-

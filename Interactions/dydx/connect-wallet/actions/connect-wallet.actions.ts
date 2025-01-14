@@ -1,7 +1,7 @@
 import { Page } from "@playwright/test";
-import { ConnectWalletSelectors } from "../selectors/connect-wallet-selectors";
-import { logger } from "../../../../utils/logger/logging-utils";
-import { TEST_TIMEOUTS } from "../../../../constants";
+import { ConnectWalletSelectors } from "@dydx/connect-wallet/selectors/connect-wallet-selectors";
+import { logger } from "@utils/logger/logging-utils";
+import { TEST_TIMEOUTS } from "@constants/test.constants";
 
 export async function triggerWalletConnectionModal(page: Page): Promise<void> {
   logger.step("Triggering wallet connection modal");

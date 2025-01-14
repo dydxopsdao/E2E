@@ -3,7 +3,7 @@ import { BrowserContext, chromium } from "@playwright/test";
 import path from "path";
 import os from "os";
 import { mkdtempSync } from "fs";
-import { downloadMetaMask } from "./download-metamask";
+import { downloadMetaMask } from "@wallets/metamask/actions/download-metamask";
 
 
 

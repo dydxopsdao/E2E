@@ -1,13 +1,14 @@
 require("dotenv").config({ path: process.env.ENV_PATH || ".env" });
-import { EyesFixture } from "@applitools/eyes-playwright/fixture";
 import { defineConfig, ReporterDescription } from "@playwright/test";
-import { PATHS, TEST_TIMEOUTS } from "./constants";
+import { TEST_TIMEOUTS } from "./constants";
 
 const isApplitoolsRun = process.env.USE_APPLITOOLS === "true";
 const isLocalRun = process.env.LOCAL_RUN === "true";
 
 
-export default defineConfig<EyesFixture>({
+export default defineConfig({
+  globalSetup: require.resolve("./global-setup"),
+  globalTeardown: require.resolve("./globalTeardown"),
   testDir: "./tests/",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -27,7 +28,7 @@ export default defineConfig<EyesFixture>({
             serverUrl: "https://eyes.applitools.com/",
             appName: "dydx.trade",
             matchLevel: "Layout",
-            waitBeforeScreenshots: 10,
+            waitBeforeScreenshots: 5,
           },
         }
       : {}),

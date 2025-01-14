@@ -1,9 +1,5 @@
-// metamask/metamask-selectors.ts
-
-/**
- * Central place for MetaMask UI selectors
- */
 export const MetamaskSelectors = {
+  // Existing selectors...
   agreeTermsofUseRadioButton: '[data-testid="onboarding-terms-checkbox"]',
   importWalletButton: '[data-testid="onboarding-import-wallet"]',
   metricsNoThanks: '[data-testid="metametrics-no-thanks"]',
@@ -24,4 +20,13 @@ export const MetamaskSelectors = {
   pinExtensionDone: '[data-testid="pin-extension-done"]',
   confirmButton: '[data-testid="confirm-btn"]',
   confirmButtonFooter: '[data-testid="confirm-footer-button"]',
-};
+  confirmationSubmitButton: '[data-testid="confirmation-submit-button"]',
+  confirmationSubmitButtonFooter: '[data-testid="page-container-footer-next"]',
+
+  // Network-related selectors
+  networkDisplay: '[data-testid="network-display"]',
+  networkListContainer: ".mm-box.new-network-list__list-of-networks",
+  arbitrumNetwork: '[data-testid="popular-network-0xa4b1"]',
+  networkAddButton: '[data-testid="test-add-button"]',
+
+} as const;

@@ -24,5 +24,6 @@ export interface Logger {
   step(message: string, metadata?: LogMetadata): void;
   success(message: string, metadata?: LogMetadata): void;
   warning(message: string, metadata?: LogMetadata): void;
+  warn(message: string, metadata?: LogMetadata): void;
   error(message: string, error?: Error, metadata?: LogMetadata): void;
 }

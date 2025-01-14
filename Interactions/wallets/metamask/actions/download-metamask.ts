@@ -5,8 +5,9 @@ import * as fs from "fs";
 import * as unzipper from "unzipper";
 import path from "path";
 import "dotenv/config";
-import { logger } from "../../../../utils/logger/logging-utils";
-import { WALLET_CONSTANTS, PATHS } from "../../../../constants";
+import { logger } from "@utils/logger/logging-utils";
+import { WALLET_CONSTANTS } from "@constants/wallet.constants";
+import { PATHS } from "@constants/paths.constants";
 
 const EXTENSION_FOLDER = path.resolve(
   __dirname,

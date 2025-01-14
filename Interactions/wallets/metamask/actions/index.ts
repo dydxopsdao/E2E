@@ -1,6 +1,6 @@
 // metamask/index.ts
 
-export { downloadMetaMask } from "./download-metamask";
-export { setupMetaMaskContext } from "./setup-metamask";
-export { importWallet } from "./import-wallet";
-export { MetamaskSelectors } from "../selectors/metamask-selectors";
+export { downloadMetaMask } from "@wallets/metamask/actions/download-metamask";
+export { setupMetaMaskContext } from "@wallets/metamask/actions/setup-metamask";
+export { importWallet } from "@wallets/metamask/actions/import-wallet";
+export { MetamaskSelectors } from "@wallets/metamask/selectors/metamask-selectors";

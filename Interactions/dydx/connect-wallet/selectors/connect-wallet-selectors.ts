@@ -10,4 +10,5 @@ export const ConnectWalletSelectors = {
   phantomWalletSelect: 'button:has-text("Phantom")',
   metamaskWalletWithFunds: 'span:has-text("dydx1x5m...nsyl")',
   metamaskWalletNoFunds: 'span:has-text("$0")',
+  rememberMe: '[id="remember-me"]',
 };

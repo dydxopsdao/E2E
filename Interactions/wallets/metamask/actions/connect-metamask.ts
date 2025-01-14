@@ -1,48 +1,21 @@
 import { BrowserContext, Page } from "@playwright/test";
-import { logger } from "../../../../utils/logger/logging-utils";
-import { navigateToDydxPage } from "../../../dydx/general/actions/navigation.actions";
+import { logger } from "@utils/logger/logging-utils";
+import { navigateToDydxPage } from "@dydx/general/actions/navigation.actions";
 import {
   triggerWalletConnectionModal,
   selectWallet,
   sendRequest,
-} from "../../../dydx/connect-wallet/actions/connect-wallet.actions";
-import { MetamaskSelectors } from "../selectors/metamask-selectors";
-import { TEST_TIMEOUTS, WALLET_CONSTANTS } from "../../../../constants";
+} from "@dydx/connect-wallet/actions/connect-wallet.actions";
+import { MetamaskSelectors } from "@wallets/metamask/selectors/metamask-selectors";
+import { TEST_TIMEOUTS } from "@constants/test.constants";
+import { WALLET_CONSTANTS } from "@constants/wallet.constants";
+import { getMetaMaskPage } from "@wallets/metamask/actions/open-metamask";
 
 export interface ConnectMetaMaskOptions {
   timeout?: number;
   password?: string;
 }
 
-export async function getMetaMaskPage(
-  context: BrowserContext,
-  timeout: number = TEST_TIMEOUTS.DEFAULT
-): Promise<Page> {
-  logger.step("Retrieving MetaMask popup page", { timeout });
-  try {
-    const page = await context.waitForEvent("page", { timeout });
-    logger.success("MetaMask popup page retrieved");
-    return page;
-  } catch (error) {
-    logger.error("Failed to retrieve MetaMask popup page", error as Error);
-    const pages = context.pages();
-    const metaMaskPage = pages.find(
-      (p) =>
-        p.url().startsWith(WALLET_CONSTANTS.METAMASK.EXTENSION_BASE_URL) && 
-        p !== context.pages()[0]
-    );
-    if (!metaMaskPage) {
-      logger.error(
-        "Could not find MetaMask popup page after fallback",
-        error as Error,
-        { availablePages: pages.length }
-      );
-      throw new Error("Could not find MetaMask popup page");
-    }
-    logger.success("MetaMask popup page found from existing pages");
-    return metaMaskPage;
-  }
-}
 
 export async function handlePasswordPrompt(
   page: Page,
@@ -79,43 +52,50 @@ export async function confirmMetaMaskAction(
 ): Promise<void> {
   logger.step("Confirming MetaMask action", {
     timeout,
-    confirmSelector
+    confirmSelector,
   });
-  
-  const metaMaskPage = await getMetaMaskPage(context, timeout);
-  await metaMaskPage.bringToFront();
-  await handlePasswordPrompt(metaMaskPage, password);
-  await metaMaskPage.click(confirmSelector);
-  
-  logger.success("MetaMask action confirmed");
+
+  try {
+    const metaMaskPage = await getMetaMaskPage(context, timeout);
+    await metaMaskPage.bringToFront();
+    await handlePasswordPrompt(metaMaskPage, password);
+
+    // Attempt to click the confirmation selector
+    await metaMaskPage.click(confirmSelector);
+    logger.success("MetaMask action confirmed");
+  } catch (error) {
+    logger.error("Failed to confirm MetaMask action", error as Error, {
+      timeout,
+      confirmSelector,
+    });
+  }
 }
 
 export async function openDydxConnectMetaMask(
+  page: Page,
   context: BrowserContext,
   options: ConnectMetaMaskOptions = {}
 ): Promise<Page> {
-  const { 
+  const {
     timeout = TEST_TIMEOUTS.DEFAULT,
-    password = process.env.METAMASK_PASSWORD || WALLET_CONSTANTS.METAMASK.DEFAULT_PASSWORD 
+    password = process.env.METAMASK_PASSWORD ||
+      WALLET_CONSTANTS.METAMASK.DEFAULT_PASSWORD,
   } = options;
 
   if (!password) {
-    const error = new Error("MetaMask password must be provided either via options or METAMASK_PASSWORD env variable.");
+    const error = new Error(
+      "MetaMask password must be provided either via options or METAMASK_PASSWORD env variable."
+    );
     logger.error("Missing MetaMask password", error);
     throw error;
   }
 
-  logger.step("Starting connection process to dYdX", { 
-    timeout,
-    hasPassword: !!password 
-  });
+  logger.step("Starting connection process to dYdX");
 
   try {
-    const page = await context.newPage();
-
     // Navigate to dYdX portfolio overview
     await navigateToDydxPage(page, "/portfolio/overview", {
-      waitUntil: "domcontentloaded"
+      waitUntil: "domcontentloaded",
     });
 
     // Trigger wallet connection modal and select MetaMask
@@ -132,8 +112,8 @@ export async function openDydxConnectMetaMask(
 
     // Bring main page to front and send the request
     await page.bringToFront();
+    //await page.click((ConnectWalletSelectors.rememberMe);
     await sendRequest(page);
-
     // Additional MetaMask confirmations if needed
     const confirmSelectors = [
       MetamaskSelectors.confirmButtonFooter,
@@ -143,15 +123,14 @@ export async function openDydxConnectMetaMask(
     for (const selector of confirmSelectors) {
       await confirmMetaMaskAction(context, password, timeout, selector);
     }
-
     logger.success("MetaMask connection steps completed successfully", {
-      url: page.url()
+      url: page.url(),
     });
     return page;
   } catch (error) {
     logger.error("MetaMask connection failed", error as Error, {
       timeout,
-      hasPassword: !!password
+      hasPassword: !!password,
     });
     throw error;
   }

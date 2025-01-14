@@ -1,5 +1,5 @@
 import { Page } from "@playwright/test";
-import { logger } from "../../../../utils/logger/logging-utils";
+import { logger } from "@utils/logger/logging-utils";
 
 export async function navigateToDydxPage(
   page: Page,

@@ -1,66 +1,87 @@
-import { test } from "../../../../fixtures/metamaskFixture.ts";
-import { confirmMetaMaskAction } from "../../../../Interactions/wallets/metamask/actions/connect-metamask.ts";
-import { MetamaskSelectors } from "../../../../Interactions/wallets/metamask/selectors/metamask-selectors.ts";
+import { metamaskEyesTest as test} from "@fixtures/metamaskEyesFixture";
+import { confirmMetaMaskAction } from "@wallets/metamask/actions/connect-metamask";
+import { MetamaskSelectors } from "@wallets/metamask/selectors/metamask-selectors";
 import { expect } from "@playwright/test";
-import { navigateToDydxPage } from "../../../../Interactions/dydx/general/actions/navigation.actions.ts";
-import { selectWallet, sendRequest, triggerWalletConnectionModal } from "../../../../Interactions/dydx/connect-wallet/actions/connect-wallet.actions.ts";
-import { getFirstPageFromContext } from "../../../../utils/get-first-page-from-context.ts";
-import { ConnectWalletSelectors } from "../../../../Interactions/dydx/connect-wallet/selectors/connect-wallet-selectors.ts";
-import { TEST_TIMEOUTS } from "../../../../constants";
+import { navigateToDydxPage } from "@dydx/general/actions/navigation.actions";
+import {
+  selectWallet,
+  sendRequest,
+  triggerWalletConnectionModal,
+} from "@dydx/connect-wallet/actions/connect-wallet.actions";
+import { ConnectWalletSelectors } from "@dydx/connect-wallet/selectors/connect-wallet-selectors";
+import { TEST_TIMEOUTS } from "@constants/test.constants";
+import { logger } from "@utils/logger/logging-utils";
+import { visualCheck } from "@utils/visual-check";
 
-test(
-  "Connect MetaMask Wallet",
-  async ({ metamaskContext, eyes }) => {
+test("Connect MetaMask Wallet", async ({ metamaskContext, page, eyes }) => {
+  try {
+    // Arrange
+    logger.step("Setting up test environment");
     const password = process.env.METAMASK_PASSWORD || "";
-
-    const page = getFirstPageFromContext(metamaskContext);
-
-    // Navigate to dYdX portfolio overview
     await navigateToDydxPage(page, "/portfolio/overview", {
       waitUntil: "domcontentloaded",
     });
+    logger.info("Navigated to portfolio overview page");
 
-    // Trigger wallet connection modal and select MetaMask
+    // Act
+    logger.step("Initiating wallet connection flow");
     await triggerWalletConnectionModal(page);
-    await eyes.check("Connect Wallet Modal with Options", {
-      fully: true,
-      matchLevel: "Dynamic",
-    });
-    await selectWallet(page, "MetaMask");
+    if (eyes) {
+      logger.debug("Performing visual check of wallet modal");
+      await visualCheck(eyes, {
+        name: "Connect Wallet Modal with Options"
+      });
+    }
 
-    // Perform sequential MetaMask confirmations
+    logger.step("Connecting MetaMask wallet");
+    await selectWallet(page, "MetaMask");
     await confirmMetaMaskAction(
       metamaskContext,
       password,
       TEST_TIMEOUTS.DEFAULT,
       MetamaskSelectors.confirmButton
     );
+    logger.success("Initial MetaMask connection confirmed");
 
-    // Bring main page to front and send the request
+    logger.step("Processing signature request");
     await page.bringToFront();
-    await eyes.check("Sign Message Modal", {
-      fully: true,
-      matchLevel: "Dynamic",
-    })
+    if (eyes) {
+      logger.debug("Performing visual check of signature modal");
+      await visualCheck(eyes, {
+        name: "Sign Message Modal"
+      });
+    }
     await sendRequest(page);
+    logger.success("Signature request sent");
 
+    logger.step("Confirming additional MetaMask actions");
     const confirmSelectors = [
       MetamaskSelectors.confirmButtonFooter,
       MetamaskSelectors.confirmButtonFooter,
     ];
-
-    for (const selector of confirmSelectors) {
-      await confirmMetaMaskAction(metamaskContext, password, TEST_TIMEOUTS.DEFAULT, selector);
+    for (const [index, selector] of confirmSelectors.entries()) {
+      logger.debug(`Processing confirmation step ${index + 1}`);
+      await confirmMetaMaskAction(
+        metamaskContext,
+        password,
+        TEST_TIMEOUTS.DEFAULT,
+        selector
+      );
     }
+    logger.success("All MetaMask confirmations completed");
 
+    // Assert
+    logger.step("Verifying wallet connection");
     const walletWithFunds = page.locator(
       ConnectWalletSelectors.metamaskWalletWithFunds
     );
-
     await expect(walletWithFunds).toBeVisible();
-
-  });
-
+    logger.success("MetaMask wallet successfully connected");
+  } catch (error) {
+    logger.error("MetaMask connection test failed", error as Error);
+    throw error;
+  }
+});
 /* test("metamask connect", async ({ context }) => {
   const page = await openDydxConnectMetaMask(context);
 }); */
