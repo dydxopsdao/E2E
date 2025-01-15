@@ -94,8 +94,7 @@ jobs:
           sleep 3
 
       - name: Run Playwright tests with Applitools
-        id: playwright-test-run
-        run: npx playwright test
+        run: xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test
         env:
           APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
 
