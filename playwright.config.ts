@@ -3,7 +3,6 @@ import { defineConfig, ReporterDescription } from "@playwright/test";
 import { TEST_TIMEOUTS } from "./constants";
 
 const isApplitoolsRun = process.env.USE_APPLITOOLS === "true";
-const isLocalRun = process.env.LOCAL_RUN === "true";
 
 
 export default defineConfig({
@@ -36,7 +35,7 @@ export default defineConfig({
     trace: "retain-on-failure",
     navigationTimeout: TEST_TIMEOUTS.NAVIGATION,
     actionTimeout: TEST_TIMEOUTS.ACTION,
-    headless: !isLocalRun,
+    headless: false,
     screenshot: "only-on-failure",
   },
   projects: [

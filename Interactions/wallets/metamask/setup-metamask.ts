@@ -28,7 +28,7 @@ export async function setupMetaMaskContext(): Promise<BrowserContext> {
   const browserContext = await chromium.launchPersistentContext(
     tempProfileDir,
     {
-      headless: true,
+      headless: false,
         args: [
           `--disable-extensions-except=${metaMaskPath}`,
           `--load-extension=${metaMaskPath}`,
