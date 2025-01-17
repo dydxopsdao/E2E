@@ -11,8 +11,9 @@ import { instantDeposit } from "@dydx/instant-deposits/actions/instant-deposit";
 import { BrowserContext, Page } from "@playwright/test";
 import { checkNotificationAppearance } from "@interactions/dydx/notifications/actions/notification-actions";
 import { Eyes } from "@applitools/eyes-playwright";
+import { NotificationSelectors } from "@interactions/dydx/notifications/selectors/notification-selectors";
 
-const depositAmount = 10;
+const depositAmount = 12;
 
 test.describe("Instant deposit flow tests", () => {
   test.describe.configure({ retries: 1 });
@@ -41,6 +42,9 @@ test.describe("Instant deposit flow tests", () => {
     // Check for notification appearance
     await checkNotificationAppearance(
       page,
+      NotificationSelectors.instantDepositToast,
+      NotificationSelectors.instantDepositHeader,
+      NotificationSelectors.depositCompletedMessage,
       "Instant deposit",
       "Deposit completed"
     );

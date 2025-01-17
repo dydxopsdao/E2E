@@ -9,12 +9,12 @@ import {
   waitForDepositSuccess,
 } from "@dydx/instant-deposits/actions/wait-for-instant-deposit";
 import { TEST_TIMEOUTS } from "@constants/test.constants";
-import { visualCheck } from "@utils/visual-check"; // <-- your Applitools helper (if you have one)
+import { visualCheck } from "@utils/visual-check";
 
 // Type for optional parameters
 interface InstantDepositOptions {
-  eyes?: Eyes; // Applitools Eyes instance, if available
-  performEyesCheck?: boolean; // Whether to do a visual check, default false
+  eyes?: Eyes;
+  performEyesCheck?: boolean;
 }
 
 /**

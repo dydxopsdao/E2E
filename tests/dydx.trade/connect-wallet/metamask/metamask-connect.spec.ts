@@ -27,7 +27,6 @@ test("Connect MetaMask Wallet", async ({ metamaskContext, page, eyes }) => {
     logger.step("Initiating wallet connection flow");
     await triggerWalletConnectionModal(page);
     if (eyes) {
-      logger.debug("Performing visual check of wallet modal");
       await visualCheck(eyes, {
         name: "Connect Wallet Modal with Options"
       });
@@ -46,7 +45,6 @@ test("Connect MetaMask Wallet", async ({ metamaskContext, page, eyes }) => {
     logger.step("Processing signature request");
     await page.bringToFront();
     if (eyes) {
-      logger.debug("Performing visual check of signature modal");
       await visualCheck(eyes, {
         name: "Sign Message Modal"
       });

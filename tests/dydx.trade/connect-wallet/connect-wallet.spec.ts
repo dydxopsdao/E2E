@@ -33,7 +33,7 @@ test("Language Dropdown Works", async ({ page, eyes }: { page: Page, eyes: Eyes 
       .waitFor({ state: "visible", timeout: TEST_TIMEOUTS.DEFAULT });
     logger.success("Language dropdown menu is visible");
 
-    logger.step("Performing visual check");
+  
     await visualCheck(eyes, {
       name: "Language Dropdown Open"
     });

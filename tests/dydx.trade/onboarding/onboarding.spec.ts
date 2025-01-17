@@ -25,7 +25,6 @@ test.skip("Introducing dydx unlimited", async ({
     await openDydxConnectMetaMask(page, metamaskContext);
     // Act
     console.log(page.url());
-    await page.pause();
     await page.click(InstantDepositsSelectors.instantDepositsCloseButton);
     // Assert
     await visualCheck(eyes, {

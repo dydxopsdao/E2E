@@ -32,7 +32,7 @@ export default defineConfig({
         }
       : {}),
     viewport: { width: 1920, height: 1080 },
-    trace: "retain-on-failure",
+    trace: "on",
     navigationTimeout: TEST_TIMEOUTS.NAVIGATION,
     actionTimeout: TEST_TIMEOUTS.ACTION,
     headless: false,
