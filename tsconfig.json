@@ -11,7 +11,9 @@
       "@constants/*": ["constants/*"],
       "@dydx/*": ["Interactions/dydx/*"],
       "@wallets/*": ["Interactions/wallets/*"],
-      "@config/*": ["config/*"]
+      "@config/*": ["config/*"],
+      "@providers/*": ["providers/*"],
+      "@types/*": ["types/*"]
     },
     "strict": true,
     "esModuleInterop": true

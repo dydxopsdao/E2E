@@ -1,43 +1,45 @@
 // withdraw-helper.ts
-
 import { Page } from "@playwright/test";
-import { Eyes } from "@applitools/eyes-playwright";
 import { logger } from "@utils/logger/logging-utils";
-import { visualCheck } from "@utils/visual-check";
+import { VisualTestingHelper } from "@utils/visual-check";
 import { TEST_TIMEOUTS } from "@constants/test.constants";
 import { WithdrawSelectors } from "@dydx/withdraw/selectors/withdraw-selectors";
 
 /**
- * Performs a single step (labeled for logging) and optionally takes an Applitools visual snapshot.
+ * Options for steps that can include visual testing
+ */
+interface StepOptions {
+  visualTest?: VisualTestingHelper;
+  performVisualCheck?: boolean;
+  checkName: string;
+}
+
+/**
+ * Performs a single step (labeled for logging) and optionally takes a visual snapshot.
  *
+ * @param page        Playwright Page object
  * @param stepLabel   A descriptive label for logging (e.g. "Clicking the Withdraw button")
- * @param action      An async function that performs the step (e.g. `clickWithdrawButton(page)`)
- * @param options     Includes Eyes instance, whether to do a visual check, and the snapshot name
+ * @param action      An async function that performs the step
+ * @param options     Visual testing options
  */
 async function performStep(
+  page: Page,
   stepLabel: string,
   action: () => Promise<void>,
-  options: {
-    eyes?: Eyes;
-    performEyesCheck?: boolean;
-    checkName: string;
-  }
+  options: StepOptions
 ): Promise<void> {
-  const { eyes, performEyesCheck = false, checkName } = options;
+  const { visualTest, performVisualCheck = false, checkName } = options;
 
   logger.step(stepLabel);
   await action();
 
-  if (performEyesCheck && eyes) {
-
-    await visualCheck(eyes, { name: checkName });
+  if (performVisualCheck && visualTest) {
+    await visualTest.check(page, { name: checkName });
   }
 }
 
 /**
  * Inputs the wallet address into the wallet address field.
- * @param page    Playwright Page object
- * @param address Wallet address to input
  */
 export async function inputWalletAddress(
   page: Page,
@@ -56,8 +58,6 @@ export async function inputWalletAddress(
 
 /**
  * Opens the dropdown and selects an option.
- * @param page           Playwright Page object
- * @param optionSelector Selector for the option to select
  */
 export async function selectDropdownOption(
   page: Page,
@@ -77,8 +77,6 @@ export async function selectDropdownOption(
 
 /**
  * Enters the withdrawal amount into the amount input field.
- * @param page   Playwright Page object
- * @param amount Amount to enter
  */
 export async function enterAmount(page: Page, amount: string): Promise<void> {
   logger.step(`Entering withdrawal amount: ${amount}`);
@@ -94,7 +92,6 @@ export async function enterAmount(page: Page, amount: string): Promise<void> {
 
 /**
  * Clicks the Withdraw button
- * @param page Playwright Page object
  */
 export async function clickWithdrawButton(page: Page): Promise<void> {
   logger.step("Clicking the Withdraw button");
@@ -110,16 +107,14 @@ export async function clickWithdrawButton(page: Page): Promise<void> {
 
 /**
  * Simulates a more natural withdraw button interaction
- * @param page Playwright Page object
  */
 export async function clickWithdrawButtonComplete(page: Page): Promise<void> {
   logger.step("Preparing for natural withdrawal completion");
 
   const button = page.locator(WithdrawSelectors.withdrawButtonComplete);
 
-  await page.waitForLoadState('domcontentloaded');
+  await page.waitForLoadState("domcontentloaded");
   await page.locator('h2:has-text("Withdraw")').click();
-  // Wait for button
   await button.waitFor({ state: "visible" });
 
   // Move mouse to random position first (like a real user)
@@ -128,12 +123,12 @@ export async function clickWithdrawButtonComplete(page: Page): Promise<void> {
 
   // Get button position
   const box = await button.boundingBox();
-  if (!box) throw new Error('Could not find button position');
+  if (!box) throw new Error("Could not find button position");
 
   // Move mouse to button gradually (like a real user)
   const targetX = box.x + box.width / 2;
   const targetY = box.y + box.height / 2;
-  
+
   await page.mouse.move(targetX - 20, targetY - 20);
   await page.waitForTimeout(200);
   await page.mouse.move(targetX - 10, targetY - 10);
@@ -141,17 +136,13 @@ export async function clickWithdrawButtonComplete(page: Page): Promise<void> {
   await page.mouse.move(targetX - 5, targetY - 5);
   await page.waitForTimeout(200);
   await page.mouse.move(targetX, targetY);
-  
-  // Hover for a moment (like a real user)
-  await page.waitForTimeout(500);
 
-  // Click with natural timing
+  await page.waitForTimeout(500);
   await page.mouse.down();
   await page.waitForTimeout(200);
   await page.mouse.up();
-
-  // Let any immediate reactions settle
   await page.waitForTimeout(1000);
+
   logger.success("Natural withdraw button interaction completed");
 }
 
@@ -159,19 +150,13 @@ export async function clickWithdrawButtonComplete(page: Page): Promise<void> {
  * Options for `completeWithdrawal`
  */
 interface WithdrawalOptions {
-  eyes?: Eyes;
-  performEyesCheck?: boolean; // defaults to false
+  visualTest?: VisualTestingHelper;
+  performVisualCheck?: boolean;
 }
 
 /**
  * Combines all withdrawal steps: inputting address, selecting dropdown option,
  * entering amount, and clicking Withdraw.
- *
- * @param page           Playwright Page object
- * @param address        Wallet address to input
- * @param optionSelector Selector for the dropdown option to select
- * @param amount         Amount to enter (defaults to "10")
- * @param options        Optional visual check + Eyes
  */
 export async function completeWithdrawal(
   page: Page,
@@ -180,72 +165,77 @@ export async function completeWithdrawal(
   amount: string = "12",
   options: WithdrawalOptions = {}
 ): Promise<void> {
-  const { eyes, performEyesCheck = false } = options;
+  const { visualTest, performVisualCheck = false } = options;
 
   logger.step("Starting the complete withdrawal process");
 
   // Step 1: Click the initial Withdraw button
   await performStep(
+    page,
     "Clicking the initial Withdraw button",
     async () => {
       await clickWithdrawButton(page);
     },
     {
-      eyes,
-      performEyesCheck,
+      visualTest,
+      performVisualCheck,
       checkName: "After Clicking Withdraw Button",
     }
   );
 
   // Step 2: Input wallet address
   await performStep(
+    page,
     "Inputting wallet address",
     async () => {
       await inputWalletAddress(page, address);
     },
     {
-      eyes,
-      performEyesCheck,
+      visualTest,
+      performVisualCheck,
       checkName: "After Input Wallet Address",
     }
   );
 
   // Step 3: Select dropdown option
   await performStep(
+    page,
     "Selecting dropdown option",
     async () => {
       await selectDropdownOption(page, optionSelector);
     },
     {
-      eyes,
-      performEyesCheck,
+      visualTest,
+      performVisualCheck,
       checkName: "After Selecting Dropdown Option",
     }
   );
 
-  // Step 4: Enter amount (defaults to "10")
+  // Step 4: Enter amount
   await performStep(
+    page,
     `Entering amount (${amount})`,
     async () => {
       await enterAmount(page, amount);
     },
     {
-      eyes,
-      performEyesCheck,
+      visualTest,
+      performVisualCheck,
       checkName: `After Entering Amount (${amount})`,
     }
   );
 
   // Step 5: Click the Withdraw button
   await performStep(
+    page,
     "Clicking the Withdraw button",
     async () => {
       await page.waitForTimeout(2000);
       await clickWithdrawButtonComplete(page);
     },
     {
-      eyes,
-      performEyesCheck,
+      visualTest,
+      performVisualCheck,
       checkName: "After Final Withdraw Click",
     }
   );

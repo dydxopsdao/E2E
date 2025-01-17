@@ -1,30 +1,44 @@
-// helpers/visual-check.ts
-import { Eyes, Target } from "@applitools/eyes-playwright";
+import { Page } from "@playwright/test";
+import { VisualCheckOptions } from "../types/visual-testing";
 import { logger } from "@utils/logger/logging-utils";
+import { IVisualProvider } from "../types/visual-testing";
 
-export interface VisualCheckOptions {
-  name: string; // e.g. "Language Dropdown"
-  fully?: boolean; // optional, default = true
-  matchLevel?: "Layout" | "Strict" | "Dynamic" | "Exact"; 
-}
+export class VisualTestingHelper {
+  constructor(private provider: IVisualProvider) {}
 
-export async function visualCheck(eyes: Eyes, opts: VisualCheckOptions) {
-  const { name, fully = true, matchLevel = "Layout" } = opts;
-
-  logger.step(`Performing visual check: ${name}`);
-
-  // Build a chain-based Target
-  let target = Target.window();
-
-  // If user wants a full-page screenshot
-  if (fully) {
-    target = target.fully();
+  async initialize(
+    page: Page,
+    appName: string,
+    testName: string
+  ): Promise<void> {
+    try {
+      await this.provider.initialize(page, appName, testName);
+    } catch (error) {
+      logger.error(`Failed to initialize visual provider`, error as Error);
+      throw error;
+    }
   }
 
-  // If user wants a specific match level
-  target = target.matchLevel(matchLevel);
+  async check(page: Page, options: VisualCheckOptions): Promise<void> {
+    const { name } = options;
 
-  await eyes.check(name, target);
+    logger.step(`Performing visual check: ${name}`);
 
-  logger.success(`Completed visual check: ${name}`);
+    try {
+      await this.provider.check(page, options);
+      logger.success(`Completed visual check: ${name}`);
+    } catch (error) {
+      logger.error(`Visual check failed for ${name}`, error as Error);
+      throw error;
+    }
+  }
+
+  async cleanup(): Promise<void> {
+    try {
+      await this.provider.cleanup();
+    } catch (error) {
+      logger.error(`Failed to cleanup visual provider`, error as Error);
+      throw error;
+    }
+  }
 }

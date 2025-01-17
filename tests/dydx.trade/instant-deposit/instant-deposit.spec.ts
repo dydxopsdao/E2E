@@ -1,4 +1,4 @@
-import { metamaskEyesTest as test } from "@fixtures/metamaskEyesFixture";
+import { metamaskVisualTest as test } from "@fixtures/metamaskVisualFixture";
 import { openDydxConnectMetaMask } from "@wallets/metamask/actions/connect-metamask";
 import { TEST_TIMEOUTS } from "@constants/test.constants.js";
 import { addNetwork } from "@wallets/metamask/actions/add-network";
@@ -10,8 +10,8 @@ import { closeOnboarding } from "@dydx/onboarding/actions/onboarding.actions";
 import { instantDeposit } from "@dydx/instant-deposits/actions/instant-deposit";
 import { BrowserContext, Page } from "@playwright/test";
 import { checkNotificationAppearance } from "@interactions/dydx/notifications/actions/notification-actions";
-import { Eyes } from "@applitools/eyes-playwright";
 import { NotificationSelectors } from "@interactions/dydx/notifications/selectors/notification-selectors";
+import { VisualTestingHelper } from "@utils/visual-check";
 
 const depositAmount = 12;
 
@@ -19,11 +19,11 @@ test.describe("Instant deposit flow tests", () => {
   test.describe.configure({ retries: 1 });
   test("instant deposit core flow - Arbitrum One", async ({
     metamaskContext,
-    eyes,
+    visualTest,
     page,
   }: {
     metamaskContext: BrowserContext;
-    eyes: Eyes;
+    visualTest: VisualTestingHelper;
     page: Page;
   }) => {
     // Open dYdX and connect MetaMask
@@ -37,7 +37,7 @@ test.describe("Instant deposit flow tests", () => {
     const initialPortfolioValue = await checkInitialPortfolioValue(page);
 
     // Perform the deposit workflow
-    await instantDeposit(page, depositAmount, metamaskContext, { eyes, performEyesCheck: true});
+    await instantDeposit(page, depositAmount, metamaskContext, { visualTest, performVisualCheck: true});
 
     // Check for notification appearance
     await checkNotificationAppearance(

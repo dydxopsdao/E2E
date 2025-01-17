@@ -9,6 +9,9 @@
   "description": "",
   "devDependencies": {
     "@applitools/eyes-playwright": "^1.34.1",
+    "@percy/cli": "^1.30.6",
+    "@percy/playwright": "^1.0.7",
+    "@percy/sdk-utils": "^1.30.6",
     "@playwright/test": "^1.49.1",
     "@types/node": "^22.10.2",
     "@types/unzipper": "^0.10.10",

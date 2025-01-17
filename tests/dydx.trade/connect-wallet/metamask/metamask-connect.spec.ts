@@ -1,7 +1,7 @@
-import { metamaskEyesTest as test} from "@fixtures/metamaskEyesFixture";
+import { metamaskVisualTest as test} from "@fixtures/metamaskVisualFixture";
 import { confirmMetaMaskAction } from "@wallets/metamask/actions/connect-metamask";
 import { MetamaskSelectors } from "@wallets/metamask/selectors/metamask-selectors";
-import { expect } from "@playwright/test";
+import { BrowserContext, expect, Page } from "@playwright/test";
 import { navigateToDydxPage } from "@dydx/general/actions/navigation.actions";
 import {
   selectWallet,
@@ -11,9 +11,9 @@ import {
 import { ConnectWalletSelectors } from "@dydx/connect-wallet/selectors/connect-wallet-selectors";
 import { TEST_TIMEOUTS } from "@constants/test.constants";
 import { logger } from "@utils/logger/logging-utils";
-import { visualCheck } from "@utils/visual-check";
+import { VisualTestingHelper } from "@utils/visual-check";
 
-test("Connect MetaMask Wallet", async ({ metamaskContext, page, eyes }) => {
+test("Connect MetaMask Wallet", async ({ metamaskContext, page, visualTest }: { metamaskContext: BrowserContext, page: Page, visualTest: VisualTestingHelper }) => {
   try {
     // Arrange
     logger.step("Setting up test environment");
@@ -26,8 +26,8 @@ test("Connect MetaMask Wallet", async ({ metamaskContext, page, eyes }) => {
     // Act
     logger.step("Initiating wallet connection flow");
     await triggerWalletConnectionModal(page);
-    if (eyes) {
-      await visualCheck(eyes, {
+    if (visualTest) {
+      await visualTest.check(page, {
         name: "Connect Wallet Modal with Options"
       });
     }
@@ -44,8 +44,8 @@ test("Connect MetaMask Wallet", async ({ metamaskContext, page, eyes }) => {
 
     logger.step("Processing signature request");
     await page.bringToFront();
-    if (eyes) {
-      await visualCheck(eyes, {
+    if (visualTest) {
+      await visualTest.check(page, {
         name: "Sign Message Modal"
       });
     }

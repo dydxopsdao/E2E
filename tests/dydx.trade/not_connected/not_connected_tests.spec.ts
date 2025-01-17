@@ -1,8 +1,7 @@
-import { eyesTest as test } from "@fixtures/eyesFixture";
+import { visualTest as test } from "@fixtures/visualTestingFixture";
 import { Page, expect } from "@playwright/test";
 import { TEST_TIMEOUTS } from "@constants/test.constants";
 import { logger } from "@utils/logger/logging-utils";
-import { visualCheck } from "@utils/visual-check";
 
 const urls = [
   {
@@ -43,6 +42,7 @@ async function waitForPageLoad(page: Page, elementLocator: string) {
     await page
       .locator(elementLocator)
       .waitFor({ state: "visible", timeout: TEST_TIMEOUTS.ELEMENT });
+    await page.waitForTimeout(5000);
     logger.success(`Element found: ${elementLocator}`);
   } catch (error) {
     logger.warning(
@@ -53,7 +53,7 @@ async function waitForPageLoad(page: Page, elementLocator: string) {
 }
 
 for (const { url, name, elementLocator } of urls) {
-  test(`Visual check for ${name}`, async ({ page, eyes }) => {
+  test(`Visual check for ${name}`, async ({ page, visualTest }) => {
     try {
       // Arrange
       logger.step(`Setting up test for ${name}`);
@@ -69,7 +69,7 @@ for (const { url, name, elementLocator } of urls) {
       await expect(element).toBeVisible({ timeout: TEST_TIMEOUTS.ELEMENT })
         .catch(() => logger.warning(`Element visibility check failed for ${name}`));
 
-      await visualCheck(eyes, {
+      await visualTest.check(page, {
         name: name
       });
     } catch (error) {
