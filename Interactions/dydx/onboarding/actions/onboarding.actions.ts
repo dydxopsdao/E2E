@@ -4,7 +4,6 @@ import { OnboardingSelectors } from "@dydx/onboarding/selectors/onboarding.selec
 
 export async function learnMoreStepOnboarding(page: Page): Promise<void> {
   try {
-    // Try clicking the learn more button first
     await page.click(OnboardingSelectors.learnMoreButton);
     logger.debug('Successfully clicked learn more button');
   } catch (error) {
@@ -13,7 +12,6 @@ export async function learnMoreStepOnboarding(page: Page): Promise<void> {
 }
 export async function nextStepOnboarding(page: Page): Promise<void> {
   try {
-    // Proceed with next button
     await page.click(OnboardingSelectors.nextButton);
     logger.debug("Successfully clicked next button");
   } catch (error) {

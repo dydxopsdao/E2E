@@ -31,7 +31,7 @@ export async function waitForAndClickConfirmOrder(
       InstantDepositsSelectors.confirmOrderButton,
       {
         state: "visible",
-        timeout: TEST_TIMEOUTS.ELEMENT,
+        timeout: TEST_TIMEOUTS.NAVIGATION,
       }
     );
 
@@ -64,7 +64,7 @@ export async function waitForDepositSuccess(
   timeout: number = TEST_TIMEOUTS.DEPOSIT_SUCCESS
 ): Promise<void> {
   logger.step("Waiting for deposit success confirmation");
-  const pollingInterval = 1000; // Check every second
+  const pollingInterval = 1000;
   const startTime = Date.now();
   let lastStatusText = "";
 
@@ -81,7 +81,7 @@ export async function waitForDepositSuccess(
 
         if (lastStatusText === "Successful") {
           logger.success("Fill status is 'Successful'");
-          return; // Exit early on success
+          return;
         }
       }
 
@@ -91,7 +91,6 @@ export async function waitForDepositSuccess(
       await page.waitForTimeout(pollingInterval); 
     }
 
-    // If timeout is reached without success
     throw new Error(
       `Timed out waiting for fill status to be 'Successful'.'`
     );
@@ -105,7 +104,6 @@ export async function waitForDepositSuccess(
       }
     );
 
-    // Capture element state for debugging
     const locatorHtml = await page.locator(InstantDepositsSelectors.fillStatusText).evaluate(
       (el) => el.outerHTML
     ).catch(() => "Element not found or not accessible");

@@ -1,5 +1,5 @@
 import { BrowserContext, Page } from "@playwright/test";
-import { Eyes } from "@applitools/eyes-playwright"; // if needed
+import { Eyes } from "@applitools/eyes-playwright";
 import { logger } from "@utils/logger/logging-utils";
 import { InstantDepositsSelectors } from "@dydx/instant-deposits/selectors/instant-deposits.selectors";
 import { MetamaskSelectors } from "@wallets/metamask/selectors/metamask-selectors";
@@ -9,9 +9,8 @@ import {
   waitForDepositSuccess,
 } from "@dydx/instant-deposits/actions/wait-for-instant-deposit";
 import { TEST_TIMEOUTS } from "@constants/test.constants";
-import { visualCheck } from "@utils/visual-check";
+import { maybeVisualCheck, visualCheck } from "@utils/visual-check";
 
-// Type for optional parameters
 interface InstantDepositOptions {
   eyes?: Eyes;
   performEyesCheck?: boolean;
@@ -41,30 +40,26 @@ export async function instantDeposit(
     logger.debug("Clicking the Deposit button");
     await page.click(InstantDepositsSelectors.depositButton);
     
-    if (performEyesCheck && eyes) {
-      await page.waitForTimeout(2000);
-      await visualCheck(eyes, {
-        name: "Instant Deposit - Start",
-      });
-    }
+    await maybeVisualCheck(eyes, performEyesCheck, "Instant Deposit - Start", page);
+
     logger.debug("Clicking the first Continue button");
     await page.click(InstantDepositsSelectors.continueButton);
 
-    if (performEyesCheck && eyes) {
-      await page.waitForTimeout(2000);
-      await visualCheck(eyes, {
-        name: "Instant Deposit - Enter Amount",
-      });
-    }
+    await maybeVisualCheck(
+      eyes,
+      performEyesCheck,
+      "Instant Deposit - Enter amount",
+      page
+    );
     logger.debug(`Filling deposit amount: ${amount}`);
     await page.fill(InstantDepositsSelectors.amountInput, amount.toString());
 
-    if (performEyesCheck && eyes) {
-      await page.waitForTimeout(2000);
-      await visualCheck(eyes, {
-        name: "Instant Deposit - Entered Amount",
-      });
-    }
+    await maybeVisualCheck(
+      eyes,
+      performEyesCheck,
+      "Instant Deposit - Entered amount",
+      page
+    );
     logger.debug("Clicking the second Continue button");
     await page.click(InstantDepositsSelectors.continueButton);
 
@@ -104,12 +99,12 @@ export async function instantDeposit(
     logger.step("Waiting for deposit success");
     await waitForDepositSuccess(page);
 
-    if (performEyesCheck && eyes) {
-      await page.waitForTimeout(2000);
-      await visualCheck(eyes, {
-        name: "Deposit Success",
-      });
-    }
+    await maybeVisualCheck(
+      eyes,
+      performEyesCheck,
+      "Instant Deposit - Success",
+      page
+    );
 
     logger.debug("Clicking the Close button on the Instant Deposits modal");
     await page.click(InstantDepositsSelectors.instantDepositsCloseButton);

@@ -11,12 +11,9 @@ import { visualCheck } from "@utils/visual-check";
 test("Language Dropdown Works", async ({ page, eyes }: { page: Page, eyes: Eyes }) => {
   try {
     // Arrange
-    logger.step("Setting up test environment");
     await navigateToDydxPage(page, "/portfolio/overview");
-    logger.info("Navigated to portfolio overview page");
 
     // Act
-    logger.step("Opening wallet connection modal");
     await triggerWalletConnectionModal(page);
     await page
       .locator(ConnectWalletSelectors.walletConnectModal)

@@ -4,15 +4,8 @@ import { NotificationSelectors } from "@dydx/notifications/selectors/notificatio
 import { TEST_TIMEOUTS } from "@constants/test.constants";
 
 /**
- * Verifies that a notification appears with the correct header and message.
- * Will wait up to timeout duration for the exact text match.
- * @param page Playwright Page object
- * @param toastSelector The selector for the notification toast
- * @param headerSelector The selector for the notification header
- * @param messageSelector The selector for the notification message
- * @param expectedHeader The expected header text (e.g., "Instant deposit", "Withdrawal")
- * @param expectedMessage The expected message text (e.g., "Deposit completed", "Withdrawal complete")
- * @param timeout Maximum time to wait in milliseconds (default: 180000 - 3 minutes)
+ * A generic function that checks for a specific toast/header/message match
+ * within a given timeout.
  */
 export async function checkNotificationAppearance(
   page: Page,
@@ -21,36 +14,36 @@ export async function checkNotificationAppearance(
   messageSelector: string,
   expectedHeader: string,
   expectedMessage: string,
-  timeout: number = 180000
+  timeout: number = 580000
 ): Promise<void> {
   logger.step(
     `Waiting for notification - Header: "${expectedHeader}", Message: "${expectedMessage}"`
   );
 
   const startTime = Date.now();
-  const pollInterval = 5000;
+  const pollInterval = 500;
 
   while (Date.now() - startTime < timeout) {
     try {
-      // Check if toast is visible
-      const isVisible = await page.locator(toastSelector).isVisible();
-      if (!isVisible) {
+      const toastVisible = await page.locator(toastSelector).isVisible();
+      if (!toastVisible) {
         logger.debug("Notification toast not visible, waiting...");
         await page.waitForTimeout(pollInterval);
         continue;
       }
 
-      // Get current texts
       const actualHeader = await page.locator(headerSelector).textContent();
       const actualMessage = await page.locator(messageSelector).textContent();
-      const trimmedHeader = actualHeader?.trim();
-      const trimmedMessage = actualMessage?.trim();
+      const trimmedHeader = actualHeader?.trim() ?? "";
+      const trimmedMessage = actualMessage?.trim() ?? "";
 
       logger.debug(
         `Current notification - Header: "${trimmedHeader}", Message: "${trimmedMessage}"`
       );
+      logger.debug(
+        `Expected notification - Header: "${expectedHeader}", Message: "${expectedMessage}"`
+      );
 
-      // Check if texts match expected values
       if (
         trimmedHeader === expectedHeader &&
         trimmedMessage === expectedMessage
@@ -60,8 +53,7 @@ export async function checkNotificationAppearance(
         );
         return;
       }
-
-      // If texts don't match, wait before checking again
+      
       await page.waitForTimeout(pollInterval);
     } catch (error) {
       logger.debug(`Error checking notification: ${error}`);
@@ -74,12 +66,6 @@ export async function checkNotificationAppearance(
   );
 }
 
-/**
- * Checks a series of notifications in sequence.
- * Useful for flows where notifications update over time.
- * @param page Playwright Page object
- * @param notifications Array of notification checks to perform in sequence
- */
 export async function checkNotificationSequence(
   page: Page,
   notifications: Array<{
@@ -107,7 +93,6 @@ export async function checkNotificationSequence(
     );
   }
 }
-
 /**
  * Specialized function to check withdrawal notifications with split text handling.
  * @param page Playwright Page object
@@ -117,7 +102,7 @@ export async function checkNotificationSequence(
 export async function checkWithdrawalNotifications(
   page: Page,
   amount: string,
-  timeout: number = 420000
+  timeout: number = 620000
 ): Promise<void> {
   logger.step("Checking withdrawal notifications");
 

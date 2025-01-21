@@ -24,7 +24,7 @@ export async function getPortfolioValue(page: Page): Promise<number> {
   }
 
   // Parse the value to a number
-  const cleanedValue = portfolioValueText.replace(/[^0-9.]/g, ""); // Strip non-numeric chars
+  const cleanedValue = portfolioValueText.replace(/[^0-9.]/g, "");
   const portfolioValue = parseFloat(cleanedValue);
   if (isNaN(portfolioValue)) {
     throw new Error(`Failed to parse portfolio value: ${portfolioValueText}`);
@@ -47,7 +47,6 @@ export async function checkInitialPortfolioValue(page: Page): Promise<number> {
   logger.info(`Initial Portfolio Value: ${initialPortfolioValue}`);
   return initialPortfolioValue;
 }
-
 /**
  * Checks and logs the final portfolio value and validates the change (positive or negative).
  * @param page Playwright Page object
@@ -63,44 +62,61 @@ export async function checkFinalPortfolioValue(
 ): Promise<void> {
   logger.step("Checking final portfolio value");
 
-  // Give any UI updates a moment to settle
   await page.waitForTimeout(1000);
 
-  // 1) Get the final portfolio value
-  const rawFinalValue = await getPortfolioValue(page);
-  const finalPortfolioValue = parseFloat(rawFinalValue.toFixed(2));
-
-  logger.info(`Final Portfolio Value: ${finalPortfolioValue}`);
-
-  // 2) Calculate how much the portfolio has changed (final - initial)
-  const actualChange = parseFloat(
-    (finalPortfolioValue - initialPortfolioValue).toFixed(2)
-  );
-
-  // 3) Compute the allowed range around the `expectedIncrease`
-  //    Note that if `expectedIncrease` is negative, upperBound may end up 
-  //    numerically lower than lowerBound, so we swap them with Math.min / Math.max.
   const lowerBound = expectedIncrease * (1 - variancePercent / 100);
   const upperBound = expectedIncrease * (1 + variancePercent / 100);
 
   const minAllowed = Math.min(lowerBound, upperBound);
   const maxAllowed = Math.max(lowerBound, upperBound);
 
-  // 4) Check if the actual change is within the allowed range
-  if (actualChange < minAllowed || actualChange > maxAllowed) {
-    throw new Error(
-      `Portfolio value change (${actualChange}) is not within ` +
-        `${variancePercent}% variance of the expected ${expectedIncrease}.
-         Allowed range: [${minAllowed.toFixed(2)}, ${maxAllowed.toFixed(2)}]
-         Initial: ${initialPortfolioValue},
-         Final: ${finalPortfolioValue},
-         Actual Change: ${actualChange}`
+  let finalPortfolioValue = initialPortfolioValue;
+  let actualChange = 0;
+  let attempt = 0;
+  let success = false;
+
+  while (attempt < 3) {
+    attempt++;
+    const rawFinalValue = await getPortfolioValue(page);
+    finalPortfolioValue = parseFloat(rawFinalValue.toFixed(2));
+    logger.info(`Final Portfolio Value (Attempt ${attempt}): ${finalPortfolioValue}`);
+
+    actualChange = parseFloat(
+      (finalPortfolioValue - initialPortfolioValue).toFixed(2)
     );
+    logger.info(`Actual Change: ${actualChange}`);
+
+    if (actualChange >= minAllowed && actualChange <= maxAllowed) {
+      success = true;
+      break;
+    }
+    if (actualChange === 0 && attempt < 3) {
+      logger.warn(
+        `Portfolio value change is 0 on attempt ${attempt}. ` +
+          "Waiting 5 seconds before re-checking..."
+      );
+      await page.waitForTimeout(5000);
+    } else {
+      break;
+    }
   }
 
+  if (!success) {
+    if (actualChange < minAllowed || actualChange > maxAllowed) {
+      throw new Error(
+        `Portfolio value change (${actualChange}) is not within ` +
+          `${variancePercent}% variance of the expected ${expectedIncrease}.
+           Allowed range: [${minAllowed.toFixed(2)}, ${maxAllowed.toFixed(2)}]
+           Attempts: ${attempt},
+           Initial: ${initialPortfolioValue},
+           Final: ${finalPortfolioValue},
+           Actual Change: ${actualChange}`
+      );
+    }
+  }
   logger.success(
     `Portfolio value changed by approx. ${expectedIncrease} ` +
-      `(within ±${variancePercent}% variance)`
+    `(within ±${variancePercent}% variance) after ${attempt} attempt(s).`
   );
 }
 

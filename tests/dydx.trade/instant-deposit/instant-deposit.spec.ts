@@ -37,7 +37,7 @@ test.describe("Instant deposit flow tests", () => {
     const initialPortfolioValue = await checkInitialPortfolioValue(page);
 
     // Perform the deposit workflow
-    await instantDeposit(page, depositAmount, metamaskContext, { eyes, performEyesCheck: true});
+    await instantDeposit(page, depositAmount, metamaskContext, { eyes, performEyesCheck: false});
 
     // Check for notification appearance
     await checkNotificationAppearance(

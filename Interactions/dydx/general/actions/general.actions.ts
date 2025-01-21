@@ -4,7 +4,6 @@ import { logger } from "@utils/logger/logging-utils";
 
 export async function closeDialog(page: Page): Promise<void> {
   try {
- 
     await page.waitForSelector(OnboardingSelectors.closeButton);
     await page.click(OnboardingSelectors.closeButton);
     logger.debug("Successfully closed dialog");

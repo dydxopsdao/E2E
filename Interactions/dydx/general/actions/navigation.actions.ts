@@ -20,3 +20,25 @@ export async function navigateToDydxPage(
     throw error;
   }
 }
+
+export async function navigateToViaHeader(
+  page: Page,
+  menuItem: string
+): Promise<void> {
+  logger.step(`Navigating to dYdX menu item: ${menuItem}`);
+  try {
+    const selector = `li[data-item="${menuItem.toUpperCase()}"]`;
+
+    // Wait for the selector to appear and click it
+    await page.waitForSelector(selector, { state: "visible", timeout: 5000 });
+    await page.click(selector);
+
+    logger.success(`Navigated to dYdX menu item: ${menuItem}`);
+  } catch (error) {
+    logger.error(
+      `Failed to navigate to dYdX menu item: ${menuItem}`,
+      error as Error
+    );
+    throw error;
+  }
+}

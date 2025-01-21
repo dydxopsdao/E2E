@@ -1,4 +1,3 @@
-
 export const OnboardingSelectors = {
   learnMoreButton: 'button:has-text("Learn more")',
   nextButton: 'button:has-text("Next")',

@@ -8,7 +8,6 @@ export const InstantDepositsSelectors = {
     "Estimating gas...",
     "Preparing your quote..."
   ],
-  
     // Success state selectors
   fillStatusText: "text=Successful",
   newDepositButton: 'button:has-text("New Deposit")',
