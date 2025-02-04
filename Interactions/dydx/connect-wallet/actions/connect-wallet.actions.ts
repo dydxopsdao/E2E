@@ -2,6 +2,7 @@ import { Page } from "@playwright/test";
 import { ConnectWalletSelectors } from "@dydx/connect-wallet/selectors/connect-wallet-selectors";
 import { logger } from "@utils/logger/logging-utils";
 import { TEST_TIMEOUTS } from "@constants/test.constants";
+import { handlePasswordPrompt } from "@interactions/wallets/metamask/actions/connect-metamask";
 
 export async function triggerWalletConnectionModal(page: Page): Promise<void> {
   logger.step("Triggering wallet connection modal");
@@ -45,16 +46,30 @@ function getWalletSelector(walletType: string): string {
       throw new Error(`Unsupported wallet type: ${walletType}`);
   }
 }
-export async function sendRequest(
-  page: Page,
-): Promise<void> {
-  logger.step(`Sending request}`);
+
+export async function sendRequest(page: Page): Promise<void> {
+  logger.step("Sending request");
+  const selector = ConnectWalletSelectors.sendRequest;
+
   try {
-    const selector = ConnectWalletSelectors.sendRequest;
     await page.click(selector);
-    logger.success(`Send request click`);
-    } catch (error) {
-      logger.error(`Failed to click send request`, error as Error);
-      throw error;
+    logger.success("Send request click");
+  } catch (error) {
+    logger.error("Failed to click send request", error as Error);
+
+    // Attempt to handle the MetaMask password prompt
+    await handlePasswordPrompt(page);
+
+    // Retry clicking the send request button
+    try {
+      await page.click(selector);
+      logger.success("Send request click after handling password prompt");
+    } catch (retryError) {
+      logger.error(
+        "Failed to click send request after handling password prompt",
+        retryError as Error
+      );
+      throw retryError;
     }
   }
+}

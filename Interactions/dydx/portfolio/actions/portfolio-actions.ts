@@ -15,7 +15,7 @@ export async function getPortfolioValue(page: Page): Promise<number> {
   const portfolioValueLocator = page.locator('label:has-text("Portfolio Value") + output');
 
   // Wait for the element to have non-empty text
-  await expect(portfolioValueLocator).toHaveText(/\S+/, { timeout: 15000 });
+  await expect(portfolioValueLocator).toHaveText(/\S+/, { timeout: 30000 });
 
   // Extract the text content
   const portfolioValueText = await portfolioValueLocator.textContent();

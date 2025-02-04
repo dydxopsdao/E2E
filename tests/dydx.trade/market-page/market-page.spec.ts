@@ -12,8 +12,10 @@ test("eth-usd market page connected landing page", async ({ metamaskContext, eye
     logger.step("Setting up connected market page test");
     await openDydxConnectMetaMask(page, metamaskContext);
     await navigateToDydxPage(page, "/trade/ETH-USD", {
-      waitUntil: "networkidle"
+      waitUntil: "domcontentloaded"
     });
+    //wait for orderbook to be visible
+    await page.waitForSelector(".sc-1ihv8zl-3.vpGBP", { state: "visible" }); 
     // Act
     await visualCheck(eyes, {
       name: "eth-usd market page connected landing page"

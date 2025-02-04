@@ -17,19 +17,52 @@ export interface ConnectMetaMaskOptions {
 }
 
 
-export async function handlePasswordPrompt(
-  page: Page,
-  password: string
-): Promise<void> {
+export async function handlePasswordPrompt(page: Page): Promise<void> {
   logger.step("Handling MetaMask password prompt", {
-    timeout: TEST_TIMEOUTS.DEFAULT
+    timeout: TEST_TIMEOUTS.NAVIGATION,
   });
+
+  // Get the locator for the standard "Confirm" button.
+  const confirmButton = page.locator(MetamaskSelectors.confirmButton);
+
+  // Wait up to 2.5 seconds for the confirm button to appear.
   try {
-    const selector = MetamaskSelectors.passwordUnlock;
-    await page.waitForSelector(selector, { 
-      timeout: TEST_TIMEOUTS.DEFAULT 
+    await confirmButton.waitFor({ state: "visible", timeout: 2500 });
+  } catch (e) {
+    // The confirm button did not appear within 2.5 seconds.
+    // Proceed without failing.
+  }
+
+  // Check if the standard "Confirm" button is present and enabled.
+  if ((await confirmButton.count()) > 0 && (await confirmButton.isEnabled())) {
+    logger.info("Confirm button is enabled; skipping password prompt handling");
+    return;
+  }
+
+  // Get the locator for the "Confirm Footer" button.
+  const confirmButtonFooter = page.locator(
+    MetamaskSelectors.confirmButtonFooter
+  );
+
+  // Check if the "Confirm Footer" button is present and enabled.
+  if (
+    (await confirmButtonFooter.count()) > 0 &&
+    (await confirmButtonFooter.isEnabled())
+  ) {
+    logger.info(
+      "Confirm footer button is enabled; skipping password prompt handling"
+    );
+    return;
+  }
+
+
+  // If no enabled button is found, proceed with password handling.
+  const password = process.env.METAMASK_PASSWORD || "";
+  try {
+    await page.waitForSelector(MetamaskSelectors.passwordUnlock, {
+      timeout: TEST_TIMEOUTS.NAVIGATION,
     });
-    await page.fill(selector, password);
+    await page.fill(MetamaskSelectors.passwordUnlock, password);
     await page.click(MetamaskSelectors.metaMaskUnlockSubmit);
     logger.success("MetaMask password prompt handled");
   } catch (error) {
@@ -58,7 +91,7 @@ export async function confirmMetaMaskAction(
   try {
     const metaMaskPage = await getMetaMaskPage(context, timeout);
     await metaMaskPage.bringToFront();
-    await handlePasswordPrompt(metaMaskPage, password);
+    await handlePasswordPrompt(metaMaskPage);
 
     // Attempt to click the confirmation selector
     await metaMaskPage.click(confirmSelector);

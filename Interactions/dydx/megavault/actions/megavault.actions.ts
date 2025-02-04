@@ -224,7 +224,7 @@ export async function checkVaultBalanceChange(
   expectedChange: number,
   variancePercent: number = 10
 ): Promise<void> {
-  const retryInterval = 2500;
+  const retryInterval = 5000;
   const maxRetries = 10;
   let retries = 0;
 
@@ -278,6 +278,7 @@ export async function vaultTransaction(
 ): Promise<void> {
   const { eyes, performEyesCheck } = options;
   const isDeposit = amount > 0;
+  console.log(isDeposit)
   const displayAmount = Math.abs(amount);
 
   // 1) Ensure history is visible and record the *text-based* transaction count
@@ -324,7 +325,7 @@ export async function vaultTransaction(
       NotificationSelectors.instantDepositToast,
       NotificationSelectors.instantDepositHeader,
       NotificationSelectors.depositCompletedMessage,
-      "Funds successfully removed from MegaVault",
+      "Funds successfully added to MegaVault",
       `You added $${displayAmount.toFixed(2)} in the MegaVault.`
     );
   } else {

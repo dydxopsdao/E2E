@@ -109,7 +109,7 @@ export async function clickWithdrawButton(page: Page): Promise<void> {
 }
 
 /**
- * Simulates a more natural withdraw button interaction
+ * Simulates a more natural withdraw button interaction.
  * @param page Playwright Page object
  */
 export async function clickWithdrawButtonComplete(page: Page): Promise<void> {
@@ -117,44 +117,96 @@ export async function clickWithdrawButtonComplete(page: Page): Promise<void> {
 
   const button = page.locator(WithdrawSelectors.withdrawButtonComplete);
 
+  // Ensure the page is loaded and the Withdraw section is visible.
   await page.waitForLoadState('domcontentloaded');
-  await page.locator('h2:has-text("Withdraw")').click();
-  // Wait for button
+  await page.locator('h2:has-text("Withdraw")').scrollIntoViewIfNeeded();
+
+  // Wait until the withdraw button is visible.
   await button.waitFor({ state: "visible" });
 
-  // Move mouse to random position first (like a real user)
-  await page.mouse.move(100, 100);
-  await page.waitForTimeout(500);
+  // Start from a random position on the screen (simulate a user moving the mouse).
+  await page.mouse.move(randomCoordinate(50, 150), randomCoordinate(50, 150));
+  await randomDelay(300, 700);
 
-  // Get button position
+  // Get the button's bounding box to determine the target position.
   const box = await button.boundingBox();
-  if (!box) throw new Error('Could not find button position');
-
-  // Move mouse to button gradually (like a real user)
+  if (!box) {
+    throw new Error('Could not determine button position');
+  }
   const targetX = box.x + box.width / 2;
   const targetY = box.y + box.height / 2;
-  
-  await page.mouse.move(targetX - 20, targetY - 20);
-  await page.waitForTimeout(200);
-  await page.mouse.move(targetX - 10, targetY - 10);
-  await page.waitForTimeout(200);
-  await page.mouse.move(targetX - 5, targetY - 5);
-  await page.waitForTimeout(200);
-  await page.mouse.move(targetX, targetY);
-  
-  // Hover for a moment (like a real user)
-  await page.waitForTimeout(500);
 
-  // Click with natural timing
+  // Gradually move the mouse toward the button with random offsets.
+  await page.mouse.move(targetX - 20 + randomOffset(10), targetY - 20 + randomOffset(10), { steps: 15 });
+  await randomDelay(100, 300);
+  await page.mouse.move(targetX - 10 + randomOffset(10), targetY - 10 + randomOffset(10), { steps: 10 });
+  await randomDelay(100, 300);
+  await page.mouse.move(targetX + randomOffset(5), targetY + randomOffset(5), { steps: 10 });
+  await randomDelay(300, 600);
+
+  // Hover briefly to mimic a human pausing before clicking.
+  await randomDelay(300, 600);
+
+  // Execute a natural click: mouse down, short pause, then mouse up.
   await page.mouse.down();
-  await page.waitForTimeout(200);
+  await randomDelay(150, 300);
   await page.mouse.up();
 
-  // Let any immediate reactions settle
-  await page.waitForTimeout(1000);
+  // Allow time for any UI reactions to settle.
+  await randomDelay(1000, 1500);
   logger.success("Natural withdraw button interaction completed");
 }
 
+/**
+ * Returns a random delay between min and max milliseconds.
+ */
+function randomDelay(min: number, max: number): Promise<void> {
+  const delay = Math.floor(Math.random() * (max - min + 1)) + min;
+  return new Promise(resolve => setTimeout(resolve, delay));
+}
+
+/**
+ * Returns a random offset within the specified range.
+ * For example, randomOffset(10) returns a random integer between -10 and 10.
+ */
+function randomOffset(range: number): number {
+  return Math.floor(Math.random() * (range * 2 + 1)) - range;
+}
+
+/**
+ * Returns a random coordinate between the given min and max.
+ */
+function randomCoordinate(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * Simulates a more natural Enter key press interaction.
+ * @param page Playwright Page object
+ */
+export async function pressEnterKeyComplete(page: Page): Promise<void> {
+  logger.step("Preparing for natural Enter key press");
+
+  // Wait for the DOM to be fully loaded
+  await page.waitForLoadState('domcontentloaded');
+
+
+  // Pause to mimic natural reaction time
+  await page.waitForTimeout(500);
+
+  // Move the mouse to a neutral position (simulate a user moving the mouse)
+  await page.mouse.move(50, 50);
+  await page.waitForTimeout(300);
+
+  // Simulate the Enter key press with a natural delay between keydown and keyup
+  await page.keyboard.down('Enter');
+  await page.waitForTimeout(200);
+  await page.keyboard.up('Enter');
+
+  // Allow any immediate UI reactions to settle
+  await page.waitForTimeout(1000);
+  logger.success("Natural Enter key press completed");
+}
 /**
  * Options for `completeWithdrawal`
  */

@@ -109,9 +109,8 @@ export async function checkWithdrawalNotifications(
   // Check initial state with split text handling
   await page.waitForSelector(NotificationSelectors.withdrawalToast, {
     state: "visible",
-    timeout: TEST_TIMEOUTS.DEFAULT,
+    timeout: TEST_TIMEOUTS.ELEMENT,
   });
-
   await expect(
     page.locator(NotificationSelectors.withdrawalHeader)
   ).toContainText("Withdrawal(s) in progress");
