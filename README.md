@@ -22,17 +22,12 @@ LOCAL_RUN=true
 
 ### Run all tests:
 ```bash
-npm test
+ENV_PATH=.env.local npx playwright test
 ```
 
 ### Run a specific test:
 ```bash
 ENV_PATH=.env.local npx playwright test --grep "Connect MetaMask Wallet"
-```
-
-### Run with UI mode:
-```bash
-npm run test:ui
 ```
 
 ## 📁 Project Structure

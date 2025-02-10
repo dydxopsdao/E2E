@@ -1,9 +1,8 @@
 // fixtures/eyesFixture.ts
-import { test as base } from "@playwright/test";
-import {
-  Eyes,
-} from "@applitools/eyes-playwright";
+import { test as base, Page } from "@playwright/test";
+import { Eyes } from "@applitools/eyes-playwright";
 import { runner, config } from "@config/applitools.config";
+import { DummyEyes } from "./dummyEyes";
 
 type EyesFixtures = {
   eyes: Eyes;
@@ -11,21 +10,24 @@ type EyesFixtures = {
 
 export const eyesTest = base.extend<EyesFixtures>({
   eyes: async ({ page }, use, testInfo) => {
-    // Reuse shared runner and config
-    const eyes = new Eyes(runner);
-    eyes.setConfiguration(config);
+    const useApplitools = process.env.USE_APPLITOOLS === "true";
 
-    // Open Eyes
-    await eyes.open(page, "dYdX App", testInfo.title);
+    // Create either a real Eyes or a dummy instance
+    const eyesInstance = useApplitools ? new Eyes(runner) : new DummyEyes();
+    if (useApplitools) {
+      eyesInstance.setConfiguration(config);
+      await eyesInstance.open(page, "dYdX App", testInfo.title);
+    }
 
-    // Provide `eyes` to the test
-    await use(eyes);
+    // Provide eyesInstance to the test
+    await use(eyesInstance as Eyes);
 
-    // Close or abort after test
-    try {
-      await eyes.close();
-    } catch {
-      await eyes.abortIfNotClosed();
+    if (useApplitools) {
+      try {
+        await eyesInstance.close();
+      } catch {
+        await eyesInstance.abortIfNotClosed();
+      }
     }
   },
 });

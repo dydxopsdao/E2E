@@ -13,7 +13,7 @@ export async function checkNotificationAppearance(
   headerSelector: string,
   messageSelector: string,
   expectedHeader: string,
-  expectedMessage: string,
+  expectedMessage: string | RegExp,
   timeout: number = 580000
 ): Promise<void> {
   logger.step(
@@ -21,7 +21,7 @@ export async function checkNotificationAppearance(
   );
 
   const startTime = Date.now();
-  const pollInterval = 500;
+  const pollInterval = 250;
 
   while (Date.now() - startTime < timeout) {
     try {
@@ -44,16 +44,24 @@ export async function checkNotificationAppearance(
         `Expected notification - Header: "${expectedHeader}", Message: "${expectedMessage}"`
       );
 
-      if (
-        trimmedHeader === expectedHeader &&
-        trimmedMessage === expectedMessage
-      ) {
+      // Check header equality
+      const headerMatches = trimmedHeader === expectedHeader;
+
+      // Check message: if expectedMessage is a RegExp, use .test(); otherwise, use direct comparison.
+      let messageMatches = false;
+      if (expectedMessage instanceof RegExp) {
+        messageMatches = expectedMessage.test(trimmedMessage);
+      } else {
+        messageMatches = trimmedMessage === expectedMessage;
+      }
+
+      if (headerMatches && messageMatches) {
         logger.success(
           `Notification verified - Header: "${expectedHeader}", Message: "${expectedMessage}"`
         );
         return;
       }
-      
+
       await page.waitForTimeout(pollInterval);
     } catch (error) {
       logger.debug(`Error checking notification: ${error}`);
@@ -65,6 +73,7 @@ export async function checkNotificationAppearance(
     `Timeout waiting for notification - Expected Header: "${expectedHeader}", Message: "${expectedMessage}"`
   );
 }
+
 
 export async function checkNotificationSequence(
   page: Page,
@@ -97,7 +106,7 @@ export async function checkNotificationSequence(
  * Specialized function to check withdrawal notifications with split text handling.
  * @param page Playwright Page object
  * @param amount The withdrawal amount for message verification
- * @param timeout Maximum time to wait for completion (default: 180000 - 3 minutes)
+ * @param timeout Maximum time to wait for completion (default: 620000 ms)
  */
 export async function checkWithdrawalNotifications(
   page: Page,
@@ -106,20 +115,32 @@ export async function checkWithdrawalNotifications(
 ): Promise<void> {
   logger.step("Checking withdrawal notifications");
 
-  // Check initial state with split text handling
+  // Wait for the withdrawal toast to appear
   await page.waitForSelector(NotificationSelectors.withdrawalToast, {
     state: "visible",
     timeout: TEST_TIMEOUTS.ELEMENT,
   });
-  await expect(
-    page.locator(NotificationSelectors.withdrawalHeader)
-  ).toContainText("Withdrawal(s) in progress");
 
-  // Get the message container and check its text parts
-  const messageContainer = page.locator(
-    NotificationSelectors.withdrawalMessage
-  );
+  // Verify that the header contains "Withdrawal(s) in progress".
+  // If it does not, check if the error element is visible and contains "Something went wrong: Unknown error".
+  try {
+    await expect(
+      page.locator(NotificationSelectors.withdrawalHeader)
+    ).toContainText("Withdrawal(s) in progress");
+  } catch (headerError) {
+    const errorElement = page.locator("div.sc-1vvc9p2-0");
+    if (await errorElement.isVisible()) {
+      const errorText = (await errorElement.innerText()).trim();
+      if (errorText.includes("Something went wrong: Unknown error")) {
+        throw new Error(`Withdrawal header check failed. Found error message: "${errorText}"`);
+      }
+    }
+    // Rethrow the original error if the error element is not found or does not contain the expected error text.
+    throw headerError;
+  }
 
+  // Check the notification message container for its static text parts
+  const messageContainer = page.locator(NotificationSelectors.withdrawalMessage);
   await expect(messageContainer).toContainText(
     "Please keep this window open to ensure funds arrive."
   );
@@ -131,19 +152,18 @@ export async function checkWithdrawalNotifications(
   const startTime = Date.now();
   const pollInterval = 5000;
   const expectedMessage = `Your withdrawal of ${amount} is now available.`;
-  console.log(expectedMessage);
+  console.log(`Expected completion message: "${expectedMessage}"`);
+
   while (Date.now() - startTime < timeout) {
     try {
       const messageText = await page
         .locator(NotificationSelectors.withdrawalCompletionMessage)
         .innerText();
-      if (
-        messageText.includes(`Your withdrawal of ${amount} is now available.`)
-      ) {
+      if (messageText.includes(expectedMessage)) {
         logger.success("Found completion notification");
         return;
       }
-      console.log(messageText);
+      console.log(`Current message: "${messageText}"`);
       await page.waitForTimeout(pollInterval);
     } catch (error) {
       await page.waitForTimeout(pollInterval);

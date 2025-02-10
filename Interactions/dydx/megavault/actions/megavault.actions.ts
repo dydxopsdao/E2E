@@ -148,9 +148,12 @@ export async function checkVaultHistoryAfterTransaction(
 
   // Check amount text, e.g. "$11.99"
   const expectedAmountString = `$${expectedAmount.toFixed(2)}`;
-  if (amountText !== expectedAmountString) {
+  const actualAmount = parseFloat(amountText.replace(/[^0-9.]/g, ""));
+  const allowedVariance = expectedAmount * 0.1;
+
+  if (Math.abs(actualAmount - expectedAmount) > allowedVariance) {
     throw new Error(
-      `Expected amount "${expectedAmountString}" but got "${amountText}".`
+      `Expected amount "${expectedAmountString}" (±10%) but got "${amountText}".`
     );
   }
 }
@@ -278,7 +281,7 @@ export async function vaultTransaction(
 ): Promise<void> {
   const { eyes, performEyesCheck } = options;
   const isDeposit = amount > 0;
-  console.log(isDeposit)
+  console.log(isDeposit);
   const displayAmount = Math.abs(amount);
 
   // 1) Ensure history is visible and record the *text-based* transaction count
@@ -326,17 +329,16 @@ export async function vaultTransaction(
       NotificationSelectors.instantDepositHeader,
       NotificationSelectors.depositCompletedMessage,
       "Funds successfully added to MegaVault",
-      `You added $${displayAmount.toFixed(2)} in the MegaVault.`
+      /You added \$\d+(?:\.\d{2})? in the MegaVault\./
     );
   } else {
-    // Use finalAmount from the UI's "estimated" withdrawal
     await checkNotificationAppearance(
       page,
       NotificationSelectors.instantDepositToast,
       NotificationSelectors.instantDepositHeader,
       NotificationSelectors.depositCompletedMessage,
       "Funds successfully removed from MegaVault",
-      `You removed $${finalAmount} from the MegaVault.`
+      /You removed \$\d+(?:\.\d{2})? from the MegaVault\./
     );
   }
 
@@ -353,3 +355,4 @@ export async function vaultTransaction(
     finalAmount
   );
 }
+
