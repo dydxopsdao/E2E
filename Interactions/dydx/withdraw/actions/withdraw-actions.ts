@@ -121,6 +121,9 @@ export async function clickWithdrawButtonComplete(page: Page): Promise<void> {
   await page.waitForLoadState('domcontentloaded');
   await page.locator('h2:has-text("Withdraw")').scrollIntoViewIfNeeded();
 
+  // Check for and acknowledge the route warning popup if it appears.
+  await acknowledgeRouteWarningIfPresent(page);
+
   // Wait until the withdraw button is visible.
   await button.waitFor({ state: "visible" });
 
@@ -303,4 +306,23 @@ export async function completeWithdrawal(
   );
 
   logger.success("Complete withdrawal process finished successfully");
+}
+
+/**
+ * Checks if the route warning popup exists and clicks it if visible.
+ * @param page Playwright Page object
+ */
+async function acknowledgeRouteWarningIfPresent(page: Page): Promise<void> {
+  const popup = page.locator("#acknowledge-route-warning");
+
+  try {
+    // Wait for up to 2 seconds for the popup to become visible.
+    await popup.waitFor({ state: "visible", timeout: 2000 });
+    logger.step("Popup warning detected. Acknowledging it.");
+    await popup.click();
+    await randomDelay(300, 600);
+  } catch (error) {
+    // If the popup doesn't appear within 2 seconds, proceed without error.
+    logger.step("Popup warning did not appear within 2 seconds, proceeding.");
+  }
 }
