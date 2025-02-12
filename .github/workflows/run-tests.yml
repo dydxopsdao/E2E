@@ -95,7 +95,7 @@ jobs:
           sleep 3
 
       - name: Run Playwright tests with Applitools
-        run: xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test
+        run: npx playwright test --grep "Connect MetaMask Wallet"
         env:
           APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
 

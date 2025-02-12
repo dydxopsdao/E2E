@@ -42,6 +42,7 @@ async function executeStep(
 async function fillSeedPhrase(page: Page, seedPhrase: string): Promise<void> {
   logger.step("Filling seed phrase");
   try {
+    logger.info("seed phrase", { words: seedPhrase.split(" ") });
     const words = seedPhrase.split(" ");
     for (let i = 0; i < words.length; i++) {
       const wordSelector = `[data-testid="import-srp__srp-word-${i}"]`;
