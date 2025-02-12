@@ -35,8 +35,11 @@ export const metamaskTest = base.extend<MyFixtures>({
     const metamaskPage = await context.waitForEvent("page", (page) =>
       page.url().startsWith("chrome-extension://")
     );
+
+    // Get all pages and close an empty one if it exists.
+    // Here we check if the page URL is "about:blank" to decide if it should be closed.
     const pages = context.pages();
-    const emptyPage = pages[0];
+    const emptyPage = pages.find((page) => page.url() === "about:blank");
     if (emptyPage) await emptyPage.close();
 
     // 4. Import wallet
@@ -56,14 +59,12 @@ export const metamaskTest = base.extend<MyFixtures>({
   },
 
   page: async ({ metamaskContext }, use) => {
-    // Get the pages that are currently open
-    const pages = metamaskContext.pages();
-    // Look for a non-extension page (if available)
-    let testPage = pages.find(
-      (page) => !page.url().startsWith("chrome-extension://")
-    );
+    // Look for an existing non-extension page
+    let testPage = metamaskContext
+      .pages()
+      .find((page) => !page.url().startsWith("chrome-extension://"));
 
-    // If none found, then fallback to creating a new page.
+    // If none is found, create a new page as a fallback.
     if (!testPage) {
       testPage = await metamaskContext.newPage();
     }
