@@ -36,11 +36,9 @@ export const metamaskTest = base.extend<MyFixtures>({
       page.url().startsWith("chrome-extension://")
     );
 
-    // Get all pages and close an empty one if it exists.
-    // Here we check if the page URL is "about:blank" to decide if it should be closed.
-    const pages = context.pages();
-    const emptyPage = pages.find((page) => page.url() === "about:blank");
-    if (emptyPage) await emptyPage.close();
+    // Do NOT close the default page here.
+    // By leaving the default (usually "about:blank") page open,
+    // we ensure that a non-extension page is available for our tests.
 
     // 4. Import wallet
     const seedPhrase =
@@ -59,15 +57,20 @@ export const metamaskTest = base.extend<MyFixtures>({
   },
 
   page: async ({ metamaskContext }, use) => {
-    // Look for an existing non-extension page
-    let testPage = metamaskContext
-      .pages()
-      .find((page) => !page.url().startsWith("chrome-extension://"));
+    // Get the pages that are currently open
+    const pages = metamaskContext.pages();
 
-    // If none is found, create a new page as a fallback.
+    // Look for a non-extension page (if available)
+    let testPage = pages.find(
+      (page) => !page.url().startsWith("chrome-extension://")
+    );
+
+    // If no such page exists, throw an error.
+    // (Note: In persistent contexts with extensions, creating a new page is often disallowed.)
     if (!testPage) {
-      testPage = await metamaskContext.newPage();
+      throw new Error("No non-extension page available in context");
     }
+
     await use(testPage);
   },
 });
