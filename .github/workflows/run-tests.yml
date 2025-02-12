@@ -7,6 +7,10 @@ jobs:
   visual-tests:
     name: Run Applitools Visual Tests
     runs-on: ubuntu-latest
+    env:
+      SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
+      METAMASK_PASSWORD: ${{ secrets.METAMASK_PASSWORD }}
+      APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
 
     steps:
       - name: Checkout repository
