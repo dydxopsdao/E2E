@@ -22,7 +22,7 @@ async function executeStep(
     selector,
     name,
     optional = false,
-    timeout = TEST_TIMEOUTS.DEFAULT,
+    timeout = TEST_TIMEOUTS.ELEMENT,
   }: StepConfig
 ): Promise<boolean> {
   try {
