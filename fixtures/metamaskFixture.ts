@@ -56,8 +56,17 @@ export const metamaskTest = base.extend<MyFixtures>({
   },
 
   page: async ({ metamaskContext }, use) => {
-    const page: Page = await metamaskContext.newPage();
-    await use(page);
-    await page.close();
+    // Get the pages that are currently open
+    const pages = metamaskContext.pages();
+    // Look for a non-extension page (if available)
+    let testPage = pages.find(
+      (page) => !page.url().startsWith("chrome-extension://")
+    );
+
+    // If none found, then fallback to creating a new page.
+    if (!testPage) {
+      testPage = await metamaskContext.newPage();
+    }
+    await use(testPage);
   },
 });
