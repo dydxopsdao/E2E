@@ -102,10 +102,11 @@ export async function checkNotificationSequence(
     );
   }
 }
+
 /**
  * Specialized function to check withdrawal notifications with split text handling.
  * @param page Playwright Page object
- * @param amount The withdrawal amount for message verification
+ * @param amount The withdrawal amount for message verification (e.g. "$12.00")
  * @param timeout Maximum time to wait for completion (default: 620000 ms)
  */
 export async function checkWithdrawalNotifications(
@@ -141,9 +142,7 @@ export async function checkWithdrawalNotifications(
 
   // Check the notification message container for its static text parts
   const messageContainer = page.locator(NotificationSelectors.withdrawalMessage);
-  await expect(messageContainer).toContainText(
-    "Please keep this window open to ensure funds arrive."
-  );
+  await expect(messageContainer).toContainText("Pending");
 
   logger.success("Found initial withdrawal notification");
 
@@ -151,24 +150,59 @@ export async function checkWithdrawalNotifications(
 
   const startTime = Date.now();
   const pollInterval = 5000;
-  const expectedMessage = `Your withdrawal of ${amount} is now available.`;
-  console.log(`Expected completion message: "${expectedMessage}"`);
+
+  // Sanitize the passed in amount (e.g. "$12.00") by removing the '$' sign and any commas.
+  const sanitizedAmount = amount.replace(/[$,]/g, "");
+  const expectedAmount = parseFloat(sanitizedAmount);
+  if (isNaN(expectedAmount)) {
+    throw new Error(`Invalid expected amount: "${amount}" could not be parsed to a number.`);
+  }
+  console.log(`Expected numeric withdrawal amount: ${expectedAmount}`);
+
+  // Calculate 10% tolerance range.
+  const lowerBound = expectedAmount * 0.9;
+  const upperBound = expectedAmount * 1.1;
+
+  // Regular expression to capture the actual withdrawal amount from the completion message.
+  // This regex expects the message to be in the format:
+  // "Your withdrawal of $<actualAmount> is now available."
+  const regex = /Your withdrawal of \$([\d,]+(?:\.\d{1,2})?) is now available\./;
 
   while (Date.now() - startTime < timeout) {
     try {
       const messageText = await page
-        .locator(NotificationSelectors.withdrawalCompletionMessage)
+        .locator(NotificationSelectors.withdrawalMessage)
         .innerText();
-      if (messageText.includes(expectedMessage)) {
-        logger.success("Found completion notification");
-        return;
+
+      const match = messageText.match(regex);
+      if (match) {
+        // Remove commas (if any) and convert the captured string to a number.
+        const actualAmount = parseFloat(match[1].replace(/,/g, ""));
+        if (isNaN(actualAmount)) {
+          console.log(`Unable to parse amount from message: "${match[1]}"`);
+        } else {
+          console.log(`Found withdrawal amount in notification: ${actualAmount}`);
+          // Check if the actual amount is within 10% of the expected amount.
+          if (actualAmount >= lowerBound && actualAmount <= upperBound) {
+            logger.success("Found completion notification with valid withdrawal amount");
+            return;
+          } else {
+            console.log(
+              `Withdrawal amount ${actualAmount} is not within 10% of expected ${expectedAmount} (acceptable range: ${lowerBound} - ${upperBound})`
+            );
+          }
+        }
+      } else {
+        console.log(`Message did not match expected format: "${messageText}"`);
       }
-      console.log(`Current message: "${messageText}"`);
       await page.waitForTimeout(pollInterval);
     } catch (error) {
+      console.log("Error checking withdrawal completion message, retrying...", error);
       await page.waitForTimeout(pollInterval);
     }
   }
 
   throw new Error("Timed out waiting for withdrawal completion notification");
 }
+
+

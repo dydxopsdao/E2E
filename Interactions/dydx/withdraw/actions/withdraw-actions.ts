@@ -252,20 +252,7 @@ export async function completeWithdrawal(
     }
   );
 
-  // Step 2: Input wallet address
-  await performStep(
-    "Inputting wallet address",
-    async () => {
-      await inputWalletAddress(page, address);
-    },
-    {
-      eyes,
-      performEyesCheck,
-      checkName: "After Input Wallet Address",
-    }
-  );
-
-  // Step 3: Select dropdown option
+  // Step 2: Select dropdown option
   await performStep(
     "Selecting dropdown option",
     async () => {
@@ -278,7 +265,7 @@ export async function completeWithdrawal(
     }
   );
 
-  // Step 4: Enter amount (defaults to "10")
+  // Step 3: Enter amount (defaults to "10")
   await performStep(
     `Entering amount (${amount})`,
     async () => {
@@ -291,7 +278,7 @@ export async function completeWithdrawal(
     }
   );
 
-  // Step 5: Click the Withdraw button
+  // Step 4: Click the Withdraw button
   await performStep(
     "Clicking the Withdraw button",
     async () => {

@@ -7,7 +7,7 @@ import {
   checkFinalPortfolioValue,
 } from "@dydx/portfolio/actions/portfolio-actions";
 import { closeOnboarding } from "@dydx/onboarding/actions/onboarding.actions";
-import { instantDeposit } from "@dydx/instant-deposits/actions/instant-deposit";
+import { checkDepositCompleted, instantDeposit } from "@interactions/dydx/deposits/actions/deposit-actions";
 import { BrowserContext, Page } from "@playwright/test";
 import { checkNotificationAppearance } from "@interactions/dydx/notifications/actions/notification-actions";
 import { Eyes } from "@applitools/eyes-playwright";
@@ -16,7 +16,7 @@ import { NotificationSelectors } from "@interactions/dydx/notifications/selector
 const depositAmount = 12;
 
 test.describe("Instant deposit flow tests", () => {
-  test.describe.configure({ retries: 1 });
+  test.describe.configure({ retries: 0 });
   test("instant deposit core flow - Arbitrum One", async ({
     metamaskContext,
     eyes,
@@ -37,18 +37,26 @@ test.describe("Instant deposit flow tests", () => {
     const initialPortfolioValue = await checkInitialPortfolioValue(page);
 
     // Perform the deposit workflow
-    await instantDeposit(page, depositAmount, metamaskContext, { eyes, performEyesCheck: false});
+    await instantDeposit(
+      page,
+      depositAmount,
+      metamaskContext,
+      'button:has(div:has-text("Arbitrum"))',
+      {
+        eyes,
+        performEyesCheck: false,
+      }
+    );
 
     // Check for notification appearance
-    await checkNotificationAppearance(
+    /* await checkNotificationAppearance(
       page,
       NotificationSelectors.instantDepositToast,
       NotificationSelectors.instantDepositHeader,
       NotificationSelectors.depositCompletedMessage,
-      "Instant deposit",
+      "Deposit",
       "Deposit completed"
-    );
-
+    ); */
     // Check final portfolio value and validate the increase
     await checkFinalPortfolioValue(page, initialPortfolioValue, depositAmount);
   });

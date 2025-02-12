@@ -3,7 +3,7 @@ import { Eyes } from "@applitools/eyes-playwright";
 import { openDydxConnectMetaMask } from "@wallets/metamask/actions/connect-metamask";
 import { logger } from "@utils/logger/logging-utils";
 import { learnMoreStepOnboarding, nextStepOnboarding } from "@dydx/onboarding/actions/onboarding.actions";
-import { InstantDepositsSelectors } from "@dydx/instant-deposits/selectors/instant-deposits.selectors";
+import { DepositsSelectors } from "@dydx/deposits/selectors/deposits.selectors";
 import { BrowserContext, Page } from "@playwright/test";
 import { visualCheck } from "@utils/visual-check";
 
@@ -25,7 +25,7 @@ test.skip("Introducing dydx unlimited", async ({
     await openDydxConnectMetaMask(page, metamaskContext);
     // Act
     console.log(page.url());
-    await page.click(InstantDepositsSelectors.instantDepositsCloseButton);
+    await page.click(DepositsSelectors.DepositsCloseButton);
     // Assert
     await visualCheck(eyes, {
       name: "Step 1 - Introducing dYdX Unlimited"

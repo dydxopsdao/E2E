@@ -30,7 +30,11 @@ test.describe("Withdraw flow tests", () => {
     await page.bringToFront();
     await closeOnboarding(page);
     const initialPortfolioValue = await checkInitialPortfolioValue(page);
-    await completeWithdrawal(page, walletAddress, 'span:has-text("Arbitrum")');
+    await completeWithdrawal(
+      page,
+      walletAddress,
+      'button:has(div:has-text("Arbitrum"))'
+    );
     await closeDialog(page);
 
     // Check for both withdrawal notifications in sequence

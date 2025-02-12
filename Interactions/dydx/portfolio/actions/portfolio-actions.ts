@@ -62,7 +62,11 @@ export async function checkFinalPortfolioValue(
 ): Promise<void> {
   logger.step("Checking final portfolio value");
 
-  await page.waitForTimeout(1000);
+  const positionsLink = page.locator('[data-item="positions"]');
+  await positionsLink.click();
+  const overviewLink = page.locator('[data-item="overview"]');
+  await overviewLink.click();
+  await page.waitForTimeout(2500);
 
   const lowerBound = expectedIncrease * (1 - variancePercent / 100);
   const upperBound = expectedIncrease * (1 + variancePercent / 100);
