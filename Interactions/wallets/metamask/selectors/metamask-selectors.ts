@@ -1,5 +1,4 @@
 export const MetamaskSelectors = {
-  // Existing selectors...
   agreeTermsofUseRadioButton: '[data-testid="onboarding-terms-checkbox"]',
   importWalletButton: '[data-testid="onboarding-import-wallet"]',
   metricsNoThanks: '[data-testid="metametrics-no-thanks"]',

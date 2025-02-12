@@ -131,12 +131,12 @@ export async function importWallet(
       {
         selector: MetamaskSelectors.agreeTermsofUseRadioButton,
         name: "Accept terms of use",
-        optional: true,
+        optional: false,
       },
       {
         selector: MetamaskSelectors.importWalletButton,
         name: "Click import wallet",
-        optional: true,
+        optional: false,
       },
       {
         selector: MetamaskSelectors.metricsNoThanks,
