@@ -117,7 +117,7 @@ jobs:
           if [ -f playwright-report/results.txt ]; then
             RESULTS=$(cat playwright-report/results.txt)
           else
-            RESULTS="No detailed test results found."
+            RESULTS="No detailed test results found. Please check that the tests are generating output."
           fi
           PROMPT="Analyze the following test failures and provide a summary of likely causes and potential troubleshooting suggestions:\n\n$RESULTS"
           echo "Prompt: $PROMPT"
@@ -125,7 +125,7 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{
-              "model": "o3-mini",
+              "model": "gpt-o3-mini",
               "messages": [{"role": "user", "content": "'"$PROMPT"'"}],
               "max_tokens": 300,
               "temperature": 0.7
