@@ -53,18 +53,13 @@ jobs:
       - name: Install NordLayer CLI
         run: |
           sudo apt-get update
-          # Install the repository configuration package
           sudo dpkg -i ./nordlayer/nordlayer-latest_1.0.0_all.deb
           sudo apt-get install -f -y
-          # Update package lists to include the new repository
           sudo apt-get update
-          # Install the actual nordlayer package
           sudo apt-get install -y nordlayer
-          # Restart the nordlayer service
           sudo systemctl daemon-reload
           sudo systemctl restart nordlayer.service
           sleep 2
-          # Fix socket permissions
           sudo chown -R runner:runner /run/nordlayer/
           sudo chmod 755 /run/nordlayer
           sudo chmod 666 /run/nordlayer/nordlayer.sock
@@ -113,6 +108,34 @@ jobs:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
 
+      # This step runs only if the tests fail.
+      - name: Analyze Test Failures with OpenAI
+        id: analysis
+        if: failure()
+        run: |
+          # Try to read a test results summary from a file.
+          if [ -f playwright-report/results.txt ]; then
+            RESULTS=$(cat playwright-report/results.txt)
+          else
+            RESULTS="No detailed test results found."
+          fi
+          PROMPT="Analyze the following test failures and provide a summary of likely causes and potential troubleshooting suggestions:\n\n$RESULTS"
+          echo "Prompt: $PROMPT"
+          RESPONSE=$(curl -s https://api.openai.com/v1/chat/completions \
+            -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "model": "o3-mini",
+              "messages": [{"role": "user", "content": "'"$PROMPT"'"}],
+              "max_tokens": 300,
+              "temperature": 0.7
+            }')
+          ANALYSIS=$(echo $RESPONSE | jq -r '.choices[0].message.content')
+          echo "analysis=$ANALYSIS" >> $GITHUB_OUTPUT
+          echo "OpenAI Analysis: $ANALYSIS"
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
       - name: Post Slack Notification
         if: always()
         env:
@@ -120,11 +143,11 @@ jobs:
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOB_STATUS: ${{ job.status }}
         run: |
-          echo "Job status is: $JOB_STATUS"
-          if [ "$JOB_STATUS" == "success" ]; then
+          if [ "${JOB_STATUS}" = "success" ]; then
             MESSAGE="✅ Playwright Visual Tests Passed!\nDetails: $RUN_URL"
           else
-            MESSAGE="❌ Playwright Visual Tests Failed!\nDetails: $RUN_URL"
+            ANALYSIS_SUMMARY="${{ steps.analysis.outputs.analysis }}"
+            MESSAGE="❌ Playwright Visual Tests Failed!\nOpenAI Analysis: ${ANALYSIS_SUMMARY}\nDetails: $RUN_URL"
           fi
           echo "Posting Slack message: $MESSAGE"
           curl -X POST -H 'Content-type: application/json' \
