@@ -125,7 +125,7 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{
-              "model": "gpt-o3-mini",
+              "model": "gpt-4o-mini",
               "messages": [{"role": "user", "content": "'"$PROMPT"'"}],
               "max_tokens": 300,
               "temperature": 0.7
