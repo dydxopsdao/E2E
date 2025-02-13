@@ -86,8 +86,8 @@ for (const { url, name, elementLocator } of urls) {
       logger.info(`Navigating to ${url}`);
 
       // Act
-      await page.goto(url, { timeout: TEST_TIMEOUTS.NAVIGATION });
-      await waitForAnimations(page, TEST_TIMEOUTS.NAVIGATION);
+      await page.goto(url, { timeout: TEST_TIMEOUTS.PAGE_LOAD, waitUntil: "domcontentloaded" });
+      await waitForAnimations(page, TEST_TIMEOUTS.PAGE_LOAD);
       await waitForPageLoad(page, elementLocator);
 
       // Assert
