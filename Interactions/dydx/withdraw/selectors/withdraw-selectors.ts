@@ -7,4 +7,7 @@ export const WithdrawSelectors = {
   amountInput: 'input[placeholder="0.00"]',
   chainDestinationDropdown: ".sc-np2z7g-6",
   assetDropdown: 'button[aria-haspopup="listbox"]:has-text("Asset")',
+  withdrawModalSelector: 'div[role="dialog"]',
+  withdrawCompletedTextSelector: 'text=Your withdrawal of',
+  closeButton: 'button:has-text("Close")',
 };

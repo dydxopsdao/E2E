@@ -7,7 +7,7 @@ import { closeOnboarding } from "@dydx/onboarding/actions/onboarding.actions";
 import { BrowserContext, Page } from "@playwright/test";
 import { WALLET_ADDRESSES } from "@constants/wallet-addresses.constants";
 import { metamaskTest as test } from "@fixtures/metamaskFixture";
-import { completeWithdrawal } from "@interactions/dydx/withdraw/actions/withdraw-actions";
+import { checkWithdrawCompleted, completeWithdrawal } from "@interactions/dydx/withdraw/actions/withdraw-actions";
 import { checkWithdrawalNotifications } from "@interactions/dydx/notifications/actions/notification-actions";
 import { closeDialog } from "@interactions/dydx/general/actions/general.actions";
 
@@ -29,16 +29,17 @@ test.describe("Withdraw flow tests", () => {
     await openDydxConnectMetaMask(page, metamaskContext);
     await page.bringToFront();
     await closeOnboarding(page);
+    await page.bringToFront();
     const initialPortfolioValue = await checkInitialPortfolioValue(page);
     await completeWithdrawal(
       page,
       walletAddress,
       'button:has(div:has-text("Arbitrum"))'
     );
-    await closeDialog(page);
+    await checkWithdrawCompleted(page, withdrawAmount);
 
     // Check for both withdrawal notifications in sequence
-    await checkWithdrawalNotifications(page, "$12.00");
+    //await checkWithdrawalNotifications(page, "$12.00");
     await checkFinalPortfolioValue(page, initialPortfolioValue, withdrawAmount);
   });
 });

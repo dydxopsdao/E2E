@@ -6,6 +6,7 @@ import { logger } from "@utils/logger/logging-utils";
 import { visualCheck } from "@utils/visual-check";
 import { TEST_TIMEOUTS } from "@constants/test.constants";
 import { WithdrawSelectors } from "@dydx/withdraw/selectors/withdraw-selectors";
+import { closeDialog } from "@interactions/dydx/general/actions/general.actions";
 
 /**
  * Performs a single step (labeled for logging) and optionally takes an Applitools visual snapshot.
@@ -292,7 +293,71 @@ export async function completeWithdrawal(
     }
   );
 
-  logger.success("Complete withdrawal process finished successfully");
+  logger.success("Complete withdrawal process finished");
+}
+
+/**
+ * Checks that the withdrawal completion modal is displayed correctly.
+ *
+ * @param page           Playwright Page object
+ * @param expectedAmount The expected withdrawal amount (pass as a positive or negative number)
+ */
+export async function checkWithdrawCompleted(
+  page: Page,
+  expectedAmount: number
+): Promise<void> {
+  logger.step("Checking withdrawal completion modal");
+
+  // Define selectors for the withdrawal modal and the text that indicates completion.
+  const withdrawModalSelector = 'div[role="dialog"]';
+  const withdrawCompletedTextSelector = 'text=Your withdrawal of';
+
+  // Wait for the withdrawal modal to appear
+  await page.waitForSelector(withdrawModalSelector, {
+    state: "visible",
+    timeout: TEST_TIMEOUTS.DEFAULT,
+  });
+
+  // Wait for the withdraw completed text to appear (up to 2 minutes)
+  await page.waitForSelector(withdrawCompletedTextSelector, {
+    state: "visible",
+    timeout: 120000, // 2 minutes
+  });
+
+  // Extract the full text content from the withdrawal modal
+  const modalText = await page.textContent(withdrawModalSelector);
+  if (!modalText) {
+    throw new Error("Withdrawal modal text content not found.");
+  }
+
+  // Extract the withdrawal amount using a regular expression.
+  // Expects a format like: "Your withdrawal of $11.97USDC is now available."
+  const match = modalText.match(/\$([0-9]+(?:\.[0-9]+)?)/);
+  if (!match) {
+    throw new Error("Withdrawal amount not found in modal text.");
+  }
+
+  const displayedAmount = parseFloat(match[1]);
+  if (isNaN(displayedAmount)) {
+    throw new Error("Displayed withdrawal amount is not a valid number.");
+  }
+
+  // Validate the amount is within 10% of the expected amount using absolute values.
+  const absoluteExpected = Math.abs(expectedAmount);
+  const absoluteDisplayed = Math.abs(displayedAmount);
+  const lowerBound = absoluteExpected * 0.9;
+  const upperBound = absoluteExpected * 1.1;
+
+  if (absoluteDisplayed < lowerBound || absoluteDisplayed > upperBound) {
+    throw new Error(
+      `Displayed withdrawal amount ${displayedAmount} is out of the acceptable range (${lowerBound} - ${upperBound}).`
+    );
+  }
+
+  logger.info(
+    `Withdrawal confirmed: ${displayedAmount} (expected: ${expectedAmount})`
+  );
+  await page.click(WithdrawSelectors.closeButton);
 }
 
 /**
