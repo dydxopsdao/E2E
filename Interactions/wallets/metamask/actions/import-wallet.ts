@@ -188,7 +188,7 @@ export async function importWallet(
     logger.success("Wallet import completed successfully", {
       extensionId: metamaskState.getExtensionId(),
     });
-    await page.close();
+    //await page.close();
   } catch (error) {
     logger.error("Wallet import failed", error as Error, {
       seedPhraseLength: seedPhrase.split(" ").length,

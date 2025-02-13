@@ -21,7 +21,7 @@ export const MetamaskSelectors = {
   confirmButtonFooter: '[data-testid="confirm-footer-button"]',
   confirmationSubmitButton: '[data-testid="confirmation-submit-button"]',
   confirmationSubmitButtonFooter: '[data-testid="page-container-footer-next"]',
-
+  doneButton: '[data-testid="page-container-footer-next"]',
   // Network-related selectors
   networkDisplay: '[data-testid="network-display"]',
   networkListContainer: ".mm-box.new-network-list__list-of-networks",

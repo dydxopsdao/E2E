@@ -91,6 +91,7 @@ export async function confirmMetaMaskAction(
   try {
     const metaMaskPage = await getMetaMaskPage(context, timeout);
     await metaMaskPage.bringToFront();
+    await metaMaskPage.reload();
     await handlePasswordPrompt(metaMaskPage);
 
     // Attempt to click the confirmation selector
@@ -127,6 +128,7 @@ export async function openDydxConnectMetaMask(
 
   try {
     // Navigate to dYdX portfolio overview
+    await page.bringToFront();
     await navigateToDydxPage(page, "/portfolio/overview", {
       waitUntil: "domcontentloaded",
     });
@@ -159,6 +161,7 @@ export async function openDydxConnectMetaMask(
     logger.success("MetaMask connection steps completed successfully", {
       url: page.url(),
     });
+    await page.bringToFront();
     return page;
   } catch (error) {
     logger.error("MetaMask connection failed", error as Error, {
