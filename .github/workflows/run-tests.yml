@@ -90,8 +90,7 @@ jobs:
       - name: Install Datadog CI CLI
         run: npm install -g @datadog/datadog-ci
 
-      # Run Playwright tests using the built-in reporters.
-      # The junit reporter will output to the file specified via PLAYWRIGHT_JUNIT_OUTPUT.
+      # Run Playwright tests using the built‐in reporters.
       - name: Run Playwright tests with Applitools
         run: xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --reporter=list,junit,html
         env:
@@ -104,7 +103,7 @@ jobs:
         if: always()
         run: nordlayer disconnect || echo "Already disconnected"
 
-      # Upload artifacts only if tests ran (we assume that if the reporter file exists, tests ran).
+      # Upload artifacts (reports) only if tests ran.
       - name: Upload Playwright Test Report
         if: always()
         uses: actions/upload-artifact@v4.6.0
@@ -112,16 +111,20 @@ jobs:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
 
-      # Upload test results to Datadog only if tests ran.
+      # Upload test results to Datadog only if the results.xml file exists.
       - name: Upload Test Results to Datadog
-        if: always() && exists('results.xml')
-        run: datadog-ci junit upload results.xml --service "$DD_SERVICE"
+        if: always()
+        run: |
+          if [ -f results.xml ]; then
+            datadog-ci junit upload results.xml --service "$DD_SERVICE"
+          else
+            echo "results.xml not found, skipping Datadog upload."
+          fi
         env:
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ap1.datadoghq.com
           DD_SERVICE: ${{ env.DD_SERVICE }}
 
-      # (Optional) Analyze failures with OpenAI if needed.
       - name: Analyze Test Failures with OpenAI
         id: analysis
         if: failure()
