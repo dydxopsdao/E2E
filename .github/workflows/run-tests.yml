@@ -87,23 +87,24 @@ jobs:
           echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
 
-      # Install Datadog CI CLI (so that the 'datadog-ci' command is available)
       - name: Install Datadog CI CLI
         run: npm install -g @datadog/datadog-ci
 
-      # Run Playwright tests with the desired reporters. Here we use the built‐in JUnit and HTML reporters.
+      # Run Playwright tests using the built-in reporters.
+      # The junit reporter will output to the file specified via PLAYWRIGHT_JUNIT_OUTPUT.
       - name: Run Playwright tests with Applitools
-        run: xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --reporter=list,junit:results.xml,html
+        run: xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --reporter=list,junit,html
         env:
           APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
-          # If you have additional NODE_OPTIONS for auto-instrumentation, add them here.
+          PLAYWRIGHT_JUNIT_OUTPUT: results.xml
+          # Uncomment and adjust the next line if you need auto-instrumentation via Datadog:
           # NODE_OPTIONS: -r ${{ env.DD_TRACE_PACKAGE }}
 
       - name: Disconnect from NordLayer Server
         if: always()
         run: nordlayer disconnect || echo "Already disconnected"
 
-      # Upload artifacts (reports) only if tests ran.
+      # Upload artifacts only if tests ran (we assume that if the reporter file exists, tests ran).
       - name: Upload Playwright Test Report
         if: always()
         uses: actions/upload-artifact@v4.6.0
@@ -111,16 +112,16 @@ jobs:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
 
-      # Upload test results to Datadog only if the tests ran.
+      # Upload test results to Datadog only if tests ran.
       - name: Upload Test Results to Datadog
-        if: always()  # runs even if tests fail; remove 'always()' if you want to skip on failures
+        if: always() && exists('results.xml')
         run: datadog-ci junit upload results.xml --service "$DD_SERVICE"
         env:
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ap1.datadoghq.com
           DD_SERVICE: ${{ env.DD_SERVICE }}
 
-      # (Optional) Analyze failures with OpenAI if needed and post to Slack, etc.
+      # (Optional) Analyze failures with OpenAI if needed.
       - name: Analyze Test Failures with OpenAI
         id: analysis
         if: failure()
