@@ -88,8 +88,9 @@ jobs:
           export DISPLAY=:99 >> $GITHUB_ENV
           sleep 3
 
+      # Use multiple reporters: list (console), junit (for Datadog) and html (for artifact)
       - name: Run Playwright tests with Applitools
-        run: xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test
+        run: xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --reporter=list,junit:results.xml,html
         env:
           APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
 
@@ -101,6 +102,15 @@ jobs:
         if: always()
         run: nordlayer disconnect || echo "Already disconnected"
 
+      # Upload JUnit test results to Datadog (only if tests ran)
+      - name: Upload Test Results to Datadog
+        if: always()
+        run: datadog-ci junit upload results.xml --service "frontend-e2e"
+        env:
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: ap1.datadoghq.com
+
+      # Upload Playwright test artifacts (only if tests ran)
       - name: Upload Playwright Test Report
         if: always()
         uses: actions/upload-artifact@v4.6.0
@@ -108,12 +118,11 @@ jobs:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
 
-      # This step runs only if the tests fail.
+      # If tests failed, run analysis step with OpenAI
       - name: Analyze Test Failures with OpenAI
         id: analysis
         if: failure()
         run: |
-          # Try to read a test results summary from a file.
           if [ -f playwright-report/results.txt ]; then
             RESULTS=$(cat playwright-report/results.txt)
           else
