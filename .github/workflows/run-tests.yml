@@ -117,6 +117,7 @@ jobs:
         env:
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_SITE: ap1.datadoghq.com
+          DD_SERVICE: "frontend-e2e"
 
       - name: Upload Playwright Test Report
         if: always()
