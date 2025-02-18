@@ -11,6 +11,9 @@ jobs:
       SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
       METAMASK_PASSWORD: ${{ secrets.METAMASK_PASSWORD }}
       APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
+      DD_API_KEY: ${{ secrets.DD_API_KEY }}
+      DD_SITE: ap1.datadoghq.com
+      DD_SERVICE: frontend-e2e
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -65,10 +68,7 @@ jobs:
 
       - name: Authenticate with NordLayer
         run: |
-          nordlayer login \
-            --email "${{ secrets.NORDLAYER_EMAIL }}" \
-            --password "${{ secrets.NORDLAYER_PASSWORD }}" \
-            --organization "dydxopsdao"
+          nordlayer login --email "${{ secrets.NORDLAYER_EMAIL }}" --password "${{ secrets.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"
 
       - name: Connect to NordLayer Server
         run: |
@@ -84,41 +84,26 @@ jobs:
       - name: Start Xvfb
         run: |
           Xvfb :99 -ac &
-          export DISPLAY=:99 >> $GITHUB_ENV
+          echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
 
+      # Install Datadog CI CLI (so that the 'datadog-ci' command is available)
+      - name: Install Datadog CI CLI
+        run: npm install -g @datadog/datadog-ci
+
+      # Run Playwright tests with the desired reporters. Here we use the built‐in JUnit and HTML reporters.
       - name: Run Playwright tests with Applitools
-        run: |
-          # Run Playwright tests with multiple reporters:
-          # - list: for console output
-          # - junit: to produce a JUnit XML file (results.xml)
-          # - html: to produce an HTML report (by default placed in the report folder)
-          xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
-            npx playwright test --reporter=list,junit,html
+        run: xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --reporter=list,junit:results.xml,html
         env:
           APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
-
-      - name: Debug NordLayer Status
-        if: always()
-        run: nordlayer status
+          # If you have additional NODE_OPTIONS for auto-instrumentation, add them here.
+          # NODE_OPTIONS: -r ${{ env.DD_TRACE_PACKAGE }}
 
       - name: Disconnect from NordLayer Server
         if: always()
         run: nordlayer disconnect || echo "Already disconnected"
 
-      # Install Datadog CI CLI so we can upload test results
-      - name: Install Datadog CI CLI
-        run: npm install -g @datadog/datadog-ci
-
-      # Upload the JUnit test results to Datadog.
-      - name: Upload Test Results to Datadog
-        if: always()
-        run: datadog-ci junit upload results.xml
-        env:
-          DD_API_KEY: ${{ secrets.DD_API_KEY }}
-          DD_SITE: ap1.datadoghq.com
-          DD_SERVICE: "frontend-e2e"
-
+      # Upload artifacts (reports) only if tests ran.
       - name: Upload Playwright Test Report
         if: always()
         uses: actions/upload-artifact@v4.6.0
@@ -126,6 +111,16 @@ jobs:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
 
+      # Upload test results to Datadog only if the tests ran.
+      - name: Upload Test Results to Datadog
+        if: always()  # runs even if tests fail; remove 'always()' if you want to skip on failures
+        run: datadog-ci junit upload results.xml --service "$DD_SERVICE"
+        env:
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: ap1.datadoghq.com
+          DD_SERVICE: ${{ env.DD_SERVICE }}
+
+      # (Optional) Analyze failures with OpenAI if needed and post to Slack, etc.
       - name: Analyze Test Failures with OpenAI
         id: analysis
         if: failure()
@@ -136,7 +131,6 @@ jobs:
             RESULTS="No detailed test results found. Please check that the tests are generating output."
           fi
           PROMPT="Analyze the following test failures and provide a summary of likely causes and potential troubleshooting suggestions:\n\n$RESULTS"
-          echo "Prompt: $PROMPT"
           RESPONSE=$(curl -s https://api.openai.com/v1/chat/completions \
             -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
             -H "Content-Type: application/json" \
@@ -166,6 +160,4 @@ jobs:
             MESSAGE="❌ Playwright Visual Tests Failed!\nOpenAI Analysis: ${ANALYSIS_SUMMARY}\nDetails: $RUN_URL"
           fi
           echo "Posting Slack message: $MESSAGE"
-          curl -X POST -H 'Content-type: application/json' \
-            --data "{\"text\": \"${MESSAGE}\"}" \
-            "$SLACK_WEBHOOK_URL"
+          curl -X POST -H 'Content-type: application/json' --data "{\"text\": \"${MESSAGE}\"}" "$SLACK_WEBHOOK_URL"
