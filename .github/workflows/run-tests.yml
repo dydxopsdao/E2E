@@ -16,7 +16,7 @@ jobs:
       DD_SERVICE: dydx.trade
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.6.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -83,7 +83,7 @@ jobs:
 
       - name: Start Xvfb
         run: |
-          Xvfb :99 -ac &
+          Xvfb :99 -ac &>/dev/null &
           echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
 
@@ -98,13 +98,6 @@ jobs:
           APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
           # The JUnit reporter will write its output to results.xml
           PLAYWRIGHT_JUNIT_OUTPUT: results.xml
-          # Uncomment and adjust the next line if you need auto-instrumentation via Datadog:
-          # NODE_OPTIONS: -r ${{ env.DD_TRACE_PACKAGE }}
-
-      # Optional: List directory contents to verify that results.xml exists.
-      - name: List test output files
-        if: always()
-        run: ls -la
 
       - name: Disconnect from NordLayer Server
         if: always()
