@@ -87,8 +87,8 @@ jobs:
           echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
 
-      - name: Install Datadog CI CLI
-        run: npm install -g @datadog/datadog-ci
+      #- name: Install Datadog CI CLI
+      #  run: npm install -g @datadog/datadog-ci
 
       # Run Playwright tests with the desired reporters.
       - name: Run Playwright tests with Applitools
