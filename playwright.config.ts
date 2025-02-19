@@ -4,7 +4,6 @@ import { TEST_TIMEOUTS } from "./constants";
 
 const isApplitoolsRun = process.env.USE_APPLITOOLS === "true";
 
-
 export default defineConfig({
   globalSetup: require.resolve("./global-setup"),
   globalTeardown: require.resolve("./globalTeardown"),
@@ -12,11 +11,14 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  workers: 1, 
+  workers: 1,
   reporter: [
     ...(isApplitoolsRun
       ? [["@applitools/eyes-playwright/reporter"] as ReporterDescription]
       : []),
+    // Add the JUnit reporter to generate XML output.
+    ["junit", { outputFile: "results.xml" }] as ReporterDescription,
+    // HTML reporter for the browser report.
     ["html", { outputFolder: "playwright-report" }] as ReporterDescription,
   ],
   use: {
