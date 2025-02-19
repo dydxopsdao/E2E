@@ -93,7 +93,7 @@ jobs:
       # Run Playwright tests with the desired reporters.
       - name: Run Playwright tests with Applitools
         run: |
-          PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --reporter="list,junit,html"
+          PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test
         env:
           APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
           # The JUnit reporter will write its output to results.xml
