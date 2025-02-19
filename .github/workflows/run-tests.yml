@@ -1,22 +1,56 @@
-name: Playwright Visual Tests with NordLayer Tunnel
+name: Visual Tests Pipeline
 
 on:
   workflow_dispatch:
 
 jobs:
-  visual-tests:
-    name: Run Applitools Visual Tests
+  vpn-setup:
+    name: Setup NordLayer VPN
     runs-on: ubuntu-latest
+    env:
+      NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
+      NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install NordLayer CLI
+        run: |
+          sudo apt-get update
+          sudo dpkg -i ./nordlayer/nordlayer-latest_1.0.0_all.deb
+          sudo apt-get install -f -y
+          sudo apt-get update
+          sudo apt-get install -y nordlayer
+          sudo systemctl daemon-reload
+          sudo systemctl restart nordlayer.service
+          sleep 2
+          sudo chown -R runner:runner /run/nordlayer/
+          sudo chmod 755 /run/nordlayer
+          sudo chmod 666 /run/nordlayer/nordlayer.sock
+
+      - name: Authenticate with NordLayer
+        run: nordlayer login --email "${{ secrets.NORDLAYER_EMAIL }}" --password "${{ secrets.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"
+
+      - name: Connect to NordLayer Server
+        run: nordlayer connect "dos-server-BQG2cKQV"
+
+      - name: Verify VPN Connection
+        run: |
+          echo "Verifying VPN IP..."
+          sleep 20
+          curl ifconfig.me
+
+  run-tests:
+    name: Run Visual Tests
+    runs-on: ubuntu-latest
+    needs: vpn-setup
     env:
       SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
       METAMASK_PASSWORD: ${{ secrets.METAMASK_PASSWORD }}
       APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
-      DD_API_KEY: ${{ secrets.DD_API_KEY }}
-      DD_SITE: ap1.datadoghq.com
-      DD_SERVICE: dydx.trade
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -52,58 +86,34 @@ jobs:
       - name: Install dependencies for Xvfb
         run: sudo apt-get install -y xvfb
 
-      - name: Install NordLayer CLI
-        run: |
-          sudo apt-get update
-          sudo dpkg -i ./nordlayer/nordlayer-latest_1.0.0_all.deb
-          sudo apt-get install -f -y
-          sudo apt-get update
-          sudo apt-get install -y nordlayer
-          sudo systemctl daemon-reload
-          sudo systemctl restart nordlayer.service
-          sleep 2
-          sudo chown -R runner:runner /run/nordlayer/
-          sudo chmod 755 /run/nordlayer
-          sudo chmod 666 /run/nordlayer/nordlayer.sock
-
-      - name: Authenticate with NordLayer
-        run: |
-          nordlayer login --email "${{ secrets.NORDLAYER_EMAIL }}" --password "${{ secrets.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"
-
-      - name: Connect to NordLayer Server
-        run: |
-          nordlayer gateways
-          nordlayer connect "dos-server-BQG2cKQV"
-
-      - name: Verify VPN Connection
-        run: |
-          echo "Verifying VPN IP..."
-          sleep 10
-          curl ifconfig.me
-
       - name: Start Xvfb
         run: |
           Xvfb :99 -ac &>/dev/null &
           echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
 
-      #- name: Install Datadog CI CLI
-      #  run: npm install -g @datadog/datadog-ci
-
-      # Run Playwright tests with the desired reporters.
       - name: Run Playwright tests with Applitools
         run: |
           PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test
         env:
           APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
-          # The JUnit reporter will write its output to results.xml
           PLAYWRIGHT_JUNIT_OUTPUT: results.xml
 
+  post-processing:
+    name: Analysis and Reporting
+    runs-on: ubuntu-latest
+    needs: run-tests
+    env:
+      DD_API_KEY: ${{ secrets.DD_API_KEY }}
+      DD_SITE: ap1.datadoghq.com
+      DD_SERVICE: dydx.trade
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    steps:
       - name: Disconnect from NordLayer Server
         if: always()
         run: nordlayer disconnect || echo "Already disconnected"
 
-      # Upload artifacts only if the tests ran (i.e. if results.xml exists).
       - name: Upload Playwright Test Report
         if: always()
         uses: actions/upload-artifact@v4.6.0
@@ -111,49 +121,42 @@ jobs:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
 
-      # Upload test results to Datadog if results.xml exists.
       - name: Upload Test Results to Datadog
         if: always()
         run: |
           if [ -f results.xml ]; then
-            datadog-ci junit upload results.xml --service "$DD_SERVICE"
+            #datadog-ci junit upload results.xml --service "$DD_SERVICE"
           else
             echo "results.xml not found, skipping Datadog upload."
           fi
-        env:
-          DD_API_KEY: ${{ secrets.DD_API_KEY }}
-          DD_SITE: ap1.datadoghq.com
-          DD_SERVICE: ${{ env.DD_SERVICE }}
 
       - name: Analyze Test Failures with OpenAI
         id: analysis
         if: failure()
         run: |
+          # Read test results from results.xml (adjust as needed)
           if [ -f results.xml ]; then
             RESULTS=$(cat results.xml)
           else
-            RESULTS="No detailed test results found. Please check that the tests are generating output."
+            RESULTS="No detailed test results found."
           fi
           PROMPT="Analyze the following test failures and provide a summary of likely causes and potential troubleshooting suggestions:\n\n$RESULTS"
+          echo "Using prompt: $PROMPT"
+
+          # Use the payload parameters from your working repo:
           RESPONSE=$(curl -s https://api.openai.com/v1/chat/completions \
-            -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
             -H "Content-Type: application/json" \
-            -d '{
-              "model": "gpt-4o-mini",
-              "messages": [{"role": "user", "content": "'"$PROMPT"'"}],
-              "max_tokens": 300,
-              "temperature": 0.7
-            }')
-          ANALYSIS=$(echo $RESPONSE | jq -r '.choices[0].message.content')
+            -d "{\"model\": \"gpt-4o-mini\", \"messages\": [{\"role\": \"user\", \"content\": \"$PROMPT\"}], \"max_tokens\": 500, \"temperature\": 0.9}")
+
+          echo "Raw API response: $RESPONSE"
+          ANALYSIS=$(echo "$RESPONSE" | jq -r '.choices[0].message.content')
           echo "analysis=$ANALYSIS" >> $GITHUB_OUTPUT
           echo "OpenAI Analysis: $ANALYSIS"
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Post Slack Notification
         if: always()
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOB_STATUS: ${{ job.status }}
         run: |
