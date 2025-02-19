@@ -16,7 +16,7 @@ jobs:
       DD_SERVICE: dydx.trade
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.6.0
+        uses: actions/checkout@v4.2.2
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
