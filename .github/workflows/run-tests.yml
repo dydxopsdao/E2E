@@ -13,7 +13,7 @@ jobs:
       APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
       DD_API_KEY: ${{ secrets.DD_API_KEY }}
       DD_SITE: ap1.datadoghq.com
-      DD_SERVICE: frontend-e2e
+      DD_SERVICE: dydx.trade
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
