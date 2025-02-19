@@ -129,8 +129,8 @@ jobs:
         id: analysis
         if: failure()
         run: |
-          if [ -f playwright-report/results.txt ]; then
-            RESULTS=$(cat playwright-report/results.txt)
+          if [ -f results.xml ]; then
+            RESULTS=$(cat results.xml)
           else
             RESULTS="No detailed test results found. Please check that the tests are generating output."
           fi
