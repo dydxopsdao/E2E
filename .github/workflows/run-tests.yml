@@ -38,7 +38,7 @@ jobs:
 
       - name: Authenticate with NordLayer
         run: |
-          nordlayer login --email "${{ secrets.NORDLAYER_EMAIL }}" --password "${{ secrets.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"
+          nordlayer login --email "${{ env.NORDLAYER_EMAIL }}" --password "${{ env.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"
 
       - name: Connect to NordLayer Server
         run: nordlayer connect "dos-server-BQG2cKQV"
@@ -93,7 +93,7 @@ jobs:
         run: |
           PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test
         env:
-          APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
+          APPLITOOLS_API_KEY: ${{ env.APPLITOOLS_API_KEY }}
           PLAYWRIGHT_JUNIT_OUTPUT: results.xml
 
       - name: Disconnect from NordLayer Server
@@ -111,9 +111,8 @@ jobs:
         if: always()
         run: |
           if [ -f results.xml ]; then
-            # Uncomment the line below if Datadog CLI is installed and configured
-            # datadog-ci junit upload results.xml --service "$DD_SERVICE"
             echo "Uploading results.xml to Datadog..."
+            # datadog-ci junit upload results.xml --service "$DD_SERVICE"
           else
             echo "results.xml not found, skipping Datadog upload."
           fi
@@ -127,8 +126,7 @@ jobs:
           if [ "${JOB_STATUS}" = "success" ]; then
             MESSAGE="✅ Playwright Visual Tests Passed!\nDetails: $RUN_URL"
           else
-            ANALYSIS_SUMMARY="${{ steps.analysis.outputs.analysis }}"
-            MESSAGE="❌ Playwright Visual Tests Failed!\nOpenAI Analysis: ${ANALYSIS_SUMMARY}\nDetails: $RUN_URL"
+            MESSAGE="❌ Playwright Visual Tests Failed!\nDetails: $RUN_URL"
           fi
           echo "Posting Slack message: $MESSAGE"
           curl -X POST -H 'Content-type: application/json' --data "{\"text\": \"${MESSAGE}\"}" "$SLACK_WEBHOOK_URL"
