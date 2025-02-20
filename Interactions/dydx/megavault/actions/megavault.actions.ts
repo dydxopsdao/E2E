@@ -5,7 +5,7 @@ import { maybeVisualCheck } from "@utils/visual-check";
 import { checkNotificationAppearance } from "@interactions/dydx/notifications/actions/notification-actions";
 import { NotificationSelectors } from "@interactions/dydx/notifications/selectors/notification-selectors";
 import { TEST_TIMEOUTS } from "@constants/test.constants";
-import { navigateToDydxPage } from "@interactions/dydx/general/actions/navigation.actions";
+import { navigateToDydxPage, navigateToViaHeader } from "@interactions/dydx/general/actions/navigation.actions";
 interface VaultDepositOptions {
   eyes?: Eyes;
   performEyesCheck?: boolean;
@@ -232,8 +232,10 @@ export async function checkVaultBalanceChange(
   const maxRetries = 10;
   let retries = 0;
 
-  await navigateToDydxPage(page, "/portfolio/overview");
-  await navigateToDydxPage(page, "/vault");
+  await navigateToViaHeader(page, "PORTFOLIO");
+  await page.waitForTimeout(1000);
+  await navigateToViaHeader(page, "VAULT");
+  await page.waitForTimeout(1000);
   
   while (retries <= maxRetries) {
     const { balance: finalBalance } = await getVaultBalance(page);
