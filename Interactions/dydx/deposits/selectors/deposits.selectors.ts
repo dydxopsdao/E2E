@@ -11,7 +11,7 @@ export const DepositsSelectors = {
   fillStatusText: "text=Successful",
   newDepositButton: 'button:has-text("New Deposit")',
   fillStatus: "div:text('Fill status')",
-  depositModal: ".sc-dWfHsP.lkfnQo",
+  depositModal: ".sc-18mw14j-2",
   depositCompletedText: "text=Deposit completed",
   depositAmount: ".sc-17stuub-0.sc-17stuub-1.eqFWVL.hsAYsL.sc-zrz3bm-0.eSotPz",
 };

@@ -16,8 +16,6 @@ export default defineConfig({
     ...(isApplitoolsRun
       ? [["@applitools/eyes-playwright/reporter"] as ReporterDescription]
       : []),
-    // Add the JUnit reporter to generate XML output.
-    ["junit", { outputFile: "results.xml" }] as ReporterDescription,
     // HTML reporter for the browser report.
     ["html", { outputFolder: "playwright-report" }] as ReporterDescription,
   ],
