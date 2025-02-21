@@ -29,7 +29,6 @@ jobs:
               workflow_id: 'run-tests.yml',
               ref: 'main',
               inputs: {
-                deployment_id: context.payload.client_payload.payload.deploymentId || 'manual',
-                deployment_url: context.payload.client_payload.payload.url || 'default-url'
+                deployment_id: context.payload.client_payload.payload.deploymentId || 'manual'
               }
             });
