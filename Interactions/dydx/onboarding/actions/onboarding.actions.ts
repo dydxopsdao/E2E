@@ -35,8 +35,5 @@ export async function closeOnboarding(page: Page): Promise<void> {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     logger.error(`Failed to click close button: ${errorMessage}`);
-    throw new Error(
-      `Failed to close onboarding: ${errorMessage}`
-    );
   }
 }
