@@ -2,10 +2,15 @@ name: Visual Tests Pipeline
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [deployment]
 
 jobs:
   visual-tests:
     name: Run Visual Tests with NordLayer VPN
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'repository_dispatch'
     runs-on: ubuntu-latest
     env:
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
@@ -19,6 +24,13 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     steps:
+      - name: Log Event Details
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Event type: ${{ github.event.event_type }}"
+          echo "Client payload type: ${{ github.event.client_payload.type }}"
+          echo "Full event payload: ${{ toJSON(github.event) }}"
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
