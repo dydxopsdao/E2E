@@ -10,7 +10,7 @@ on:
 
 jobs:
   visual-tests:
-    name: "Run Visual Tests with NordLayer VPN (Deployment: ${{ inputs.deployment_id }})"
+    name: "E2E Tests (Deployment: ${{ inputs.deployment_id }})"
     runs-on: ubuntu-latest
     env:
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
@@ -27,8 +27,7 @@ jobs:
       - name: Log Event Details
         run: |
           echo "Event name: ${{ github.event_name }}"
-          echo "Event type: ${{ github.event.event_type }}"
-          echo "Client payload type: ${{ github.event.client_payload.type }}"
+          echo "Deployment ID: ${{ inputs.deployment_id }}"
           echo "Full event payload: ${{ toJSON(github.event) }}"
 
       - name: Checkout repository
