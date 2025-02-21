@@ -13,7 +13,7 @@ jobs:
         if: always()
         run: |
           echo "============ Debug Info ============"
-          echo "Deployment ID: ${{ github.event.client_payload.payload.deploymentId }}"
+          echo "Deployment ID: ${{ github.event.client_payload.deploymentId }}"
           echo "Event name: ${{ github.event_name }}"
           echo "Full event: ${{ toJSON(github.event) }}"
           echo "====================================="
@@ -23,7 +23,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_PAT }}
           script: |
-            const deploymentId = context.payload.client_payload?.payload?.deploymentId || 'manual';
+            const deploymentId = context.payload.client_payload?.deploymentId || 'manual';
             console.log('Debug - Deployment ID:', deploymentId);
             console.log('Debug - Full context:', JSON.stringify(context.payload));
             
