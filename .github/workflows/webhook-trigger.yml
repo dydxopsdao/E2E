@@ -1,28 +1,21 @@
 name: Trigger Run Tests Workflow
 
 on:
-  # Manual trigger from GitHub UI
-  workflow_dispatch:
   repository_dispatch:
     types: [deployment]
 
 jobs:
   trigger:
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'repository_dispatch'
+    if: github.event_name == 'repository_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Always Run Debug
         if: always()
         run: |
           echo "============ Debug Info ============"
+          echo "Deployment ID: ${{ github.event.client_payload.payload.deploymentId }}"
           echo "Event name: ${{ github.event_name }}"
-          echo "Event type: ${{ github.event.event_type }}"
-          echo "Repository dispatch type: ${{ github.event.action }}"
-          echo "Client payload: ${{ toJSON(github.event.client_payload) }}"
           echo "Full event: ${{ toJSON(github.event) }}"
-          echo "Job status: ${{ job.status }}"
           echo "====================================="
 
       - name: Trigger Visual Tests
@@ -34,5 +27,9 @@ jobs:
               owner: 'dydxopsdao',
               repo: 'E2E',
               workflow_id: 'run-tests.yml',
-              ref: 'main'
+              ref: 'main',
+              inputs: {
+                deployment_id: context.payload.client_payload.payload.deploymentId || 'manual',
+                deployment_url: context.payload.client_payload.payload.url || 'default-url'
+              }
             });

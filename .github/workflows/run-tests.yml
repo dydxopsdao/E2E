@@ -2,15 +2,19 @@ name: Visual Tests Pipeline
 
 on:
   workflow_dispatch:
-  repository_dispatch:
-    types: [deployment]
+    inputs:
+      deployment_id:
+        description: 'Vercel Deployment ID'
+        required: false
+        default: 'manual'
+      deployment_url:
+        description: 'Deployment URL'
+        required: false
+        default: 'default-url'
 
 jobs:
   visual-tests:
-    name: Run Visual Tests with NordLayer VPN
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'repository_dispatch'
+    name: Run Visual Tests with NordLayer VPN (Deployment: ${{ inputs.deployment_id }})
     runs-on: ubuntu-latest
     env:
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
