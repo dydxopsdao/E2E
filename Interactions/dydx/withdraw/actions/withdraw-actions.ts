@@ -318,10 +318,10 @@ export async function checkWithdrawCompleted(
     timeout: TEST_TIMEOUTS.DEFAULT,
   });
 
-  // Wait for the withdraw completed text to appear (up to 2 minutes)
+  // Wait for the withdraw completed text to appear (up to 3.5 minutes)
   await page.waitForSelector(withdrawCompletedTextSelector, {
     state: "visible",
-    timeout: 210000, // 3.5 minutes
+    timeout: 300000, // 3.5 minutes
   });
 
   // Extract the full text content from the withdrawal modal

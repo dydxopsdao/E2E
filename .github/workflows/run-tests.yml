@@ -1,4 +1,4 @@
-name: Visual Tests Pipeline
+name: E2E Pipeline
 
 on:
   workflow_dispatch:
