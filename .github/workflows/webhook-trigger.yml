@@ -23,12 +23,16 @@ jobs:
         with:
           github-token: ${{ secrets.GH_PAT }}
           script: |
+            const deploymentId = context.payload.client_payload?.payload?.deploymentId || 'manual';
+            console.log('Debug - Deployment ID:', deploymentId);
+            console.log('Debug - Full context:', JSON.stringify(context.payload));
+            
             await github.rest.actions.createWorkflowDispatch({
               owner: 'dydxopsdao',
               repo: 'E2E',
               workflow_id: 'run-tests.yml',
               ref: 'main',
               inputs: {
-                deployment_id: context.payload.client_payload.payload.deploymentId || 'manual'
+                deployment_id: deploymentId
               }
             });
