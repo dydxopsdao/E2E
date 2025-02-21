@@ -133,11 +133,12 @@ jobs:
         env:
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOB_STATUS: ${{ job.status }}
+          DEPLOYMENT_ID: ${{ inputs.deployment_id }}
         run: |
           if [ "${JOB_STATUS}" = "success" ]; then
-            MESSAGE="✅ Playwright Visual Tests Passed!\nDetails: $RUN_URL"
+            MESSAGE="✅ E2E Tests Passed! (Deployment: ${DEPLOYMENT_ID})\nDetails: $RUN_URL"
           else
-            MESSAGE="❌ Playwright Visual Tests Failed!\nDetails: $RUN_URL"
+            MESSAGE="❌ E2E Tests Failed! (Deployment: ${DEPLOYMENT_ID})\nDetails: $RUN_URL"
           fi
           echo "Posting Slack message: $MESSAGE"
           curl -X POST -H 'Content-type: application/json' --data "{\"text\": \"${MESSAGE}\"}" "$SLACK_WEBHOOK_URL"
