@@ -140,7 +140,7 @@ export class OrderManager {
       
       // Add status filter - handle both string and array formats
       if (status) {
-        const validStatuses = ["OPEN", "FILLED", "CANCELED", "BEST_EFFORT_CANCELED", "UNTRIGGERED", "BEST_EFFORT_OPENED"];
+        const validStatuses = ["OPEN", "FILLED", "CANCELED", "BEST_EFFORT_CANCELED", "UNTRIGGERED", "BEST_EFFORT_OPENED", "PENDING"];
         
         if (Array.isArray(status)) {
           // Filter out any invalid statuses

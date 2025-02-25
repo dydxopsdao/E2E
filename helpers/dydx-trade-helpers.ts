@@ -466,6 +466,10 @@ export class DydxTradeHelper {
       pollIntervalMs = 2000,
     } = options;
 
+    // Add initial delay to allow time for order to be indexed
+    logger.info(`Adding initial delay of 2.5s to allow order ${orderId} to be indexed...`);
+    await waitForTimeout(2500);
+    
     // Validate target status
     const validStatuses = ["OPEN", "FILLED", "CANCELED", "BEST_EFFORT_CANCELED", "UNTRIGGERED", "BEST_EFFORT_OPENED", "PENDING"];
     if (!validStatuses.includes(targetStatus)) {
@@ -811,4 +815,13 @@ export async function closePositions(
  */
 export function createDydxTradeHelper(orderManager: OrderManager): DydxTradeHelper {
   return new DydxTradeHelper(orderManager);
-} 
+}
+
+/**
+ * Utility function to wait for a specified time in milliseconds
+ * @param ms Time to wait in milliseconds
+ * @returns Promise that resolves after the specified time
+ */
+async function waitForTimeout(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}

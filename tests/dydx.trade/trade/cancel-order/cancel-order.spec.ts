@@ -151,7 +151,6 @@ combinedTest.describe("Cancel Orders UI", () => {
        await openDydxConnectMetaMask(page, metamaskContext, {
          dydxPage: "/trade/BTC-USD",
        });
-      await page.pause();
 
       // Store the client ID from the order response
       const orderId = order.id;
