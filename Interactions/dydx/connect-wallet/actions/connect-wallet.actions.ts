@@ -1,7 +1,7 @@
 import { Page } from "@playwright/test";
 import { ConnectWalletSelectors } from "@dydx/connect-wallet/selectors/connect-wallet-selectors";
 import { logger } from "@utils/logger/logging-utils";
-import { TEST_TIMEOUTS } from "@constants/test.constants";
+import { TEST_TIMEOUTS } from "../../../../constants/test.constants";
 import { handlePasswordPrompt } from "@interactions/wallets/metamask/actions/connect-metamask";
 
 export async function triggerWalletConnectionModal(page: Page): Promise<void> {

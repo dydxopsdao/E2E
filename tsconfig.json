@@ -2,16 +2,17 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    "baseUrl": "./", 
+    "baseUrl": ".",
     "moduleResolution": "node",
     "paths": {
-      "@fixtures/*": ["fixtures/*"],
       "@utils/*": ["utils/*"],
+      "@fixtures/*": ["fixtures/*"],
       "@interactions/*": ["Interactions/*"],
-      "@constants/*": ["constants/*"],
       "@dydx/*": ["Interactions/dydx/*"],
+      "@interactions/dydx/*": ["Interactions/dydx/*"],
       "@wallets/*": ["Interactions/wallets/*"],
-      "@config/*": ["config/*"]
+      "@config/*": ["config/*"],
+      "@constants/*": ["constants/*"]
     },
     "strict": true,
     "esModuleInterop": true

@@ -20,7 +20,7 @@ export interface ConnectMetaMaskOptions {
 
 export async function handlePasswordPrompt(page: Page): Promise<void> {
   logger.step("Handling MetaMask password prompt", {
-    timeout: TEST_TIMEOUTS.NAVIGATION,
+    timeout: TEST_TIMEOUTS.ACTION,
   });
 
   // Get the locator for the standard "Confirm" button.
@@ -61,7 +61,7 @@ export async function handlePasswordPrompt(page: Page): Promise<void> {
   const password = process.env.METAMASK_PASSWORD || "";
   try {
     await page.waitForSelector(MetamaskSelectors.passwordUnlock, {
-      timeout: TEST_TIMEOUTS.NAVIGATION,
+      timeout: TEST_TIMEOUTS.DEFAULT,
     });
     await page.fill(MetamaskSelectors.passwordUnlock, password);
     await page.click(MetamaskSelectors.metaMaskUnlockSubmit);

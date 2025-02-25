@@ -3,6 +3,9 @@ export const NotificationSelectors = {
   instantDepositHeader: "header.sc-4mq6fy-5",
   depositCompletedMessage: "div.sc-4mq6fy-8",
   withdrawalToast: "div.sc-4mq6fy-0.bLufce.sc-tbzx68-1.byiCqt",
-  withdrawalHeader: "div.sc-4mq6fy-6.iAvKHz",
+  toastHeader: "div.sc-4mq6fy-6.iAvKHz",
   withdrawalMessage: "div.sc-4mq6fy-8.gmRvwP",
+  cancelOrderToast: "div.sc-4mq6fy-0.bLufce",
+  cancelOrderHeader: ".sc-4mq6fy-6.iAvKHz",
+  cancelOrderMessage: ".sc-1jsh202-0.gjHDXL",
 };

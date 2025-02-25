@@ -126,7 +126,7 @@ export async function checkWithdrawalNotifications(
   // If it does not, check if the error element is visible and contains "Something went wrong: Unknown error".
   try {
     await expect(
-      page.locator(NotificationSelectors.withdrawalHeader)
+      page.locator(NotificationSelectors.toastHeader)
     ).toContainText("Withdrawal(s) in progress");
   } catch (headerError) {
     const errorElement = page.locator("div.sc-1vvc9p2-0");

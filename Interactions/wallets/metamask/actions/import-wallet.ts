@@ -45,7 +45,6 @@ async function fillSeedPhrase(page: Page, seedPhrase: string): Promise<void> {
     const words = seedPhrase.split(" ");
     for (let i = 0; i < words.length; i++) {
       const wordSelector = `[data-testid="import-srp__srp-word-${i}"]`;
-      await page.waitForTimeout(500)
       await page.fill(wordSelector, words[i]);
     }
     logger.success("Seed phrase filled successfully");
