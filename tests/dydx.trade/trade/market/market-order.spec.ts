@@ -1,23 +1,23 @@
-import { metamaskEyesTest as test } from "@fixtures/metamaskEyesFixture";
+import { combinedTest as test } from "@fixtures/combinedFixture";
 import { openDydxConnectMetaMask } from "@wallets/metamask/actions/connect-metamask";
 import { logger } from "@utils/logger/logging-utils";
-import { Eyes } from "@applitools/eyes-playwright";
 import { BrowserContext, expect, Page } from "@playwright/test";
-import { visualCheck } from "@utils/visual-check";
 import { OrderbookSelectors } from "@interactions/orderbook/orderbook.selectors";
 import { DealTicketSelectors } from "@interactions/dydx/deal-ticket/selectors/deal-ticket.selectors";
 import { swapAsset } from "@interactions/dydx/deal-ticket/actions/deal-ticket.actions";
+import { OrderSide } from "@dydxprotocol/v4-client-js";
+import { closePositions } from "../../../../helpers/dydx-trade-helpers";
 
 test("btc-usd market order LONG", async ({
   metamaskContext,
-  eyes,
   page,
-}: {
-  metamaskContext: BrowserContext;
-  eyes: Eyes;
-  page: Page;
+  dydxTradeHelper
 }) => {
   try {
+    // Pre-test cleanup: Close any existing positions
+    logger.step("Pre-test cleanup: Checking for existing positions to close");
+    await closePositions(dydxTradeHelper, "BTC-USD", "Pre-test: ");
+    
     // Arrange
     logger.step("Setting up connected market page test");
     await openDydxConnectMetaMask(page, metamaskContext, {
@@ -80,10 +80,10 @@ test("btc-usd market order LONG", async ({
        );
        throw error;
      }
-
     }
 
-    // TODO: click place market order
+    await page.click(DealTicketSelectors.placeOrderBtnActive);
+    await page.waitForTimeout(10000);
     // TODO: assert Pending notification
     // TODO: assert order confirmation notification
     // TODO: assert trading reward received notification
@@ -91,5 +91,9 @@ test("btc-usd market order LONG", async ({
   } catch (error) {
     logger.error("Market page test failed", error as Error);
     throw error;
+  } finally {
+    // Clean up - close any positions via API regardless of test result
+    logger.step("Post-test cleanup: Closing any open positions");
+    await closePositions(dydxTradeHelper, "BTC-USD", "Post-test: ");
   }
 });

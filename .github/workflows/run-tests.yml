@@ -22,6 +22,8 @@ jobs:
       DD_SITE: ap1.datadoghq.com
       DD_SERVICE: dydx.trade
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      DYDX_MNEMONIC: ${{ secrets.DYDX_MNEMONIC }}
+      DYDX_ADDRESS: ${{ secrets.DYDX_ADDRESS }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     steps:
       - name: Log Event Details

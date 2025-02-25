@@ -575,7 +575,127 @@ export class DydxTradeHelper {
     );
     return null;
   }
+
+  /**
+   * Get open positions for a subaccount
+   * @param options Additional filtering options
+   * @returns Array of positions
+   */
+  async getPositions(
+    options: {
+      subaccountNumber?: number;
+      market?: string;
+    } = {}
+  ): Promise<any[]> {
+    const { 
+      subaccountNumber = DEFAULT_SUBACCOUNT,
+      market
+    } = options;
+
+    logger.step(`Getting positions for subaccount ${subaccountNumber}${market ? ` in market ${market}` : ''}`);
+
+    try {
+      // Get the client's indexer and wallet info
+      const indexerClient = this.orderManager['client'].indexerClient;
+      const address = this.orderManager['wallet'].address;
+
+      // Build API URL for positions
+      let url = `${indexerClient.config.restEndpoint}/v4/perpetualPositions?address=${address}&subaccountNumber=${subaccountNumber}`;
+      
+      // Log the request URL
+      logger.info(`Fetching positions from: ${url}`);
+      
+      // Make the API request
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        logger.warning(`API returned status ${response.status}: ${response.statusText}`);
+        return [];
+      }
+      
+      // Parse the response
+      const data = await response.json();
+      
+      // Handle the positions array from the response
+      let positions = data?.positions || [];
+      
+      // Filter by market if specified
+      if (market && positions.length > 0) {
+        positions = positions.filter((position: any) => position.market === market);
+      }
+      
+      // Log the result
+      logger.success(`Retrieved ${positions.length} positions${market ? ` for ${market}` : ''}`);
+      
+      // Log details about positions
+      if (positions.length > 0) {
+        positions.forEach((position: any) => {
+          logger.info(`Position: ${position.market} ${position.side} ${position.size} @ ${position.entryPrice}`);
+        });
+      } else {
+        logger.info("No positions found");
+      }
+      
+      return positions;
+    } catch (error) {
+      logger.error(`Failed to fetch positions`, error as Error);
+      throw error;
+    }
+  }
 }
+
+/**
+ * Helper function to close any open positions for a market
+ * @param dydxTradeHelper The trade helper instance
+ * @param market The market to close positions for (e.g., "BTC-USD")
+ * @param logPrefix Optional prefix for log messages
+ */
+async function closePositions(
+  dydxTradeHelper: DydxTradeHelper, 
+  market: string, 
+  logPrefix: string = ""
+): Promise<void> {
+  try {
+    // Cancel any open orders first
+    await dydxTradeHelper.cancelAllOrders();
+    
+    // Get positions for the market
+    logger.info(`${logPrefix}Checking for open positions in ${market}`);
+    const positions = await dydxTradeHelper.getPositions({ market });
+    
+    if (positions && positions.length > 0) {
+      logger.info(`${logPrefix}Found ${positions.length} positions to close`);
+      
+      for (const position of positions) {
+        if (position.size === "0" || parseFloat(position.size) === 0) {
+          logger.info(`${logPrefix}Position for ${position.market} has zero size, skipping`);
+          continue;
+        }
+        
+        logger.info(`${logPrefix}Closing position for ${position.market} with size ${position.size}`);
+        
+        // Determine the closing side (opposite of position side)
+        const side = position.side === 'LONG' ? OrderSide.SELL : OrderSide.BUY;
+        
+        // Place a market order to close the position
+        await dydxTradeHelper.placeMarketOrder(
+          position.market,
+          side,
+          Math.abs(parseFloat(position.size)),
+          { reduceOnly: true }
+        );
+        
+        logger.success(`${logPrefix}Position for ${position.market} closed successfully`);
+      }
+    } else {
+      logger.info(`${logPrefix}No open positions found for ${market}`);
+    }
+  } catch (error) {
+    logger.warning(`${logPrefix}Failed to close positions`, { error: (error as Error).message });
+    // Don't throw the error, as this is cleanup logic
+  }
+}
+
 
 /**
  * Create a DydxTradeHelper instance

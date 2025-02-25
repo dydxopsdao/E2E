@@ -8,8 +8,7 @@ import { BrowserContext, Page } from "@playwright/test";
 import { WALLET_ADDRESSES } from "@constants/wallet-addresses.constants";
 import { metamaskTest as test } from "@fixtures/metamaskFixture";
 import { checkWithdrawCompleted, completeWithdrawal } from "@interactions/dydx/withdraw/actions/withdraw-actions";
-import { checkWithdrawalNotifications } from "@interactions/dydx/notifications/actions/notification-actions";
-import { closeDialog } from "@interactions/dydx/general/actions/general.actions";
+
 
 const walletAddress = WALLET_ADDRESSES.PUBLIC_ARBITRUM;
 const withdrawAmount = -12;
