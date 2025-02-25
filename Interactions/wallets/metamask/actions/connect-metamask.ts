@@ -122,10 +122,6 @@ export async function confirmMetaMaskAction(
     await metaMaskPage.click(confirmSelector, { timeout: timeout / 2 });
     logger.success("MetaMask action confirmed with fallback approach");
   } catch (error) {
-    logger.error("Failed to confirm MetaMask action", error as Error, {
-      timeout,
-      confirmSelector,
-    });
   }
 }
 
