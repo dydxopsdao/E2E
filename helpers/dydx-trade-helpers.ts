@@ -650,7 +650,7 @@ export class DydxTradeHelper {
  * @param market The market to close positions for (e.g., "BTC-USD")
  * @param logPrefix Optional prefix for log messages
  */
-async function closePositions(
+export async function closePositions(
   dydxTradeHelper: DydxTradeHelper, 
   market: string, 
   logPrefix: string = ""
