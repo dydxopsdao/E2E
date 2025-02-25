@@ -14,6 +14,7 @@ import { getMetaMaskPage } from "@wallets/metamask/actions/open-metamask";
 export interface ConnectMetaMaskOptions {
   timeout?: number;
   password?: string;
+  dydxPage?: string;
 }
 
 
@@ -114,6 +115,7 @@ export async function openDydxConnectMetaMask(
     timeout = TEST_TIMEOUTS.DEFAULT,
     password = process.env.METAMASK_PASSWORD ||
       WALLET_CONSTANTS.METAMASK.DEFAULT_PASSWORD,
+    dydxPage = "/portfolio/overview",
   } = options;
 
   if (!password) {
@@ -127,9 +129,9 @@ export async function openDydxConnectMetaMask(
   logger.step("Starting connection process to dYdX");
 
   try {
-    // Navigate to dYdX portfolio overview
+    // Navigate to the specified dYdX page (defaults to /portfolio/overview)
     await page.bringToFront();
-    await navigateToDydxPage(page, "/portfolio/overview", {
+    await navigateToDydxPage(page, dydxPage, {
       waitUntil: "domcontentloaded",
     });
 
@@ -147,8 +149,8 @@ export async function openDydxConnectMetaMask(
 
     // Bring main page to front and send the request
     await page.bringToFront();
-    //await page.click((ConnectWalletSelectors.rememberMe);
     await sendRequest(page);
+
     // Additional MetaMask confirmations if needed
     const confirmSelectors = [
       MetamaskSelectors.confirmButtonFooter,
