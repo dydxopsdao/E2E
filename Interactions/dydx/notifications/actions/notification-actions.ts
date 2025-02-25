@@ -205,4 +205,93 @@ export async function checkWithdrawalNotifications(
   throw new Error("Timed out waiting for withdrawal completion notification");
 }
 
+/**
+ * Checks a multi-order cancellation notification that transitions from:
+ *   1) "Canceling all orders" (with incremental X/Y)
+ *   2) "Orders Canceled" once complete
+ * And then disappears from the DOM.
+ *
+ * @param page - Playwright Page
+ * @param toastSelector - e.g. ".Toastify__toast"
+ * @param cancelingHeader - e.g. "Canceling all orders"
+ * @param canceledHeader - e.g. "Orders Canceled"
+ * @param expectedTotal - number of orders expected (Y in X/Y)
+ * @param timeoutMs - overall timeout for this check
+ * @param waitForDisappear - how long to wait for the toast to disappear, after final state is reached
+ */
+export async function checkMultiOrderCancellationNotification(
+  page: Page,
+  toastSelector: string,
+  cancelingHeader: string,
+  canceledHeader: string,
+  expectedTotal: number,
+  timeoutMs: number = 10000,
+  waitForDisappear: number = 20000
+): Promise<void> {
+  logger.step(
+    `Waiting for multi-order cancellation notification for ${expectedTotal} orders`
+  );
 
+  // 1) Wait until the toast container appears
+  await page.waitForSelector(toastSelector, { timeout: timeoutMs });
+
+  const startTime = Date.now();
+  const pollInterval = 250;
+  let lastSeenCount = 0;
+
+  while (Date.now() - startTime < timeoutMs) {
+    await page.waitForTimeout(pollInterval);
+
+    // 2) Grab all text from the toast container
+    const fullText = (await page.locator(toastSelector).innerText()).trim();
+    const lines = fullText.split(/\n+/).map((l) => l.trim());
+    logger.debug(`Toast lines:\n${JSON.stringify(lines, null, 2)}`);
+
+    // 3) Check if we see the "canceling" header
+    if (!lines.includes(cancelingHeader)) {
+      logger.debug(`Haven't seen "${cancelingHeader}" in lines yet.`);
+    }
+
+    // 4) Check fraction X/Y if present (e.g. "1/2", "2/2")
+    const joined = lines.join(" ");
+    const fractionMatch = joined.match(/(\d+)\s*\/\s*(\d+)/);
+    if (fractionMatch) {
+      const current = parseInt(fractionMatch[1], 10);
+      const total = parseInt(fractionMatch[2], 10);
+
+      // If total is what we expect, track how many we've seen canceled
+      if (total === expectedTotal && current > lastSeenCount) {
+        lastSeenCount = current;
+        logger.debug(`Cancellation progress: ${current}/${total}`);
+      }
+    }
+
+    // 5) Check if we see the final "Orders Canceled" text
+    if (lines.includes(canceledHeader)) {
+      // Optionally, confirm lastSeenCount == expectedTotal
+      if (lastSeenCount < expectedTotal) {
+        logger.warning(
+          `Saw "${canceledHeader}" but only counted ${lastSeenCount}/${expectedTotal}.`
+        );
+      } else {
+        logger.success(
+          `All orders canceled: ${lastSeenCount}/${expectedTotal}`
+        );
+      }
+
+      // 6) Now wait for the toast to disappear
+      //    (If you want to be sure it does vanish from the DOM.)
+      logger.step(`Waiting for toast to disappear...`);
+      await page.waitForSelector(toastSelector, {
+        state: "detached",
+        timeout: waitForDisappear,
+      });
+      logger.success(`Toast disappeared from the DOM.`);
+      return;
+    }
+  }
+
+  throw new Error(
+    `Timeout waiting for multi-order cancellation. Last progress: ${lastSeenCount}/${expectedTotal}`
+  );
+}

@@ -5,19 +5,8 @@ import { expect } from "@playwright/test";
 import { OrderbookSelectors } from "@interactions/orderbook/orderbook.selectors";
 import { OrderSide, OrderTimeInForce } from "@dydxprotocol/v4-client-js";
 import { OrdersTableSelectors } from "@interactions/dydx/orders/selectors/orders-table.selectors";
-import { checkNotificationAppearance } from "@interactions/dydx/notifications/actions/notification-actions";
+import { checkMultiOrderCancellationNotification, checkNotificationAppearance } from "@interactions/dydx/notifications/actions/notification-actions";
 import { NotificationSelectors } from "@interactions/dydx/notifications/selectors/notification-selectors";
-
-
-// Define the cancel button selectors based on the screenshot
-const CancelButtonSelectors = {
-  cancelButton:
-    "button.sc-l0nx5c-0.hXySKe.sc-1xochuw-0.wjDMP.sc-mg0yzv-0.fpsZnf.sc-1389rbw-0.bOJleK",
-  cancelAllButton:
-    "button.sc-l0nx5c-0.jpRLbK.sc-1xochuw-0.kwYHWz.sc-jsj259-0.hyRwUc",
-  cancelContainer: "div.sc-1drcyj-9.kFEJXg",
-  confirmCancelAllButton: ".sc-l0nx5c-0.kvCeBH.sc-1xochuw-0.jbIjRq.sc-16lhsa0-0.JlMLV",
-};
 
 /**
  * Tests for canceling different types of orders via the UI after placing them with the API
@@ -44,16 +33,33 @@ combinedTest.describe("Cancel Orders UI", () => {
           timeInForce: OrderTimeInForce.GTT,
           goodTilTimeInSeconds: 3600, // 1 hour
           postOnly: true,
+          clientId: Math.floor(Math.random() * 900000) + 100000 // 6-digit number
         }
       );
       
-      logger.info(`Order placed with ID: ${order.id}`);
+      // Store the client ID from the order response
+      const orderId = order.id;
+      logger.info(`Order placed with clientId: ${orderId}`);
+      
+      if (order.hash) {
+        logger.info(`Order hash: ${order.hash}`);
+      }
+      
+      // Log entire order object to debug
+      logger.info('Order response details:', { orderDetails: order });
       
       // Wait for the order to be indexed
-      await dydxTradeHelper.waitForOrderStatus(order.id, "OPEN", {
-        timeoutMs: 10000,
+      logger.step(`Waiting for order ${orderId} to be indexed as OPEN`);
+      const openOrder = await dydxTradeHelper.waitForOrderStatus(orderId, "OPEN", {
+        timeoutMs: 15000,
         pollIntervalMs: 1000,
       });
+      
+      if (!openOrder) {
+        throw new Error(`Order ${orderId} was not found or did not reach OPEN status`);
+      }
+      
+      logger.info(`Order ${orderId} confirmed as OPEN in the API`);
       
       // Open UI and navigate to orders page
       logger.step("Opening dYdX UI and navigating to btc-usd page");
@@ -84,7 +90,7 @@ combinedTest.describe("Cancel Orders UI", () => {
       
       await expect(orderRow).toBeVisible();
       
-      const cancelButton = orderRow.locator(CancelButtonSelectors.cancelButton);
+      const cancelButton = orderRow.locator(OrdersTableSelectors.cancelButton);
       await cancelButton.click();
       
       
@@ -101,7 +107,7 @@ combinedTest.describe("Cancel Orders UI", () => {
       
       // Verify order is no longer active in the API
       logger.step("Verifying order cancellation via API");
-      const canceledOrder = await dydxTradeHelper.waitForOrderStatus(order.id, "CANCELED", {
+      const canceledOrder = await dydxTradeHelper.waitForOrderStatus(orderId, "CANCELED", {
         timeoutMs: 10000,
         pollIntervalMs: 1000,
       });
@@ -137,17 +143,35 @@ combinedTest.describe("Cancel Orders UI", () => {
           timeInForce: OrderTimeInForce.GTT,
           goodTilTimeInSeconds: 3600, // 1 hour
           postOnly: true,
+          // Generate a specific client ID to make tracking easier
+          clientId: Math.floor(Math.random() * 900000) + 100000 // 6-digit number
         }
       );
 
-      logger.info(`Order placed with ID: ${order.id}`);
-
+      // Store the client ID from the order response
+      const orderId = order.id;
+      logger.info(`Order placed with clientId: ${orderId}`);
+      
+      if (order.hash) {
+        logger.info(`Order hash: ${order.hash}`);
+      }
+      
+      // Log entire order object to debug
+      logger.info('Order response details:', { orderDetails: order });
+      
       // Wait for the order to be indexed
-      await dydxTradeHelper.waitForOrderStatus(order.id, "OPEN", {
-        timeoutMs: 10000,
+      logger.step(`Waiting for order ${orderId} to be indexed as OPEN`);
+      const openOrder = await dydxTradeHelper.waitForOrderStatus(orderId, "OPEN", {
+        timeoutMs: 15000,
         pollIntervalMs: 1000,
       });
-
+      
+      if (!openOrder) {
+        throw new Error(`Order ${orderId} was not found or did not reach OPEN status`);
+      }
+      
+      logger.info(`Order ${orderId} confirmed as OPEN in the API`);
+      
       // Open UI and navigate to orders page
       logger.step("Opening dYdX UI and navigating to btc-usd page");
       await openDydxConnectMetaMask(page, metamaskContext, {
@@ -177,7 +201,7 @@ combinedTest.describe("Cancel Orders UI", () => {
 
       await expect(orderRow).toBeVisible();
 
-      const cancelButton = orderRow.locator(CancelButtonSelectors.cancelButton);
+      const cancelButton = orderRow.locator(OrdersTableSelectors.cancelButton);
       await cancelButton.click();
 
       // Wait for cancellation notification
@@ -194,7 +218,7 @@ combinedTest.describe("Cancel Orders UI", () => {
       // Verify order is no longer active in the API
       logger.step("Verifying order cancellation via API");
       const canceledOrder = await dydxTradeHelper.waitForOrderStatus(
-        order.id,
+        orderId,
         "CANCELED",
         {
           timeoutMs: 10000,
@@ -221,7 +245,6 @@ combinedTest.describe("Cancel Orders UI", () => {
     try {
       // Arrange - place multiple orders via API
       const market = "BTC-USD";
-      const displayMarket = "BTC"; // Only the base asset is shown in the UI
       logger.step("Placing multiple orders via API");
 
       // Place a buy limit order
@@ -234,6 +257,8 @@ combinedTest.describe("Cancel Orders UI", () => {
           timeInForce: OrderTimeInForce.GTT,
           goodTilTimeInSeconds: 3600,
           postOnly: true,
+          // Generate a specific client ID to make tracking easier
+          clientId: Math.floor(Math.random() * 900000) + 100000 // 6-digit number
         }
       );
 
@@ -247,22 +272,36 @@ combinedTest.describe("Cancel Orders UI", () => {
           timeInForce: OrderTimeInForce.GTT,
           goodTilTimeInSeconds: 3600,
           postOnly: true,
+          // Generate a specific client ID to make tracking easier
+          clientId: Math.floor(Math.random() * 900000) + 100000 // 6-digit number
         }
       );
 
-      logger.info(`Buy order placed with ID: ${buyOrder.id}`);
-      logger.info(`Sell order placed with ID: ${sellOrder.id}`);
+      // Store order IDs consistently
+      const buyOrderId = buyOrder.id;
+      const sellOrderId = sellOrder.id;
+      logger.info(`Buy order placed with clientId: ${buyOrderId}`);
+      logger.info(`Sell order placed with clientId: ${sellOrderId}`);
 
       // Wait for the orders to be indexed
-      await Promise.all([
-        dydxTradeHelper.waitForOrderStatus(buyOrder.id, "OPEN", {
-          timeoutMs: 10000,
+      logger.step(`Waiting for both orders to be indexed as OPEN`);
+      const [buyOpenOrder, sellOpenOrder] = await Promise.all([
+        dydxTradeHelper.waitForOrderStatus(buyOrderId, "OPEN", {
+          timeoutMs: 15000,
+          pollIntervalMs: 1000,
         }),
-        dydxTradeHelper.waitForOrderStatus(sellOrder.id, "OPEN", {
-          timeoutMs: 10000,
+        dydxTradeHelper.waitForOrderStatus(sellOrderId, "OPEN", {
+          timeoutMs: 15000,
+          pollIntervalMs: 1000,
         }),
       ]);
-
+      
+      if (!buyOpenOrder || !sellOpenOrder) {
+        throw new Error(`Not all orders were found or reached OPEN status`);
+      }
+      
+      logger.info(`Both orders confirmed as OPEN in the API`);
+      
       // Open UI and navigate to btc-usd page
       logger.step("Opening dYdX UI and navigating to btc-usd page");
       await openDydxConnectMetaMask(page, metamaskContext, {
@@ -274,42 +313,47 @@ combinedTest.describe("Cancel Orders UI", () => {
 
       // Use the "Cancel All" button - using the selector from the screenshot
       logger.step("Canceling all orders");
-      await page.locator(CancelButtonSelectors.cancelAllButton).click();
+      await page.locator(OrdersTableSelectors.cancelAllButton).click();
 
-      await page.locator(CancelButtonSelectors.confirmCancelAllButton).click();
+        await page.locator(OrdersTableSelectors.confirmCancelAllButton).click();
 
       // Wait for cancellation notification
-      await checkNotificationAppearance(
+      await checkMultiOrderCancellationNotification(
         page,
         NotificationSelectors.cancelOrderToast,
-        NotificationSelectors.cancelOrderHeader,
-        NotificationSelectors.cancelOrderMessage,
-        "Orders",
-        "Canceled",
-        10000
+        "Canceling all orders",
+        "Orders Canceled",
+        2,
+        15000
       );
 
-      // Verify orders are no longer active in the API
-      logger.step("Verifying orders cancellation via API");
-
-      // Wait for all orders to be canceled
+      expect(page.locator(OrdersTableSelectors.youHaveNoOrders)).toBeVisible();
+      
+      // Verify specific orders are canceled via API
+      logger.step("Verifying specific orders are canceled via API");
+      
+      // Wait for specific orders to be canceled
+      const [buyOrderCanceled, sellOrderCanceled] = await Promise.all([
+        dydxTradeHelper.waitForOrderStatus(buyOrderId, "CANCELED", {
+          timeoutMs: 15000,
+          pollIntervalMs: 1000,
+        }),
+        dydxTradeHelper.waitForOrderStatus(sellOrderId, "CANCELED", {
+          timeoutMs: 15000,
+          pollIntervalMs: 1000,
+        }),
+      ]);
+      
+      // Check if both specific orders were canceled
+      expect(buyOrderCanceled?.status).toBe("CANCELED");
+      expect(sellOrderCanceled?.status).toBe("CANCELED");
+      
+      logger.info(`Confirmed buy order ${buyOrderId} status: ${buyOrderCanceled?.status}`);
+      logger.info(`Confirmed sell order ${sellOrderId} status: ${sellOrderCanceled?.status}`);
+      
+      // Double-check that there are no open orders left
       const openOrders = await dydxTradeHelper.getOpenOrders({ market });
       expect(openOrders.length).toBe(0);
-
-      // Specifically check our placed orders
-      const buyOrderFinal = await dydxTradeHelper.waitForOrderStatus(
-        buyOrder.id,
-        "CANCELED",
-        { timeoutMs: 10000 }
-      );
-      const sellOrderFinal = await dydxTradeHelper.waitForOrderStatus(
-        sellOrder.id,
-        "CANCELED",
-        { timeoutMs: 10000 }
-      );
-
-      expect(buyOrderFinal?.status).toBe("CANCELED");
-      expect(sellOrderFinal?.status).toBe("CANCELED");
     } catch (error) {
       logger.error("Cancel multiple orders test failed", error as Error);
       throw error;

@@ -146,12 +146,14 @@ export class OrderManager {
           // Filter out any invalid statuses
           const validStatusValues = status.filter(s => validStatuses.includes(s));
           if (validStatusValues.length > 0) {
-            // Add each status as a separate query parameter
-            validStatusValues.forEach(s => {
-              url += `&status=${encodeURIComponent(s)}`;
-            });
+            // Join statuses with comma for API format
+            url += `&status=${encodeURIComponent(validStatusValues.join(','))}`;
           }
+        } else if (status.includes(',')) {
+          // Status is already comma-separated string
+          url += `&status=${encodeURIComponent(status)}`;
         } else if (validStatuses.includes(status)) {
+          // Single status
           url += `&status=${encodeURIComponent(status)}`;
         } else {
           logger.warning(`Invalid status: ${status}. Must be one of: ${validStatuses.join(', ')}`);

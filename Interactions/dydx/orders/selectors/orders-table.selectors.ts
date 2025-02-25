@@ -9,27 +9,12 @@ export const OrdersTableSelectors = {
   // Table rows
   orderRow: ".sc-1drcdyj-3.ddEVDe",
 
-  // Order actions
-  cancelOrderButton: '[data-testid="cancel-order-button"]',
-  cancelAllButton: '[data-testid="cancel-all-button"]',
-
-  // Filters
-  filterOpenOrders: '[data-testid="filter-open-orders"]',
-  filterFilledOrders: '[data-testid="filter-filled-orders"]',
-  filterCanceledOrders: '[data-testid="filter-canceled-orders"]',
-
-  // Empty state
-  emptyOrdersState: '[data-testid="empty-orders-state"]',
-
-  // Order details elements
-  orderType: '[data-testid="order-type"]',
-  orderSide: '[data-testid="order-side"]',
-  orderAmount: '[data-testid="order-amount"]',
-  orderPrice: '[data-testid="order-price"]',
-  orderStatus: '[data-testid="order-status"]',
-  orderMarket: '[data-testid="order-market"]',
-
-  // Pagination
-  paginationNext: '[data-testid="pagination-next"]',
-  paginationPrev: '[data-testid="pagination-prev"]',
+  youHaveNoOrders: ".sc-17s7t24-0.sc-fi7txw-8.wZEdK.dpyuBU",
+  cancelButton:
+    "button.sc-l0nx5c-0.hXySKe.sc-1xochuw-0.wjDMP.sc-mg0yzv-0.fpsZnf.sc-1389rbw-0.bOJleK",
+  cancelAllButton:
+    "button.sc-l0nx5c-0.jpRLbK.sc-1xochuw-0.kwYHWz.sc-jsj259-0.hyRwUc",
+  cancelContainer: "div.sc-1drcyj-9.kFEJXg",
+  confirmCancelAllButton:
+    ".sc-l0nx5c-0.kvCeBH.sc-1xochuw-0.jbIjRq.sc-16lhsa0-0.JlMLV",
 }; 

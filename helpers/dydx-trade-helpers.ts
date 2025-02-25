@@ -473,44 +473,97 @@ export class DydxTradeHelper {
     }
 
     logger.step(
-      `Waiting for order ${orderId} to reach status: ${targetStatus}`
+      `Waiting for order with clientId ${orderId} to reach status: ${targetStatus}`
     );
 
     const startTime = Date.now();
+    const orderIdStr = String(orderId); // Ensure orderId is a string for consistent comparison
     
     while (Date.now() - startTime < timeoutMs) {
-      // Get all orders (don't filter by status to make sure we see all possible order states)
-      // Use returnLatestOrders to prioritize recent orders
+      // Get all orders, use comma-separated format for statuses
+      // When looking for CANCELED orders, also look at OPEN ones to see if they changed
+      const statusParam = targetStatus === "CANCELED" ? "OPEN,CANCELED" : undefined;
+      
       const orders = await this.orderManager.getOrders(
         subaccountNumber, 
         market, 
-        undefined, 
-        { returnLatestOrders: true, limit: 50 }
+        statusParam, 
+        { returnLatestOrders: true, limit: 100 }
       );
       
-      // Find our order by clientId
-      const order = orders.find((o: any) => o.clientId?.toString() === orderId);
-
-      if (order) {
-        logger.info(`Order ${orderId} current status: ${order.status}`);
+      // More detailed logging
+      logger.info(`Looking for order clientId=${orderIdStr} among ${orders.length} orders`);
+      
+      if (orders.length > 0) {
+        logger.info(`First few orders:`, { 
+          orderSamples: orders.slice(0, 5).map((o: any) => ({
+            clientId: o.clientId?.toString(),
+            id: o.id?.toString(),
+            status: o.status,
+            ticker: o.ticker
+          }))
+        });
+      }
+      
+      // FIRST try strict matching on clientId field
+      const exactClientIdMatch = orders.find((o: any) => {
+        return o.clientId?.toString() === orderIdStr;
+      });
+      
+      if (exactClientIdMatch) {
+        logger.info(`Found exact clientId match: ${orderIdStr}, status: ${exactClientIdMatch.status}`);
         
-        if (order.status === targetStatus) {
-          logger.success(`Order ${orderId} reached status: ${targetStatus}`);
-          return order;
+        if (exactClientIdMatch.status === targetStatus) {
+          logger.success(`Order ${orderIdStr} reached status: ${targetStatus}`);
+          return exactClientIdMatch;
         }
         
         // Check for terminal states
         if (
-          ["FILLED", "CANCELED", "BEST_EFFORT_CANCELED"].includes(order.status) &&
-          order.status !== targetStatus
+          ["FILLED", "CANCELED", "BEST_EFFORT_CANCELED"].includes(exactClientIdMatch.status) &&
+          exactClientIdMatch.status !== targetStatus
         ) {
           logger.warning(
-            `Order ${orderId} reached terminal status ${order.status}, but we were waiting for ${targetStatus}`
+            `Order ${orderIdStr} reached terminal status ${exactClientIdMatch.status}, but we were waiting for ${targetStatus}`
           );
-          return order;
+          return exactClientIdMatch;
         }
+        
+        // Order found but not in target status yet, continue polling
+        logger.info(`Order ${orderIdStr} found but still in status: ${exactClientIdMatch.status}`);
       } else {
-        logger.warning(`Order ${orderId} not found in current orders`);
+        // Fall back to checking id field
+        const idMatch = orders.find((o: any) => o.id?.toString() === orderIdStr);
+        if (idMatch) {
+          logger.info(`Found match by UUID id: ${orderIdStr}, status: ${idMatch.status}`);
+          
+          if (idMatch.status === targetStatus) {
+            logger.success(`Order ${orderIdStr} (matched by UUID) reached status: ${targetStatus}`);
+            return idMatch;
+          }
+          
+          // Check for terminal states
+          if (
+            ["FILLED", "CANCELED", "BEST_EFFORT_CANCELED"].includes(idMatch.status) &&
+            idMatch.status !== targetStatus
+          ) {
+            logger.warning(
+              `Order ${orderIdStr} (matched by UUID) reached terminal status ${idMatch.status}, but we were waiting for ${targetStatus}`
+            );
+            return idMatch;
+          }
+        } else {
+          logger.warning(`Order ${orderIdStr} not found in current orders (checked both clientId and id fields)`);
+          
+          // If we're looking for a canceled order and couldn't find it by ID, check 
+          // if there are any recently canceled orders that might match
+          if (targetStatus === "CANCELED") {
+            const recentlyCanceledOrders = orders.filter(o => o.status === "CANCELED");
+            if (recentlyCanceledOrders.length > 0) {
+              logger.info(`Found ${recentlyCanceledOrders.length} recently canceled orders, but none match clientId ${orderIdStr}`);
+            }
+          }
+        }
       }
 
       // Sleep before polling again
@@ -518,7 +571,7 @@ export class DydxTradeHelper {
     }
 
     logger.warning(
-      `Timeout waiting for order ${orderId} to reach status: ${targetStatus}`
+      `Timeout waiting for order ${orderIdStr} to reach status: ${targetStatus}`
     );
     return null;
   }

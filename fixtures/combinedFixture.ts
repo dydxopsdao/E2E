@@ -5,8 +5,7 @@ import { WebSocketManager } from "../Interactions/dydx/trade/api/websocket-manag
 import { DydxTradeHelper } from "../helpers/dydx-trade-helpers";
 import { createDydxFixtures } from "./dydxClientFixture";
 
-// This is a two-part process:
-// 1. Define the base type for dYdX fixtures
+// Define the type for dYdX API fixtures
 type DydxApiFixtures = {
   dydxClient: CompositeClient;
   dydxWallet: LocalWallet;
@@ -15,45 +14,39 @@ type DydxApiFixtures = {
   dydxTradeHelper: DydxTradeHelper;
 };
 
-// 2. Define the internal worker fixture type
+// Define an internal worker fixture that holds all dYdX objects
 type WorkerFixtures = {
   _dydxFixturesWorker: DydxApiFixtures;
 };
 
-// Create the combined test by extending metamaskTest
-export const combinedTest = metamaskTest.extend<DydxApiFixtures, WorkerFixtures>({
-  // Create a worker-scoped fixture that initializes all dYdX dependencies once
+// Extend metamaskTest with dYdX fixtures
+export const combinedTest = metamaskTest.extend<
+  DydxApiFixtures,
+  WorkerFixtures
+>({
+  // Worker-scoped fixture: create dYdX fixtures once per worker
   _dydxFixturesWorker: [
     async ({}, use) => {
-      // Create all the dYdX fixtures at once
       const fixtures = await createDydxFixtures();
-      
-      // Provide the fixtures to tests
       await use(fixtures);
-      
-      // Clean up after all tests are done
       await fixtures.dydxWebSocketManager.disconnect();
     },
-    { scope: 'worker' } // This fixture is created once per worker
+    { scope: "worker" },
   ],
-  
-  // Now map each dYdX fixture to its corresponding value from the worker fixture
+
+  // Map each dYdX fixture from the worker fixture into the test context
   dydxClient: async ({ _dydxFixturesWorker }, use) => {
     await use(_dydxFixturesWorker.dydxClient);
   },
-  
   dydxWallet: async ({ _dydxFixturesWorker }, use) => {
     await use(_dydxFixturesWorker.dydxWallet);
   },
-  
   dydxOrderManager: async ({ _dydxFixturesWorker }, use) => {
     await use(_dydxFixturesWorker.dydxOrderManager);
   },
-  
   dydxWebSocketManager: async ({ _dydxFixturesWorker }, use) => {
     await use(_dydxFixturesWorker.dydxWebSocketManager);
   },
-  
   dydxTradeHelper: async ({ _dydxFixturesWorker }, use) => {
     await use(_dydxFixturesWorker.dydxTradeHelper);
   },

@@ -87,12 +87,6 @@ export const dydxApiTest = base.extend<DydxApiFixtures>({
   },
 });
 
-// Create a combined fixture that includes both MetaMask and dYdX API
-export const combinedTest = dydxApiTest.extend({
-  // You can add your metamask fixtures here if needed
-});
-
 export default {
-  dydxApiTest,
-  combinedTest,
+  dydxApiTest
 }; 
