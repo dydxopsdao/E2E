@@ -45,42 +45,143 @@ jobs:
           sudo apt-get install -y nordlayer
           sudo systemctl daemon-reload
           sudo systemctl restart nordlayer.service
-          sleep 2
-          sudo chown -R runner:runner /run/nordlayer/
-          sudo chmod 755 /run/nordlayer
-          sudo chmod 666 /run/nordlayer/nordlayer.sock
+          
+          # Wait longer for service to fully initialize
+          echo "Waiting for NordLayer service to initialize..."
+          sleep 5
+          
+          # Fix socket permissions more thoroughly
+          echo "Setting correct permissions for NordLayer socket..."
+          sudo mkdir -p /run/nordlayer/
+          sudo chmod -R 777 /run/nordlayer/  # More permissive to ensure access
+          sudo chown -R $USER:$USER /run/nordlayer/
+          
+          # Verify permissions
+          ls -la /run/nordlayer/
+          
+          # Check if socket exists and has right permissions
+          if [ -S /run/nordlayer/nordlayer.sock ]; then
+            echo "Socket exists, setting permissions..."
+            sudo chmod 666 /run/nordlayer/nordlayer.sock
+          else
+            echo "Socket file does not exist yet, may need to restart service..."
+            sudo systemctl restart nordlayer.service
+            sleep 5
+            
+            if [ -S /run/nordlayer/nordlayer.sock ]; then
+              echo "Socket created after restart, setting permissions..."
+              sudo chmod 666 /run/nordlayer/nordlayer.sock
+            else
+              echo "WARNING: Socket still not created. Will attempt recovery later."
+            fi
+          fi
+          
+          # Verify service is running
+          echo "Checking NordLayer service status..."
+          sudo systemctl status nordlayer.service
 
-      - name: Configure system for stable VPN connection
+      - name: NordLayer Socket Recovery Check
         run: |
-          # Enable IP forwarding
-          echo "Enabling IP forwarding..."
-          sudo sysctl -w net.ipv4.ip_forward=1
+          # Function to check and fix socket permissions
+          fix_socket_permissions() {
+            echo "Checking for socket permission issues..."
+            
+            # Check if socket exists
+            if [ ! -S /run/nordlayer/nordlayer.sock ]; then
+              echo "Socket file does not exist. Restarting service..."
+              sudo systemctl restart nordlayer.service
+              sleep 5
+            fi
+            
+            # Set permissions again
+            sudo chmod -R 777 /run/nordlayer/
+            
+            if [ -S /run/nordlayer/nordlayer.sock ]; then
+              sudo chmod 666 /run/nordlayer/nordlayer.sock
+              echo "Socket permissions set to 666"
+            else
+              echo "Socket file still missing after service restart"
+              return 1
+            fi
+            
+            # Verify with a command
+            if nordlayer status; then
+              echo "NordLayer status command successful, permissions fixed"
+              return 0
+            else
+              echo "NordLayer command still failing after permission fix"
+              return 1
+            fi
+          }
           
-          # Increase connection tracking table size
-          echo "Optimizing connection tracking..."
-          sudo sysctl -w net.netfilter.nf_conntrack_max=131072
-          
-          # Disable IPv6 (optional, can help with some VPN issues)
-          echo "Disabling IPv6..."
-          sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
-          
-          # Keep VPN connection alive by disabling TCP connection timeout
-          echo "Optimizing TCP keepalive..."
-          sudo sysctl -w net.ipv4.tcp_keepalive_time=60
-          sudo sysctl -w net.ipv4.tcp_keepalive_intvl=15
-          sudo sysctl -w net.ipv4.tcp_keepalive_probes=6
-          
-          # Prefer IPv4 over IPv6 for all connections
-          echo "Setting IPv4 preference..."
-          sudo sh -c 'echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf'
-          
-          # Verify system settings
-          echo "Current system network settings:"
-          sudo sysctl -a | grep -E 'net.ipv4.ip_forward|net.netfilter.nf_conntrack_max|net.ipv6.conf.all.disable_ipv6|net.ipv4.tcp_keepalive'
+          # Check if we can run a NordLayer command
+          if ! nordlayer status; then
+            echo "NordLayer status failed. Attempting recovery..."
+            
+            # Try to fix socket permissions
+            if fix_socket_permissions; then
+              echo "Socket permissions fixed successfully"
+            else
+              echo "Socket permission fix failed, attempting full service recovery..."
+              
+              # More aggressive recovery: reinstall and reconfigure
+              sudo apt-get remove -y nordlayer
+              sudo apt-get install -y nordlayer
+              sudo systemctl daemon-reload
+              sudo systemctl restart nordlayer.service
+              sleep 5
+              
+              # Set permissions again
+              sudo chmod -R 777 /run/nordlayer/
+              sudo chmod 666 /run/nordlayer/nordlayer.sock
+              
+              # Verify recovery
+              if nordlayer status; then
+                echo "NordLayer service recovered successfully after reinstall"
+              else
+                echo "WARNING: NordLayer service still not working after reinstall"
+                echo "Continuing anyway, will try to reconnect later"
+              fi
+            fi
+          else
+            echo "NordLayer status check passed, proceeding normally"
+          fi
 
       - name: Authenticate with NordLayer
         run: |
-          nordlayer login --email "${{ env.NORDLAYER_EMAIL }}" --password "${{ env.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"
+          # Check socket permissions first
+          if [ ! -r /run/nordlayer/nordlayer.sock ]; then
+            echo "Socket file not readable, fixing permissions..."
+            sudo chmod 666 /run/nordlayer/nordlayer.sock
+          fi
+          
+          # Try login with retries
+          MAX_ATTEMPTS=3
+          ATTEMPT=1
+          
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            echo "Attempt $ATTEMPT to login to NordLayer..."
+            
+            if nordlayer login --email "${{ env.NORDLAYER_EMAIL }}" --password "${{ env.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"; then
+              echo "Login successful"
+              break
+            fi
+            
+            echo "Login attempt $ATTEMPT failed. Trying to fix socket and retry..."
+            sudo systemctl restart nordlayer.service
+            sleep 5
+            sudo chmod 666 /run/nordlayer/nordlayer.sock
+            
+            ATTEMPT=$((ATTEMPT+1))
+            
+            if [ $ATTEMPT -gt $MAX_ATTEMPTS ]; then
+              echo "Failed to login after $MAX_ATTEMPTS attempts"
+              echo "DEBUG: Socket details:"
+              ls -la /run/nordlayer/
+              sudo systemctl status nordlayer.service
+              exit 1
+            fi
+          done
 
       - name: Connect to NordLayer Server
         run: |
@@ -181,9 +282,43 @@ jobs:
           RETRY_COUNT=0
           LAST_CHECKPOINT=0
           
+          # Function to repair NordLayer socket issues
+          repair_nordlayer() {
+            echo "Attempting to repair NordLayer..."
+            # Check socket permissions
+            if [ ! -S /run/nordlayer/nordlayer.sock ] || [ ! -r /run/nordlayer/nordlayer.sock ]; then
+              echo "Socket file missing or not readable, fixing permissions..."
+              sudo chmod -R 777 /run/nordlayer/
+              sudo systemctl restart nordlayer.service
+              sleep 5
+              
+              # Set socket permissions if it exists now
+              if [ -S /run/nordlayer/nordlayer.sock ]; then
+                sudo chmod 666 /run/nordlayer/nordlayer.sock
+              fi
+            fi
+            
+            # Try a basic command to see if service works now
+            if nordlayer status &>/dev/null; then
+              echo "NordLayer service repaired successfully"
+              return 0
+            else
+              echo "NordLayer service still not working after repair"
+              return 1
+            fi
+          }
+          
           # Function to check VPN before proceeding
           check_vpn_before_continuing() {
             echo "Verifying VPN connection before continuing..."
+            
+            # First check if we have socket permission issues
+            if ! nordlayer status &>/dev/null && [[ $(nordlayer status 2>&1) == *"permission denied"* ]]; then
+              echo "Socket permission issue detected, attempting repair..."
+              repair_nordlayer
+            fi
+            
+            # Now run the full health check
             if ! ./.github/scripts/vpn-health-check.sh; then
               echo "VPN check failed, attempting to fix..."
               ./.github/scripts/vpn-health-check.sh
