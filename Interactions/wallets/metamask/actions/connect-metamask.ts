@@ -92,12 +92,34 @@ export async function confirmMetaMaskAction(
   try {
     const metaMaskPage = await getMetaMaskPage(context, timeout);
     await metaMaskPage.bringToFront();
+    
+    // Keep the reload as it's necessary to make the signature request appear
     await metaMaskPage.reload();
-    await handlePasswordPrompt(metaMaskPage);
+    
+    // Check for and handle password prompt with a shorter timeout
+    //await handlePasswordPrompt(metaMaskPage);
 
-    // Attempt to click the confirmation selector
-    await metaMaskPage.click(confirmSelector);
-    logger.success("MetaMask action confirmed");
+    // Use a faster approach to click the confirmation button
+    // First check if it exists without waiting the full timeout
+    const confirmButton = metaMaskPage.locator(confirmSelector);
+    
+    // Use a shorter polling interval to check for the button more frequently
+    const shortPollingInterval = 100; // milliseconds
+    const maxAttempts = 10;
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (await confirmButton.count() > 0 && await confirmButton.isVisible()) {
+        await confirmButton.click();
+        logger.success(`MetaMask action confirmed on attempt ${attempt + 1}`);
+        return;
+      }
+      // Short wait before checking again
+      await metaMaskPage.waitForTimeout(shortPollingInterval);
+    }
+    
+    // If we reach here, try the standard approach as fallback
+    await metaMaskPage.click(confirmSelector, { timeout: timeout / 2 });
+    logger.success("MetaMask action confirmed with fallback approach");
   } catch (error) {
     logger.error("Failed to confirm MetaMask action", error as Error, {
       timeout,
@@ -139,7 +161,7 @@ export async function openDydxConnectMetaMask(
     await triggerWalletConnectionModal(page);
     await selectWallet(page, WALLET_CONSTANTS.SUPPORTED_WALLETS[0]); // MetaMask
 
-    // Perform sequential MetaMask confirmations
+    // Perform first MetaMask confirmation with faster detection
     await confirmMetaMaskAction(
       context,
       password,
@@ -151,7 +173,7 @@ export async function openDydxConnectMetaMask(
     await page.bringToFront();
     await sendRequest(page);
 
-    // Additional MetaMask confirmations if needed
+    // Perform subsequent MetaMask confirmations with faster detection
     const confirmSelectors = [
       MetamaskSelectors.confirmButtonFooter,
       MetamaskSelectors.confirmButtonFooter,
@@ -160,6 +182,7 @@ export async function openDydxConnectMetaMask(
     for (const selector of confirmSelectors) {
       await confirmMetaMaskAction(context, password, timeout, selector);
     }
+    
     logger.success("MetaMask connection steps completed successfully", {
       url: page.url(),
     });

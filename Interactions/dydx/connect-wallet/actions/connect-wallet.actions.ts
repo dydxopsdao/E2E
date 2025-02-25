@@ -58,7 +58,7 @@ export async function sendRequest(page: Page): Promise<void> {
     logger.error("Failed to click send request", error as Error);
 
     // Attempt to handle the MetaMask password prompt
-    await handlePasswordPrompt(page);
+    //await handlePasswordPrompt(page);
 
     // Retry clicking the send request button
     try {
