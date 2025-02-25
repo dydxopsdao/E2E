@@ -41,23 +41,19 @@ jobs:
           sudo apt-get update
           sudo dpkg -i ./nordlayer/nordlayer-latest_1.0.0_all.deb
           sudo apt-get install -f -y
-          sudo apt-get update
           sudo apt-get install -y nordlayer
           sudo systemctl daemon-reload
           sudo systemctl restart nordlayer.service
           
-          # Wait longer for service to fully initialize
+          # Wait just enough time for service to initialize
           echo "Waiting for NordLayer service to initialize..."
-          sleep 5
+          sleep 2
           
-          # Fix socket permissions more thoroughly
+          # Fix socket permissions more thoroughly but quickly
           echo "Setting correct permissions for NordLayer socket..."
           sudo mkdir -p /run/nordlayer/
-          sudo chmod -R 777 /run/nordlayer/  # More permissive to ensure access
+          sudo chmod -R 777 /run/nordlayer/
           sudo chown -R $USER:$USER /run/nordlayer/
-          
-          # Verify permissions
-          ls -la /run/nordlayer/
           
           # Check if socket exists and has right permissions
           if [ -S /run/nordlayer/nordlayer.sock ]; then
@@ -66,156 +62,116 @@ jobs:
           else
             echo "Socket file does not exist yet, may need to restart service..."
             sudo systemctl restart nordlayer.service
-            sleep 5
+            sleep 2
             
             if [ -S /run/nordlayer/nordlayer.sock ]; then
-              echo "Socket created after restart, setting permissions..."
               sudo chmod 666 /run/nordlayer/nordlayer.sock
-            else
-              echo "WARNING: Socket still not created. Will attempt recovery later."
+            fi
+          fi
+
+      - name: Fast NordLayer Setup
+        run: |
+          # Check if we can run a NordLayer command
+          if ! nordlayer status &>/dev/null; then
+            echo "Setting socket permissions..."
+            sudo chmod -R 777 /run/nordlayer/
+            if [ -S /run/nordlayer/nordlayer.sock ]; then
+              sudo chmod 666 /run/nordlayer/nordlayer.sock
+            fi
+            
+            # Quick service restart if needed
+            if ! nordlayer status &>/dev/null; then
+              sudo systemctl restart nordlayer.service
+              sleep 2
             fi
           fi
           
-          # Verify service is running
-          echo "Checking NordLayer service status..."
-          sudo systemctl status nordlayer.service
-
-      - name: NordLayer Socket Recovery Check
-        run: |
-          # Function to check and fix socket permissions
-          fix_socket_permissions() {
-            echo "Checking for socket permission issues..."
+          # Try login without retries first for speed
+          echo "Authenticating with NordLayer..."
+          if ! nordlayer login --email "${{ env.NORDLAYER_EMAIL }}" --password "${{ env.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"; then
+            echo "Login failed on first attempt, fixing permissions and retrying once..."
+            sudo chmod 666 /run/nordlayer/nordlayer.sock
             
-            # Check if socket exists
-            if [ ! -S /run/nordlayer/nordlayer.sock ]; then
-              echo "Socket file does not exist. Restarting service..."
+            if ! nordlayer login --email "${{ env.NORDLAYER_EMAIL }}" --password "${{ env.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"; then
+              echo "Login failed after second attempt, proceeding to recovery..."
               sudo systemctl restart nordlayer.service
-              sleep 5
-            fi
-            
-            # Set permissions again
-            sudo chmod -R 777 /run/nordlayer/
-            
-            if [ -S /run/nordlayer/nordlayer.sock ]; then
-              sudo chmod 666 /run/nordlayer/nordlayer.sock
-              echo "Socket permissions set to 666"
-            else
-              echo "Socket file still missing after service restart"
-              return 1
-            fi
-            
-            # Verify with a command
-            if nordlayer status; then
-              echo "NordLayer status command successful, permissions fixed"
-              return 0
-            else
-              echo "NordLayer command still failing after permission fix"
-              return 1
-            fi
-          }
-          
-          # Check if we can run a NordLayer command
-          if ! nordlayer status; then
-            echo "NordLayer status failed. Attempting recovery..."
-            
-            # Try to fix socket permissions
-            if fix_socket_permissions; then
-              echo "Socket permissions fixed successfully"
-            else
-              echo "Socket permission fix failed, attempting full service recovery..."
-              
-              # More aggressive recovery: reinstall and reconfigure
-              sudo apt-get remove -y nordlayer
-              sudo apt-get install -y nordlayer
-              sudo systemctl daemon-reload
-              sudo systemctl restart nordlayer.service
-              sleep 5
-              
-              # Set permissions again
-              sudo chmod -R 777 /run/nordlayer/
+              sleep 3
               sudo chmod 666 /run/nordlayer/nordlayer.sock
               
-              # Verify recovery
-              if nordlayer status; then
-                echo "NordLayer service recovered successfully after reinstall"
-              else
-                echo "WARNING: NordLayer service still not working after reinstall"
-                echo "Continuing anyway, will try to reconnect later"
+              if ! nordlayer login --email "${{ env.NORDLAYER_EMAIL }}" --password "${{ env.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"; then
+                echo "Failed to login after recovery"
+                exit 1
               fi
             fi
+          fi
+          
+          # Connect to VPN with faster retry logic
+          DOS_SERVER_IP="94.101.112.199"
+          DOS_SERVER_NAME="dos-server-BQG2cKQV"
+          
+          echo "Connecting to DOS server..."
+          if ! nordlayer connect "$DOS_SERVER_NAME"; then
+            echo "First connection attempt failed, retrying with delay..."
+            sleep 2
+            
+            if ! nordlayer connect "$DOS_SERVER_NAME"; then
+              echo "Second connection attempt failed, trying with service restart..."
+              sudo systemctl restart nordlayer.service
+              sleep 3
+              sudo chmod 666 /run/nordlayer/nordlayer.sock
+              
+              if ! nordlayer connect "$DOS_SERVER_NAME"; then
+                echo "Failed to connect after recovery"
+                exit 1
+              fi
+            fi
+          fi
+          
+          # Quick verification that we're connected through the correct IP
+          echo "Verifying connection..."
+          sleep 3 # Minimal wait for connection to establish
+          
+          # Verify correct IP - just check this once for speed
+          CURRENT_IP=$(curl -s --max-time 5 ifconfig.me)
+          echo "Current IP: $CURRENT_IP (Expected: $DOS_SERVER_IP)"
+          
+          if [ "$CURRENT_IP" = "$DOS_SERVER_IP" ]; then
+            echo "✅ Successfully connected to DOS server with correct IP"
           else
-            echo "NordLayer status check passed, proceeding normally"
-          fi
-
-      - name: Authenticate with NordLayer
-        run: |
-          # Check socket permissions first
-          if [ ! -r /run/nordlayer/nordlayer.sock ]; then
-            echo "Socket file not readable, fixing permissions..."
-            sudo chmod 666 /run/nordlayer/nordlayer.sock
-          fi
-          
-          # Try login with retries
-          MAX_ATTEMPTS=3
-          ATTEMPT=1
-          
-          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            echo "Attempt $ATTEMPT to login to NordLayer..."
+            echo "❌ Connected, but IP doesn't match DOS server IP"
+            echo "Attempting quick reconnection..."
+            nordlayer disconnect &>/dev/null || true
+            sleep 1
             
-            if nordlayer login --email "${{ env.NORDLAYER_EMAIL }}" --password "${{ env.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"; then
-              echo "Login successful"
-              break
-            fi
-            
-            echo "Login attempt $ATTEMPT failed. Trying to fix socket and retry..."
-            sudo systemctl restart nordlayer.service
-            sleep 5
-            sudo chmod 666 /run/nordlayer/nordlayer.sock
-            
-            ATTEMPT=$((ATTEMPT+1))
-            
-            if [ $ATTEMPT -gt $MAX_ATTEMPTS ]; then
-              echo "Failed to login after $MAX_ATTEMPTS attempts"
-              echo "DEBUG: Socket details:"
-              ls -la /run/nordlayer/
-              sudo systemctl status nordlayer.service
+            if nordlayer connect "$DOS_SERVER_NAME"; then
+              sleep 3
+              CURRENT_IP=$(curl -s --max-time 5 ifconfig.me)
+              
+              if [ "$CURRENT_IP" = "$DOS_SERVER_IP" ]; then
+                echo "✅ Successfully connected on second attempt"
+              else
+                echo "❌ Failed to connect through correct IP"
+                exit 1
+              fi
+            else
+              echo "❌ Failed to reconnect"
               exit 1
             fi
-          done
-
-      - name: Connect to NordLayer Server
-        run: |
-          MAX_ATTEMPTS=5
-          ATTEMPT=1
+          fi
           
-          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            echo "Attempt $ATTEMPT to connect to VPN..."
-            nordlayer connect "dos-server-BQG2cKQV" && break
-            
-            echo "Connection attempt $ATTEMPT failed. Waiting before retry..."
-            sleep 10
-            ATTEMPT=$((ATTEMPT+1))
-            
-            if [ $ATTEMPT -gt $MAX_ATTEMPTS ]; then
-              echo "Failed to connect after $MAX_ATTEMPTS attempts"
-              exit 1
-            fi
-          done
-          
-          echo "Successfully connected to VPN"
-
-      - name: Verify VPN Connection
-        run: |
-          # Make the script executable
-          chmod +x .github/scripts/vpn-health-check.sh
-          
-          # Run initial health check
-          ./.github/scripts/vpn-health-check.sh
-          
-          if [ $? -ne 0 ]; then
-            echo "Initial VPN health check failed after connection attempts."
+          # Simplified health check
+          echo "Running minimal health check..."
+          if ! ip route | grep -q nordlayer; then
+            echo "❌ No NordLayer routes found in routing table"
             exit 1
           fi
+          
+          if ! ping -c 2 -W 2 trade.dydx.exchange &>/dev/null; then
+            echo "❌ Cannot ping dYdX domain"
+            exit 1
+          fi
+          
+          echo "✅ VPN connection established successfully"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -278,19 +234,35 @@ jobs:
           
           set -e
           
-          MAX_RETRIES=3
+          MAX_RETRIES=2
           RETRY_COUNT=0
           LAST_CHECKPOINT=0
+          DOS_SERVER_IP="94.101.112.199"
+          DOS_SERVER_NAME="dos-server-BQG2cKQV"
           
-          # Function to repair NordLayer socket issues
+          # Fast IP verification function
+          verify_dos_server_ip() {
+            CURRENT_IP=$(curl -s --max-time 3 ifconfig.me)
+            
+            if [ -z "$CURRENT_IP" ]; then
+              echo "❌ Failed to get current IP"
+              return 1
+            elif [ "$CURRENT_IP" = "$DOS_SERVER_IP" ]; then
+              echo "✅ Connected through correct DOS server IP"
+              return 0
+            else
+              echo "❌ Not connected through DOS server. Current IP: $CURRENT_IP"
+              return 1
+            fi
+          }
+          
+          # Fast socket repair
           repair_nordlayer() {
-            echo "Attempting to repair NordLayer..."
             # Check socket permissions
             if [ ! -S /run/nordlayer/nordlayer.sock ] || [ ! -r /run/nordlayer/nordlayer.sock ]; then
-              echo "Socket file missing or not readable, fixing permissions..."
               sudo chmod -R 777 /run/nordlayer/
               sudo systemctl restart nordlayer.service
-              sleep 5
+              sleep 1
               
               # Set socket permissions if it exists now
               if [ -S /run/nordlayer/nordlayer.sock ]; then
@@ -298,45 +270,67 @@ jobs:
               fi
             fi
             
-            # Try a basic command to see if service works now
+            # Try a basic command
             if nordlayer status &>/dev/null; then
-              echo "NordLayer service repaired successfully"
+              # Quick reconnect if needed
+              if ! verify_dos_server_ip; then
+                nordlayer disconnect >/dev/null 2>&1 || true
+                sleep 1
+                nordlayer connect "$DOS_SERVER_NAME"
+                sleep 2
+                return verify_dos_server_ip
+              fi
               return 0
             else
-              echo "NordLayer service still not working after repair"
               return 1
             fi
           }
           
-          # Function to check VPN before proceeding
+          # Quick VPN check
           check_vpn_before_continuing() {
-            echo "Verifying VPN connection before continuing..."
-            
-            # First check if we have socket permission issues
-            if ! nordlayer status &>/dev/null && [[ $(nordlayer status 2>&1) == *"permission denied"* ]]; then
-              echo "Socket permission issue detected, attempting repair..."
-              repair_nordlayer
-            fi
-            
-            # Now run the full health check
-            if ! ./.github/scripts/vpn-health-check.sh; then
-              echo "VPN check failed, attempting to fix..."
-              ./.github/scripts/vpn-health-check.sh
-              if [ $? -ne 0 ]; then
-                echo "Could not restore VPN connection"
+            # Verify we're using the DOS server IP
+            if ! verify_dos_server_ip; then
+              nordlayer disconnect >/dev/null 2>&1 || true
+              sleep 1
+              nordlayer connect "$DOS_SERVER_NAME"
+              sleep 2
+              
+              if ! verify_dos_server_ip; then
                 return 1
               fi
             fi
+            
+            # Quick check for socket permission issues
+            if ! nordlayer status &>/dev/null; then
+              if ! repair_nordlayer; then
+                return 1
+              fi
+            fi
+            
+            # Minimal routing check
+            if ! ip route | grep -q nordlayer; then
+              return 1
+            fi
+            
             return 0
           }
           
-          # Run the tests with VPN health checks and resilience
+          # Run the tests with minimal VPN checks
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            # Check VPN before starting/continuing
+            # Quick VPN check
             if ! check_vpn_before_continuing; then
-              echo "VPN connection issue, incrementing retry count"
-              RETRY_COUNT=$((RETRY_COUNT+1))
-              continue
+              echo "VPN connection issue, quick reconnection attempt"
+              
+              # Fast reconnect
+              nordlayer disconnect >/dev/null 2>&1 || true
+              sleep 1
+              nordlayer connect "$DOS_SERVER_NAME"
+              sleep 2
+              
+              if ! check_vpn_before_continuing; then
+                RETRY_COUNT=$((RETRY_COUNT+1))
+                continue
+              fi
             fi
             
             # Run the tests
@@ -348,7 +342,7 @@ jobs:
             else
               echo "Resuming tests from checkpoint $LAST_CHECKPOINT"
               PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
-                npx playwright test --repeat-each=1 --shard="$LAST_CHECKPOINT/3"
+                npx playwright test --repeat-each=1 --shard="$LAST_CHECKPOINT/2"
               TEST_EXIT_CODE=$?
             fi
             
@@ -358,7 +352,7 @@ jobs:
               exit 0
             fi
             
-            # Tests failed, check if it was due to a VPN/network issue
+            # Tests failed, quick VPN check
             if ! check_vpn_before_continuing; then
               echo "Test failure may be due to VPN issues. Retry $((RETRY_COUNT+1))/$MAX_RETRIES"
               LAST_CHECKPOINT=$((LAST_CHECKPOINT+1))
