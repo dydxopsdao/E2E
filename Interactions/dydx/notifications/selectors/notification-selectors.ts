@@ -9,4 +9,5 @@ export const NotificationSelectors = {
   cancelOrderHeader: ".sc-4mq6fy-6.iAvKHz",
   cancelOrderMessage: ".sc-1jsh202-0.gjHDXL",
   cancelAllOrdersMessage: ".sc-1ocmpgf-3.bkgGHm",
+  closeNotificationButton: "button.sc-1jsh202-0.gjHDXL",
 };

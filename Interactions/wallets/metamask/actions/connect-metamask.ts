@@ -10,6 +10,7 @@ import { MetamaskSelectors } from "@wallets/metamask/selectors/metamask-selector
 import { TEST_TIMEOUTS } from "@constants/test.constants";
 import { WALLET_CONSTANTS } from "@constants/wallet.constants";
 import { getMetaMaskPage } from "@wallets/metamask/actions/open-metamask";
+import { NotificationSelectors } from "@interactions/dydx/notifications/selectors/notification-selectors";
 
 export interface ConnectMetaMaskOptions {
   timeout?: number;
@@ -187,6 +188,10 @@ export async function openDydxConnectMetaMask(
       url: page.url(),
     });
     await page.bringToFront();
+    try {
+      await page.click(NotificationSelectors.withdrawalMessage);
+    } catch (error) {
+    }
     return page;
   } catch (error) {
     logger.error("MetaMask connection failed", error as Error, {

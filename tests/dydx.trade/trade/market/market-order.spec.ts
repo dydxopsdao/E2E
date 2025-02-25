@@ -5,7 +5,6 @@ import { BrowserContext, expect, Page } from "@playwright/test";
 import { OrderbookSelectors } from "@interactions/orderbook/orderbook.selectors";
 import { DealTicketSelectors } from "@interactions/dydx/deal-ticket/selectors/deal-ticket.selectors";
 import { swapAsset } from "@interactions/dydx/deal-ticket/actions/deal-ticket.actions";
-import { OrderSide } from "@dydxprotocol/v4-client-js";
 import { closePositions } from "../../../../helpers/dydx-trade-helpers";
 
 test("btc-usd market order LONG", async ({

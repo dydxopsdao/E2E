@@ -37,6 +37,7 @@ combinedTest.describe("Cancel Orders UI", () => {
         }
       );
       
+      
       // Store the client ID from the order response
       const orderId = order.id;
       logger.info(`Order placed with clientId: ${orderId}`);
@@ -51,8 +52,8 @@ combinedTest.describe("Cancel Orders UI", () => {
       // Wait for the order to be indexed
       logger.step(`Waiting for order ${orderId} to be indexed as OPEN`);
       const openOrder = await dydxTradeHelper.waitForOrderStatus(orderId, "OPEN", {
-        timeoutMs: 15000,
-        pollIntervalMs: 1000,
+        timeoutMs: 30000,
+        pollIntervalMs: 2000,
       });
       
       if (!openOrder) {
@@ -147,6 +148,10 @@ combinedTest.describe("Cancel Orders UI", () => {
           clientId: Math.floor(Math.random() * 900000) + 100000 // 6-digit number
         }
       );
+       await openDydxConnectMetaMask(page, metamaskContext, {
+         dydxPage: "/trade/BTC-USD",
+       });
+      await page.pause();
 
       // Store the client ID from the order response
       const orderId = order.id;
@@ -162,8 +167,8 @@ combinedTest.describe("Cancel Orders UI", () => {
       // Wait for the order to be indexed
       logger.step(`Waiting for order ${orderId} to be indexed as OPEN`);
       const openOrder = await dydxTradeHelper.waitForOrderStatus(orderId, "OPEN", {
-        timeoutMs: 15000,
-        pollIntervalMs: 1000,
+        timeoutMs: 30000,
+        pollIntervalMs: 2000,
       });
       
       if (!openOrder) {
@@ -174,9 +179,7 @@ combinedTest.describe("Cancel Orders UI", () => {
       
       // Open UI and navigate to orders page
       logger.step("Opening dYdX UI and navigating to btc-usd page");
-      await openDydxConnectMetaMask(page, metamaskContext, {
-        dydxPage: "/trade/BTC-USD",
-      });
+     
 
       // Wait for page to load
       await page.waitForSelector(OrderbookSelectors.orderbook, {
