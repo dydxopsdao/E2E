@@ -7,7 +7,7 @@ on:
 jobs:
   trigger:
     if: github.event_name == 'repository_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Always Run Debug
         if: always()

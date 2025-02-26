@@ -5,17 +5,19 @@ import { navigateToDydxPage } from "@dydx/general/actions/navigation.actions";
 import { Eyes } from "@applitools/eyes-playwright";
 import { BrowserContext, Page } from "@playwright/test";
 import { visualCheck } from "@utils/visual-check";
+import { TEST_TIMEOUTS } from "@constants/test.constants";
+import { waitForAnimations, waitForPageLoad } from "@interactions/dydx/general/actions/general.actions";
 
 test("eth-usd market page connected landing page", async ({ metamaskContext, eyes, page }: { metamaskContext: BrowserContext, eyes: Eyes, page:Page }) => {
   try {
     // Arrange
     logger.step("Setting up connected market page test");
-    await openDydxConnectMetaMask(page, metamaskContext);
-    await navigateToDydxPage(page, "/trade/ETH-USD", {
-      waitUntil: "domcontentloaded"
+    await openDydxConnectMetaMask(page, metamaskContext, {
+      dydxPage: "/trade/ETH-USD"
     });
     //wait for orderbook to be visible
-    await page.waitForSelector(".sc-1ihv8zl-3.vpGBP", { state: "visible" }); 
+    await waitForPageLoad(page, ".sc-1ihv8zl-3.vpGBP");
+    await waitForAnimations(page, TEST_TIMEOUTS.PAGE_LOAD);
     // Act
     await visualCheck(eyes, {
       name: "eth-usd market page connected landing page"
