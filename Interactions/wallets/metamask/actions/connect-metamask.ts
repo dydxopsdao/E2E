@@ -170,7 +170,15 @@ export async function openDydxConnectMetaMask(
     await page.bringToFront();
     await sendRequest(page);
 
-    // Perform subsequent MetaMask confirmations with faster detection
+    await confirmMetaMaskAction(
+      context,
+      password,
+      timeout,
+      MetamaskSelectors.confirmButtonFooter
+    );
+    
+
+    /* // Perform subsequent MetaMask confirmations with faster detection
     const confirmSelectors = [
       MetamaskSelectors.confirmButtonFooter,
       MetamaskSelectors.confirmButtonFooter,
@@ -178,7 +186,7 @@ export async function openDydxConnectMetaMask(
 
     for (const selector of confirmSelectors) {
       await confirmMetaMaskAction(context, password, timeout, selector);
-    }
+    } */
     
     logger.success("MetaMask connection steps completed successfully", {
       url: page.url(),

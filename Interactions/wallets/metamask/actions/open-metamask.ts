@@ -15,29 +15,96 @@ export async function getMetaMaskPage(
   timeout: number = TEST_TIMEOUTS.DEFAULT
 ): Promise<Page> {
   logger.step("Retrieving MetaMask popup page", { timeout });
+  
+  // First, check if the MetaMask popup is already open
+  const existingPages = context.pages();
+  const existingMetaMaskPage = existingPages.find(
+    (p) =>
+      p.url().startsWith(WALLET_CONSTANTS.METAMASK.EXTENSION_BASE_URL) &&
+      p !== context.pages()[0]
+  );
+  
+  if (existingMetaMaskPage) {
+    logger.success("Found existing MetaMask popup page", { url: existingMetaMaskPage.url() });
+    return existingMetaMaskPage;
+  }
+  
+  // If no existing page, set up a Promise race between waiting for a new page
+  // and a timeout with periodic checks for MetaMask pages
+  const newPagePromise = context.waitForEvent("page", { timeout });
+  
   try {
-    const page = await context.waitForEvent("page", { timeout });
-    logger.success("MetaMask popup page retrieved");
-    return page;
+    // Start the race with periodic checks
+    const metaMaskPage = await Promise.race([
+      newPagePromise,
+      checkPeriodically(async () => {
+        const pages = context.pages();
+        const metaMaskPage = pages.find(
+          (p) =>
+            p.url().startsWith(WALLET_CONSTANTS.METAMASK.EXTENSION_BASE_URL) &&
+            p !== context.pages()[0]
+        );
+        if (metaMaskPage) return metaMaskPage;
+        throw new Error("MetaMask page not found yet");
+      }, 500, timeout) // Check every 500ms up to the timeout
+    ]);
+    
+    logger.success("MetaMask popup page retrieved", { url: metaMaskPage.url() });
+    return metaMaskPage;
   } catch (error) {
-    logger.error("Failed to retrieve MetaMask popup page", error as Error);
+    logger.error("Error finding MetaMask popup", error as Error);
+    
+    // Final attempt - check all pages one more time
     const pages = context.pages();
+    logger.debug("Available pages:", { 
+      count: pages.length, 
+      urls: pages.map(p => p.url()) 
+    });
+    
     const metaMaskPage = pages.find(
       (p) =>
         p.url().startsWith(WALLET_CONSTANTS.METAMASK.EXTENSION_BASE_URL) &&
         p !== context.pages()[0]
     );
+    
     if (!metaMaskPage) {
       logger.error(
-        "Could not find MetaMask popup page after fallback",
+        "Could not find MetaMask popup page after all attempts",
         error as Error,
         { availablePages: pages.length }
       );
-      throw new Error("Could not find MetaMask popup page");
+      throw new Error("Could not find MetaMask popup page: " + (error as Error).message);
     }
-    logger.success("MetaMask popup page found from existing pages");
+    
+    logger.success("MetaMask popup page found after retry", { url: metaMaskPage.url() });
     return metaMaskPage;
   }
+}
+
+// Helper function to check periodically for a condition
+async function checkPeriodically<T>(
+  checkFn: () => Promise<T>,
+  interval: number,
+  timeout: number
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+    const check = async () => {
+      if (Date.now() - startTime > timeout) {
+        reject(new Error(`Timed out after ${timeout}ms`));
+        return;
+      }
+      
+      try {
+        const result = await checkFn();
+        resolve(result);
+      } catch (error) {
+        setTimeout(check, interval);
+      }
+    };
+    
+    check();
+  });
 }
 
 /**

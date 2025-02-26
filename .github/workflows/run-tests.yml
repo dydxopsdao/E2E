@@ -412,7 +412,7 @@ jobs:
           fi
 
       - name: Post Slack Notification
-        if: always()
+        if: always() && inputs.deployment_id != 'manual'
         env:
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOB_STATUS: ${{ job.status }}

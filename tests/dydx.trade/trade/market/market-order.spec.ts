@@ -28,13 +28,15 @@ test("btc-usd market order LONG", async ({
     });
 
     // Act
-    await page.click(DealTicketSelectors.marketOrderBtn);
     await swapAsset(page, "USD");
+
+    await page.click(DealTicketSelectors.marketOrderBtn);
 
     // Assert that the Place Market Order button is disabled
     await expect(
       page.locator(DealTicketSelectors.placeOrderBtnInactive)
     ).toBeDisabled();
+    await page.click(DealTicketSelectors.marketOrderBtn);
     await page.fill(DealTicketSelectors.amountInput, "500");
     await expect(
       page.locator(DealTicketSelectors.placeOrderBtnActive)
