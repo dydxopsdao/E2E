@@ -41,32 +41,14 @@ jobs:
           sudo apt-get update
           sudo dpkg -i ./nordlayer/nordlayer-latest_1.0.0_all.deb
           sudo apt-get install -f -y
+          sudo apt-get update
+          sudo apt-get install -y nordlayer
           sudo systemctl daemon-reload
           sudo systemctl restart nordlayer.service
-          
-          # Wait just enough time for service to initialize
-          echo "Waiting for NordLayer service to initialize..."
           sleep 2
-          
-          # Fix socket permissions more thoroughly but quickly
-          echo "Setting correct permissions for NordLayer socket..."
-          sudo mkdir -p /run/nordlayer/
-          sudo chmod -R 777 /run/nordlayer/
-          sudo chown -R $USER:$USER /run/nordlayer/
-          
-          # Check if socket exists and has right permissions
-          if [ -S /run/nordlayer/nordlayer.sock ]; then
-            echo "Socket exists, setting permissions..."
-            sudo chmod 666 /run/nordlayer/nordlayer.sock
-          else
-            echo "Socket file does not exist yet, may need to restart service..."
-            sudo systemctl restart nordlayer.service
-            sleep 2
-            
-            if [ -S /run/nordlayer/nordlayer.sock ]; then
-              sudo chmod 666 /run/nordlayer/nordlayer.sock
-            fi
-          fi
+          sudo chown -R runner:runner /run/nordlayer/
+          sudo chmod 755 /run/nordlayer
+          sudo chmod 666 /run/nordlayer/nordlayer.sock
 
       - name: Fast NordLayer Setup
         run: |
