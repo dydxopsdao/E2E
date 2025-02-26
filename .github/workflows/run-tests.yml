@@ -11,7 +11,9 @@ on:
 jobs:
   visual-tests:
     name: "E2E Tests (Deployment: ${{ inputs.deployment_id }})"
+    # Use your self-hosted runner with the appropriate labels
     runs-on: self-hosted
+    
     env:
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
       NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
@@ -26,6 +28,7 @@ jobs:
       DYDX_ADDRESS: ${{ secrets.DYDX_ADDRESS }}
       DYDX_NETWORK_TYPE: mainnet
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
     steps:
       - name: Log Event Details
         run: |
@@ -37,11 +40,7 @@ jobs:
         uses: actions/checkout@v4
 
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
+      # Cache node_modules for local project dependencies (e.g., test frameworks, Applitools, etc.)
       - name: Cache Node Modules
         uses: actions/cache@v3
         id: cache-node-modules
@@ -55,36 +54,25 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm install
 
-      - name: Cache Playwright Browsers
-        uses: actions/cache@v3
-        id: cache-playwright-browsers
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-browsers-${{ runner.os }}
-          restore-keys: |
-            playwright-browsers-${{ runner.os }}
 
-      - name: Install Playwright Browsers
-        if: steps.cache-playwright-browsers.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps
-
-      - name: Install dependencies for Xvfb
-        run: sudo apt-get install -y xvfb
-
+      # Since Xvfb is installed on the instance, we only need to start it:
       - name: Start Xvfb
         run: |
           Xvfb :99 -ac &>/dev/null &
           echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
 
+      # Run your Playwright tests
       - name: Run Playwright tests with Applitools
         run: |
-          PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test
+          PLAYWRIGHT_JUNIT_OUTPUT=results.xml \
+          xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
+          npx playwright test
         env:
           APPLITOOLS_API_KEY: ${{ env.APPLITOOLS_API_KEY }}
           PLAYWRIGHT_JUNIT_OUTPUT: results.xml
-          
 
+      # Upload the Playwright report artifacts
       - name: Upload Playwright Test Report
         if: always()
         uses: actions/upload-artifact@v4.6.0
@@ -92,6 +80,7 @@ jobs:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
 
+      # Upload results to Datadog if you wish
       - name: Upload Test Results to Datadog
         if: always()
         run: |
@@ -102,6 +91,7 @@ jobs:
             echo "results.xml not found, skipping Datadog upload."
           fi
 
+      # Slack notification
       - name: Post Slack Notification
         if: always() && inputs.deployment_id != 'manual'
         env:
