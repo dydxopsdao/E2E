@@ -125,6 +125,7 @@ export async function importWallet(
   try {
     // Save extension ID at the start
     saveExtensionId(page);
+    await page.bringToFront();
 
     // Initial setup steps
     const initialSteps: StepConfig[] = [
@@ -144,6 +145,7 @@ export async function importWallet(
         optional: false,
       },
     ];
+    console.log('Metamask page URL:', page.url());
 
     // Execute initial steps
     for (const step of initialSteps) {
