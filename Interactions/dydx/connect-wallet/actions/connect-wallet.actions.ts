@@ -8,7 +8,7 @@ export async function triggerWalletConnectionModal(page: Page): Promise<void> {
   logger.step("Triggering wallet connection modal");
   try {
     await page.bringToFront();
-    await page.click(ConnectWalletSelectors.connectWallet);
+    await page.locator(ConnectWalletSelectors.connectWallet).click({ force: true });
     await page.waitForSelector(ConnectWalletSelectors.walletConnectModal, {
       state: "visible",
       timeout: TEST_TIMEOUTS.ELEMENT,
