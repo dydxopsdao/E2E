@@ -2,12 +2,16 @@ import { Page } from "@playwright/test";
 import { ConnectWalletSelectors } from "@dydx/connect-wallet/selectors/connect-wallet-selectors";
 import { logger } from "@utils/logger/logging-utils";
 import { TEST_TIMEOUTS } from "../../../../constants/test.constants";
-import { handlePasswordPrompt } from "@interactions/wallets/metamask/actions/connect-metamask";
+import { NotificationSelectors } from "@interactions/dydx/notifications/selectors/notification-selectors";
 
 export async function triggerWalletConnectionModal(page: Page): Promise<void> {
   logger.step("Triggering wallet connection modal");
   try {
     await page.bringToFront();
+    try {
+      await page.click(NotificationSelectors.withdrawalMessage);
+    } catch (error) {
+    }
     await page.click(ConnectWalletSelectors.connectWallet);
     await page.waitForSelector(ConnectWalletSelectors.walletConnectModal, {
       state: "visible",
