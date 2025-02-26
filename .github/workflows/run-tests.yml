@@ -50,54 +50,29 @@ jobs:
           sudo chmod 755 /run/nordlayer
           sudo chmod 666 /run/nordlayer/nordlayer.sock
 
-      - name: Fast NordLayer Setup
+      - name: NordLayer Login, Connect, and Verify IP
         run: |
-          # Ensure correct socket permissions and clean service state
-          sudo chmod -R 777 /run/nordlayer/
-          [ -S /run/nordlayer/nordlayer.sock ] && sudo chmod 666 /run/nordlayer/nordlayer.sock
-          sudo systemctl restart nordlayer.service
-          sleep 2
+          echo "Logging in..."
+          nordlayer login --email "${{ env.NORDLAYER_EMAIL }}" --password "${{ env.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"
+          
+          echo "Connecting to DOS server..."
+          nordlayer connect "dos-server-BQG2cKQV"
+          
+          # Wait a moment for the connection to establish
+          sleep 6
 
-          # Function to attempt login
-          attempt_login() {
-            nordlayer login --email "${{ env.NORDLAYER_EMAIL }}" --password "${{ env.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"
-          }
-
-          # Try logging in with one retry if needed
-          if ! attempt_login; then
-            echo "Login failed, retrying after resetting socket permissions..."
-            sudo chmod 666 /run/nordlayer/nordlayer.sock
-            if ! attempt_login; then
-              echo "Login failed after retry. Exiting."
-              exit 1
-            fi
-          fi
-
-          # Function to attempt VPN connection
-          attempt_connect() {
-            nordlayer connect "dos-server-BQG2cKQV"
-          }
-
-          # Connect to the DOS server with one retry if needed
-          if ! attempt_connect; then
-            echo "Connection attempt failed, retrying..."
-            sleep 2
-            if ! attempt_connect; then
-              echo "Connection failed after retry. Exiting."
-              exit 1
-            fi
-          fi
-
-          # Verify connection by checking the external IP
+          # Verify the external IP matches the expected DOS server IP
           expected_ip="94.101.112.199"
-          sleep 3
-          current_ip=$(curl -s --max-time 5 ifconfig.me)
-          if [ "$current_ip" != "$expected_ip" ]; then
-            echo "IP mismatch. Expected: $expected_ip, Got: $current_ip"
+          current_ip=$(curl -s --max-time 10 ifconfig.me)
+          echo "Current IP: $current_ip (Expected: $expected_ip)"
+
+          if [ "$current_ip" = "$expected_ip" ]; then
+            echo "✅ VPN connection verified."
+          else
+            echo "❌ VPN connection failed: IP mismatch."
             exit 1
           fi
 
-          echo "✅ VPN connection established successfully"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

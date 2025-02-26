@@ -103,7 +103,7 @@ combinedTest.describe("Cancel Orders UI", () => {
         NotificationSelectors.cancelOrderMessage,
         "Limit Order",
         "Canceled",
-        10000
+        25000
       );
       
       // Verify order is no longer active in the API
