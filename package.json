@@ -9,7 +9,7 @@
   "description": "",
   "devDependencies": {
     "@applitools/eyes-playwright": "^1.36.2",
-    "@playwright/test": "^1.49.1",
+    "@playwright/test": "^1.5.1",
     "@types/node": "^22.10.2",
     "@types/unzipper": "^0.10.10",
     "ts-node": "^10.9.2",

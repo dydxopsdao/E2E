@@ -54,6 +54,18 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm install
 
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v3
+        id: cache-playwright-browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}
+          restore-keys: |
+            playwright-browsers-${{ runner.os }}
+
+      - name: Install Playwright Browsers
+        if: steps.cache-playwright-browsers.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps
 
       # Since Xvfb is installed on the instance, we only need to start it:
       - name: Start Xvfb
