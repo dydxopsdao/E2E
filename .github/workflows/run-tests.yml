@@ -41,7 +41,6 @@ jobs:
           sudo apt-get update
           sudo dpkg -i ./nordlayer/nordlayer-latest_1.0.0_all.deb
           sudo apt-get install -f -y
-          sudo apt-get install -y nordlayer
           sudo systemctl daemon-reload
           sudo systemctl restart nordlayer.service
           
