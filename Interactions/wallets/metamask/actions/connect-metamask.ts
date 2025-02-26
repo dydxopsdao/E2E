@@ -110,6 +110,7 @@ export async function confirmMetaMaskAction(
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       if (await confirmButton.count() > 0 && await confirmButton.isVisible()) {
+        await metaMaskPage.waitForTimeout(200);
         await confirmButton.click();
         logger.success(`MetaMask action confirmed on attempt ${attempt + 1}`);
         return;
@@ -153,7 +154,6 @@ export async function openDydxConnectMetaMask(
     await navigateToDydxPage(page, dydxPage, {
       waitUntil: "domcontentloaded",
     });
-
     // Trigger wallet connection modal and select MetaMask
     await triggerWalletConnectionModal(page);
     await selectWallet(page, WALLET_CONSTANTS.SUPPORTED_WALLETS[0]); // MetaMask

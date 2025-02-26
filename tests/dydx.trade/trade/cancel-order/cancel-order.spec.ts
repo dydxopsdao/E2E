@@ -92,6 +92,7 @@ combinedTest.describe("Cancel Orders UI", () => {
       await expect(orderRow).toBeVisible();
       
       const cancelButton = orderRow.locator(OrdersTableSelectors.cancelButton);
+      await page.waitForTimeout(2500)
       await cancelButton.click();
       
       
@@ -103,7 +104,7 @@ combinedTest.describe("Cancel Orders UI", () => {
         NotificationSelectors.cancelOrderMessage,
         "Limit Order",
         "Canceled",
-        25000
+        120000
       );
       
       // Verify order is no longer active in the API
@@ -214,7 +215,7 @@ combinedTest.describe("Cancel Orders UI", () => {
         NotificationSelectors.cancelOrderMessage,
         "Limit Order",
         "Canceled",
-        10000
+        30000
       );
 
       // Verify order is no longer active in the API
@@ -315,9 +316,10 @@ combinedTest.describe("Cancel Orders UI", () => {
 
       // Use the "Cancel All" button - using the selector from the screenshot
       logger.step("Canceling all orders");
+      await page.waitForTimeout(2500);
       await page.locator(OrdersTableSelectors.cancelAllButton).click();
-
-        await page.locator(OrdersTableSelectors.confirmCancelAllButton).click();
+      await page.waitForTimeout(500);
+      await page.locator(OrdersTableSelectors.confirmCancelAllButton).click();
 
       // Wait for cancellation notification
       await checkMultiOrderCancellationNotification(

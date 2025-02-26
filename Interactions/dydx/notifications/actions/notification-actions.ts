@@ -231,7 +231,7 @@ export async function checkMultiOrderCancellationNotification(
   logger.step(
     `Waiting for multi-order cancellation notification for ${expectedTotal} orders`
   );
-
+  await page.bringToFront();
   // 1) Wait until the toast container appears
   await page.waitForSelector(toastSelector, { timeout: timeoutMs });
 

@@ -14,6 +14,7 @@ export async function navigateToDydxPage(
   logger.step(`Navigating to dYdX page: ${url}`);
   try {
     await page.goto(url, { waitUntil });
+    await page.bringToFront();
     logger.success(`Navigated to dYdX page: ${url}`);
   } catch (error) {
     logger.error(`Failed to navigate to dYdX page: ${url}`, error as Error);
