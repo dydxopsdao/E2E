@@ -52,106 +52,51 @@ jobs:
 
       - name: Fast NordLayer Setup
         run: |
-          # Check if we can run a NordLayer command
-          if ! nordlayer status &>/dev/null; then
-            echo "Setting socket permissions..."
-            sudo chmod -R 777 /run/nordlayer/
-            if [ -S /run/nordlayer/nordlayer.sock ]; then
-              sudo chmod 666 /run/nordlayer/nordlayer.sock
-            fi
-            
-            # Quick service restart if needed
-            if ! nordlayer status &>/dev/null; then
-              sudo systemctl restart nordlayer.service
-              sleep 2
-            fi
-          fi
-          
-          # Try login without retries first for speed
-          echo "Authenticating with NordLayer..."
-          if ! nordlayer login --email "${{ env.NORDLAYER_EMAIL }}" --password "${{ env.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"; then
-            echo "Login failed on first attempt, fixing permissions and retrying once..."
+          # Ensure correct socket permissions and clean service state
+          sudo chmod -R 777 /run/nordlayer/
+          [ -S /run/nordlayer/nordlayer.sock ] && sudo chmod 666 /run/nordlayer/nordlayer.sock
+          sudo systemctl restart nordlayer.service
+          sleep 2
+
+          # Function to attempt login
+          attempt_login() {
+            nordlayer login --email "${{ env.NORDLAYER_EMAIL }}" --password "${{ env.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"
+          }
+
+          # Try logging in with one retry if needed
+          if ! attempt_login; then
+            echo "Login failed, retrying after resetting socket permissions..."
             sudo chmod 666 /run/nordlayer/nordlayer.sock
-            
-            if ! nordlayer login --email "${{ env.NORDLAYER_EMAIL }}" --password "${{ env.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"; then
-              echo "Login failed after second attempt, proceeding to recovery..."
-              sudo systemctl restart nordlayer.service
-              sleep 3
-              sudo chmod 666 /run/nordlayer/nordlayer.sock
-              
-              if ! nordlayer login --email "${{ env.NORDLAYER_EMAIL }}" --password "${{ env.NORDLAYER_PASSWORD }}" --organization "dydxopsdao"; then
-                echo "Failed to login after recovery"
-                exit 1
-              fi
-            fi
-          fi
-          
-          # Connect to VPN with faster retry logic
-          DOS_SERVER_IP="94.101.112.199"
-          DOS_SERVER_NAME="dos-server-BQG2cKQV"
-          
-          echo "Connecting to DOS server..."
-          if ! nordlayer connect "$DOS_SERVER_NAME"; then
-            echo "First connection attempt failed, retrying with delay..."
-            sleep 2
-            
-            if ! nordlayer connect "$DOS_SERVER_NAME"; then
-              echo "Second connection attempt failed, trying with service restart..."
-              sudo systemctl restart nordlayer.service
-              sleep 3
-              sudo chmod 666 /run/nordlayer/nordlayer.sock
-              
-              if ! nordlayer connect "$DOS_SERVER_NAME"; then
-                echo "Failed to connect after recovery"
-                exit 1
-              fi
-            fi
-          fi
-          
-          # Quick verification that we're connected through the correct IP
-          echo "Verifying connection..."
-          sleep 3 # Minimal wait for connection to establish
-          
-          # Verify correct IP - just check this once for speed
-          CURRENT_IP=$(curl -s --max-time 5 ifconfig.me)
-          echo "Current IP: $CURRENT_IP (Expected: $DOS_SERVER_IP)"
-          
-          if [ "$CURRENT_IP" = "$DOS_SERVER_IP" ]; then
-            echo "✅ Successfully connected to DOS server with correct IP"
-          else
-            echo "❌ Connected, but IP doesn't match DOS server IP"
-            echo "Attempting quick reconnection..."
-            nordlayer disconnect &>/dev/null || true
-            sleep 1
-            
-            if nordlayer connect "$DOS_SERVER_NAME"; then
-              sleep 3
-              CURRENT_IP=$(curl -s --max-time 5 ifconfig.me)
-              
-              if [ "$CURRENT_IP" = "$DOS_SERVER_IP" ]; then
-                echo "✅ Successfully connected on second attempt"
-              else
-                echo "❌ Failed to connect through correct IP"
-                exit 1
-              fi
-            else
-              echo "❌ Failed to reconnect"
+            if ! attempt_login; then
+              echo "Login failed after retry. Exiting."
               exit 1
             fi
           fi
-          
-          # Simplified health check
-          echo "Running minimal health check..."
-          if ! ip route | grep -q nordlayer; then
-            echo "❌ No NordLayer routes found in routing table"
+
+          # Function to attempt VPN connection
+          attempt_connect() {
+            nordlayer connect "dos-server-BQG2cKQV"
+          }
+
+          # Connect to the DOS server with one retry if needed
+          if ! attempt_connect; then
+            echo "Connection attempt failed, retrying..."
+            sleep 2
+            if ! attempt_connect; then
+              echo "Connection failed after retry. Exiting."
+              exit 1
+            fi
+          fi
+
+          # Verify connection by checking the external IP
+          expected_ip="94.101.112.199"
+          sleep 3
+          current_ip=$(curl -s --max-time 5 ifconfig.me)
+          if [ "$current_ip" != "$expected_ip" ]; then
+            echo "IP mismatch. Expected: $expected_ip, Got: $current_ip"
             exit 1
           fi
-          
-          if ! ping -c 2 -W 2 trade.dydx.exchange &>/dev/null; then
-            echo "❌ Cannot ping dYdX domain"
-            exit 1
-          fi
-          
+
           echo "✅ VPN connection established successfully"
 
       - name: Setup Node.js
