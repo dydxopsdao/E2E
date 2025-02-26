@@ -11,6 +11,7 @@ import { TEST_TIMEOUTS } from "@constants/test.constants";
 import { WALLET_CONSTANTS } from "@constants/wallet.constants";
 import { getMetaMaskPage } from "@wallets/metamask/actions/open-metamask";
 import { NotificationSelectors } from "@interactions/dydx/notifications/selectors/notification-selectors";
+import { waitForAnimations } from "@interactions/dydx/general/actions/general.actions";
 
 export interface ConnectMetaMaskOptions {
   timeout?: number;
@@ -154,6 +155,12 @@ export async function openDydxConnectMetaMask(
     await navigateToDydxPage(page, dydxPage, {
       waitUntil: "domcontentloaded",
     });
+    //wait for orderbook to be visible
+    await waitForAnimations(page, TEST_TIMEOUTS.PAGE_LOAD);
+    try {
+      await page.click(NotificationSelectors.withdrawalMessage);
+    } catch (error) {
+    }
     // Trigger wallet connection modal and select MetaMask
     await triggerWalletConnectionModal(page);
     await selectWallet(page, WALLET_CONSTANTS.SUPPORTED_WALLETS[0]); // MetaMask

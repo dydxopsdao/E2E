@@ -8,10 +8,6 @@ export async function triggerWalletConnectionModal(page: Page): Promise<void> {
   logger.step("Triggering wallet connection modal");
   try {
     await page.bringToFront();
-    try {
-      await page.click(NotificationSelectors.withdrawalMessage);
-    } catch (error) {
-    }
     await page.click(ConnectWalletSelectors.connectWallet);
     await page.waitForSelector(ConnectWalletSelectors.walletConnectModal, {
       state: "visible",
