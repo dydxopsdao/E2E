@@ -11,7 +11,7 @@ on:
 jobs:
   visual-tests:
     name: "E2E Tests (Deployment: ${{ inputs.deployment_id }})"
-    runs-on: [self-hosted, e2e-test-runner]
+    runs-on: self-hosted
     env:
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
       NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
