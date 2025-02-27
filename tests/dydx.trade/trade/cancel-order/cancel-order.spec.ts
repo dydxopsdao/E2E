@@ -203,7 +203,7 @@ combinedTest.describe("Cancel Orders UI", () => {
         .first();
 
       await expect(orderRow).toBeVisible();
-
+      await page.waitForTimeout(2500)
       const cancelButton = orderRow.locator(OrdersTableSelectors.cancelButton);
       await page.waitForTimeout(2500)
       await cancelButton.click();

@@ -12,6 +12,7 @@ import { WALLET_CONSTANTS } from "@constants/wallet.constants";
 import { getMetaMaskPage } from "@wallets/metamask/actions/open-metamask";
 import { NotificationSelectors } from "@interactions/dydx/notifications/selectors/notification-selectors";
 import { waitForAnimations } from "@interactions/dydx/general/actions/general.actions";
+import { GeneralSelectors } from "@interactions/dydx/general/selectors/general.selectors";
 
 export interface ConnectMetaMaskOptions {
   timeout?: number;
@@ -196,6 +197,10 @@ export async function openDydxConnectMetaMask(
     
     logger.success("MetaMask connection steps completed successfully", {
       url: page.url(),
+    });
+    await page.waitForSelector(GeneralSelectors.walletAddress, {
+      state: "visible",
+      timeout: TEST_TIMEOUTS.DEFAULT,
     });
     await page.bringToFront();
     try {

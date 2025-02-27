@@ -25,7 +25,9 @@ const urls = [
   {
     url: "https://dydx.trade/vault",
     name: "Megavault page",
-    elementLocator: ".sc-17stuub-0.sc-17stuub-1.eqFWVL.hsAYsL.sc-3i56se-5.hcfdxE",
+    elementLocator: "table[aria-label='MegaVault']",
+    elementLocator2: ".sc-17stuub-0.sc-17stuub-1.eqFWVL.hsAYsL.sc-3i56se-5.hcfdxE",
+    
   },
   {
     url: "https://dydx.trade/referrals",
@@ -40,7 +42,7 @@ const urls = [
 ];
 
 
-for (const { url, name, elementLocator } of urls) {
+for (const { url, name, elementLocator, elementLocator2 } of urls) {
   test(`Visual check for ${name}`, async ({ page, eyes }) => {
     try {
       // Arrange
@@ -60,7 +62,14 @@ for (const { url, name, elementLocator } of urls) {
         .catch(() =>
           logger.warning(`Element visibility check failed for ${name}`)
         );
-
+      if (elementLocator2) {
+        const element2 = page.locator(elementLocator2);
+        await expect(element2)
+          .toBeVisible({ timeout: TEST_TIMEOUTS.ELEMENT })
+          .catch(() =>
+            logger.warning(`Element visibility check failed for ${name}`)
+          );
+      }
       await visualCheck(eyes, { name });
     } catch (error) {
       logger.error(`Test failed for ${name}`, error as Error);
