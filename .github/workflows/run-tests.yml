@@ -2,24 +2,26 @@ name: E2E Pipeline
 
 on:
   workflow_dispatch:
-    inputs:
-      deployment_id:
-        description: 'Vercel Deployment ID'
-        required: false
-        default: 'manual'
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
+  # Use the pull request head SHA if available, otherwise the commit SHA
+  APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
+  APPLITOOLS_SERVER_URL: https://eyesapi.applitools.com
 
 jobs:
-  visual-tests:
-    name: "E2E Tests (Deployment: ${{ inputs.deployment_id }})"
-    # Use your self-hosted runner with the appropriate labels
+  e2e-test:
+    name: "E2E Tests"
     runs-on: self-hosted
-    
     env:
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
       NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
       SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
       METAMASK_PASSWORD: ${{ secrets.METAMASK_PASSWORD }}
-      APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
       DD_API_KEY: ${{ secrets.DD_API_KEY }}
       DD_SITE: ap1.datadoghq.com
       DD_SERVICE: dydx.trade
@@ -28,19 +30,14 @@ jobs:
       DYDX_ADDRESS: ${{ secrets.DYDX_ADDRESS }}
       DYDX_NETWORK_TYPE: mainnet
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL: "#your-channel"  # Update with your actual Slack channel
+    outputs:
+      slack_ts: ${{ steps.slack-notify.outputs.slack_ts }}
     steps:
-      - name: Log Event Details
-        run: |
-          echo "Event name: ${{ github.event_name }}"
-          echo "Deployment ID: ${{ inputs.deployment_id }}"
-          echo "Full event payload: ${{ toJSON(github.event) }}"
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
-
-      # Cache node_modules for local project dependencies (e.g., test frameworks, Applitools, etc.)
       - name: Cache Node Modules
         uses: actions/cache@v3
         id: cache-node-modules
@@ -57,54 +54,105 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install chromium
 
-      # Since Xvfb is installed on the instance, we only need to start it:
       - name: Start Xvfb
         run: |
           Xvfb :99 -ac &>/dev/null &
           echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
 
-      # Run your Playwright tests
       - name: Run Playwright tests with Applitools
         run: |
+          # Tests will use the common batch id, grouping results in Applitools
           PLAYWRIGHT_JUNIT_OUTPUT=results.xml \
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
-          npx playwright test
+          npx playwright test --grep "eth-usd market page connected landing page"
         env:
           APPLITOOLS_API_KEY: ${{ env.APPLITOOLS_API_KEY }}
+          APPLITOOLS_BATCH_ID: ${{ env.APPLITOOLS_BATCH_ID }}
           PLAYWRIGHT_JUNIT_OUTPUT: results.xml
 
-      # Upload the Playwright report artifacts
       - name: Upload Playwright Test Report
         if: always()
-        uses: actions/upload-artifact@v4.6.0
+        uses: actions/upload-artifact@v4
         with:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
 
-      # Upload results to Datadog if you wish
       - name: Upload Test Results to Datadog
         if: always()
         run: |
           if [ -f results.xml ]; then
             echo "Uploading results.xml to Datadog..."
-            # datadog-ci junit upload results.xml --service "$DD_SERVICE"
+            # Example: datadog-ci junit upload results.xml --service "$DD_SERVICE"
           else
             echo "results.xml not found, skipping Datadog upload."
           fi
 
-      # Slack notification
-      - name: Post Slack Notification
-        if: always() && inputs.deployment_id != 'manual'
+      - name: Post Slack Notification (Main Message)
+        id: slack-notify
+        if: always()
         env:
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOB_STATUS: ${{ job.status }}
-          DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+          SLACK_BOT_TOKEN: ${{ env.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ env.SLACK_CHANNEL }}
+          APPLITOOLS_BATCH_ID: ${{ env.APPLITOOLS_BATCH_ID }}
         run: |
           if [ "${JOB_STATUS}" = "success" ]; then
-            MESSAGE="✅ E2E Tests Passed! (Deployment: ${DEPLOYMENT_ID})\nDetails: $RUN_URL"
+            MESSAGE="✅ E2E Tests Passed!\nDetails: ${RUN_URL}\nApplitools Batch: https://eyes.applitools.com/app/test-results/${APPLITOOLS_BATCH_ID}/"
           else
-            MESSAGE="❌ E2E Tests Failed! (Deployment: ${DEPLOYMENT_ID})\nDetails: $RUN_URL"
+            MESSAGE="❌ E2E Tests Failed!\nDetails: ${RUN_URL}\nApplitools Batch: https://eyes.applitools.com/app/test-results/${APPLITOOLS_BATCH_ID}/"
           fi
-          echo "Posting Slack message: $MESSAGE"
-          curl -X POST -H 'Content-type: application/json' --data "{\"text\": \"${MESSAGE}\"}" "$SLACK_WEBHOOK_URL"
+          RESPONSE=$(curl -s -X POST \
+            -H "Content-type: application/json" \
+            -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+            --data "{
+              \"channel\": \"${SLACK_CHANNEL}\",
+              \"text\": \"${MESSAGE}\"
+            }" \
+            https://slack.com/api/chat.postMessage)
+          echo "Slack response: $RESPONSE"
+          TS=$(echo $RESPONSE | jq -r '.ts')
+          echo "Message timestamp: $TS"
+          echo "::set-output name=slack_ts::$TS"
+
+  batch-completion-notification:
+    name: "Applitools Batch Completion Notification"
+    needs: e2e-test
+    runs-on: ubuntu-latest
+    # This environment requires manual approval before continuing.
+    environment:
+      name: applitools-review
+    env:
+      APPLITOOLS_API_KEY: ${{ env.APPLITOOLS_API_KEY }}
+      APPLITOOLS_BATCH_ID: ${{ env.APPLITOOLS_BATCH_ID }}
+      APPLITOOLS_SERVER_URL: ${{ env.APPLITOOLS_SERVER_URL }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL: "#autoamted-testing-results"
+    steps:
+      - name: Pause for Manual Review
+        run: echo "Paused: Please review the Applitools GUI for screenshot results, then approve this environment to continue."
+
+      - name: Update Applitools Batch Status
+        uses: wei/curl@v1.1.1
+        with:
+          args: -X POST -d '' -H "accept:*/*" "${{ env.APPLITOOLS_SERVER_URL }}/api/externals/github/servers/github.com/commit/${{ env.APPLITOOLS_BATCH_ID }}/complete?apiKey=${{ env.APPLITOOLS_API_KEY }}"
+
+      - name: Post Threaded Slack Message with Applitools Link
+        env:
+          THREAD_TS: ${{ needs.e2e-test.outputs.slack_ts }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: "#your-channel"
+          APPLITOOLS_BATCH_ID: ${{ env.APPLITOOLS_BATCH_ID }}
+        run: |
+          APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${APPLITOOLS_BATCH_ID}/"
+          THREAD_MESSAGE="🔎 Applitools Batch is now complete. Review details here: ${APPLITOOLS_LINK}"
+          curl -s -X POST \
+            -H "Content-type: application/json" \
+            -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+            --data "{
+              \"channel\": \"${SLACK_CHANNEL}\",
+              \"text\": \"${THREAD_MESSAGE}\",
+              \"thread_ts\": \"${THREAD_TS}\"
+            }" \
+            https://slack.com/api/chat.postMessage
