@@ -198,10 +198,7 @@ export async function openDydxConnectMetaMask(
     logger.success("MetaMask connection steps completed successfully", {
       url: page.url(),
     });
-    await page.waitForSelector(GeneralSelectors.walletAddress, {
-      state: "visible",
-      timeout: TEST_TIMEOUTS.NAVIGATION,
-    });
+    await page.getByText("dydx1x5m...nsyl").waitFor({ state: "visible", timeout: TEST_TIMEOUTS.NAVIGATION });
     await page.bringToFront();
     try {
       await page.click(NotificationSelectors.withdrawalMessage);

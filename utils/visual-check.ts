@@ -19,7 +19,7 @@ export async function visualCheck(eyes: Eyes, opts: VisualCheckOptions) {
     target = target.fully();
   }
   target = target.matchLevel(matchLevel);
-  await new Promise(resolve => setTimeout(resolve, 5000));
+  await new Promise(resolve => setTimeout(resolve, 2500));
   await eyes.check(name, target);
 
   logger.success(`Completed visual check: ${name}`);
