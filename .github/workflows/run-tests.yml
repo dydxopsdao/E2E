@@ -128,10 +128,11 @@ jobs:
       APPLITOOLS_BATCH_ID: ${{ env.APPLITOOLS_BATCH_ID }}
       APPLITOOLS_SERVER_URL: ${{ env.APPLITOOLS_SERVER_URL }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      SLACK_CHANNEL: "#autoamted-testing-results"
+      SLACK_CHANNEL: "#automated-testing-results"
     steps:
       - name: Pause for Manual Review
-        run: echo "Paused: Please review the Applitools GUI for screenshot results, then approve this environment to continue."
+        run: | 
+        echo "Paused: Please review the Applitools GUI for screenshot results, then approve this environment to continue."
 
       - name: Update Applitools Batch Status
         uses: wei/curl@v1.1.1
