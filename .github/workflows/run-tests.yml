@@ -144,7 +144,7 @@ jobs:
     steps:
       - name: Pause for Manual Review
         run: |
-        echo "Paused: Applitools found differences. Approve environment to continue."
+          echo "Paused: Applitools found differences. Approve environment to continue."
 
       - name: Update Applitools Batch Status
         run: |
