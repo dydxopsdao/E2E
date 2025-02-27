@@ -2,22 +2,28 @@ name: E2E Pipeline
 
 on:
   workflow_dispatch:
+    inputs:
+      deployment_id:
+        description: 'Deployment ID'
+        required: false
+        default: 'manual'
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
 env:
+  # Applitools environment variables (inherited by all jobs)
   APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
-  # Use the pull request head SHA if available, otherwise the commit SHA
   APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
   APPLITOOLS_SERVER_URL: https://eyesapi.applitools.com
 
 jobs:
   e2e-test:
-    name: "E2E Tests"
+    name: "E2E Tests (Deployment: ${{ inputs.deployment_id }})"
     runs-on: self-hosted
     env:
+      # Additional environment variables for your tests
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
       NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
       SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
@@ -31,9 +37,11 @@ jobs:
       DYDX_NETWORK_TYPE: mainnet
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      SLACK_CHANNEL: "#your-channel"  # update with your Slack channel
+      SLACK_CHANNEL: "#automated-testing-results"
     outputs:
       slack_ts: ${{ steps.slack-notify.outputs.slack_ts }}
+      applitools_needs_review: ${{ steps.check-batch.outputs.needs_review }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -62,11 +70,10 @@ jobs:
 
       - name: Run Playwright tests with Applitools
         run: |
-          # The tests inherit global environment variables,
-          # including APPLITOOLS_API_KEY and APPLITOOLS_BATCH_ID.
+          # Run your tests
           PLAYWRIGHT_JUNIT_OUTPUT=results.xml \
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
-          npx playwright test --grep "eth-usd market page connected landing page"
+          npx playwright test
         env:
           PLAYWRIGHT_JUNIT_OUTPUT: results.xml
 
@@ -82,10 +89,21 @@ jobs:
         run: |
           if [ -f results.xml ]; then
             echo "Uploading results.xml to Datadog..."
-            # Example: datadog-ci junit upload results.xml --service "$DD_SERVICE"
+            # e.g.: datadog-ci junit upload results.xml --service "$DD_SERVICE"
           else
             echo "results.xml not found, skipping Datadog upload."
           fi
+
+      - name: Check Applitools Batch
+        id: check-batch
+        run: |
+          chmod +x scripts/checkApplitoolsBatch.sh
+          NEEDS_REVIEW=$(./scripts/checkApplitoolsBatch.sh \
+            "${APPLITOOLS_SERVER_URL}" \
+            "${APPLITOOLS_API_KEY}" \
+            "${APPLITOOLS_BATCH_ID}")
+          echo "NEEDS_REVIEW = $NEEDS_REVIEW"
+          echo "::set-output name=needs_review::$NEEDS_REVIEW"
 
       - name: Post Slack Notification (Main Message)
         id: slack-notify
@@ -93,15 +111,15 @@ jobs:
         env:
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOB_STATUS: ${{ job.status }}
+          DEPLOYMENT_ID: ${{ inputs.deployment_id }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: "#automated-testing-results"
-          # Directly compute the batch ID expression here
           APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           if [ "${JOB_STATUS}" = "success" ]; then
-            MESSAGE="✅ E2E Tests Passed!\nDetails: ${RUN_URL}\nApplitools Batch: https://eyes.applitools.com/app/test-results/${APPLITOOLS_BATCH_ID}/"
+            MESSAGE="Deployment ID: ${DEPLOYMENT_ID}\n\n✅ E2E Tests Passed!\nSee Applitools batch (if needed):\nhttps://eyes.applitools.com/app/test-results/${APPLITOOLS_BATCH_ID}/"
           else
-            MESSAGE="❌ E2E Tests Failed!\nDetails: ${RUN_URL}\nApplitools Batch: https://eyes.applitools.com/app/test-results/${APPLITOOLS_BATCH_ID}/"
+            MESSAGE="Deployment ID: ${DEPLOYMENT_ID}\n\n❌ E2E Tests Failed!\nDetails: ${RUN_URL}\nApplitools Batch: https://eyes.applitools.com/app/test-results/${APPLITOOLS_BATCH_ID}/"
           fi
           RESPONSE=$(curl -s -X POST \
             -H "Content-type: application/json" \
@@ -112,41 +130,63 @@ jobs:
             }" \
             https://slack.com/api/chat.postMessage)
           echo "Slack response: $RESPONSE"
-          TS=$(echo $RESPONSE | jq -r '.ts')
-          echo "Message timestamp: $TS"
+          TS=$(echo "$RESPONSE" | jq -r '.ts')
           echo "::set-output name=slack_ts::$TS"
+
+  applitools-auto-complete:
+    name: "Applitools Auto-Completion"
+    if: needs.e2e-test.outputs.applitools_needs_review == 'false'
+    needs: e2e-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark Applitools Batch as Complete
+        run: |
+          echo "No differences found, automatically completing the batch."
+          curl -X POST -d '' -H "accept:*/*" "${APPLITOOLS_SERVER_URL}/api/externals/github/servers/github.com/commit/${APPLITOOLS_BATCH_ID}/complete?apiKey=${APPLITOOLS_API_KEY}"
+
+      - name: Post Slack Thread (No Manual Review)
+        env:
+          THREAD_TS: ${{ needs.e2e-test.outputs.slack_ts }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: "#automated-testing-results"
+          DEPLOYMENT_ID: ${{ needs.e2e-test.inputs.deployment_id }}
+        run: |
+          THREAD_MESSAGE="Deployment ID: ${DEPLOYMENT_ID}\n\nAll tests are passed. No manual review needed. Rollout proceeds automatically."
+          curl -s -X POST \
+            -H "Content-type: application/json" \
+            -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+            --data "{
+              \"channel\": \"${SLACK_CHANNEL}\",
+              \"text\": \"${THREAD_MESSAGE}\",
+              \"thread_ts\": \"${THREAD_TS}\"
+            }" \
+            https://slack.com/api/chat.postMessage
 
   batch-completion-notification:
     name: "Applitools Batch Completion Notification"
+    if: needs.e2e-test.outputs.applitools_needs_review == 'true'
     needs: e2e-test
     runs-on: ubuntu-latest
     environment:
       name: applitools-review
-    env:
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      SLACK_CHANNEL: "#automated-testing-results"
-      APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
-      APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
-      APPLITOOLS_SERVER_URL: https://eyesapi.applitools.com
     steps:
       - name: Pause for Manual Review
         run: |
-          echo "Paused: Please review the Applitools GUI for screenshot results, then approve this environment to continue."
+          echo "Paused: Applitools found differences. Please review the screenshots, then approve this environment to continue."
 
       - name: Update Applitools Batch Status
-        uses: wei/curl@v1.1.1
-        with:
-          args: -X POST -d '' -H "accept:*/*" "${APPLITOOLS_SERVER_URL}/api/externals/github/servers/github.com/commit/${APPLITOOLS_BATCH_ID}/complete?apiKey=${APPLITOOLS_API_KEY}"
+        run: |
+          echo "Marking Applitools batch as complete after manual review."
+          curl -X POST -d '' -H "accept:*/*" "${APPLITOOLS_SERVER_URL}/api/externals/github/servers/github.com/commit/${APPLITOOLS_BATCH_ID}/complete?apiKey=${APPLITOOLS_API_KEY}"
 
-      - name: Post Threaded Slack Message with Applitools Link
+      - name: Post Threaded Slack Message
         env:
           THREAD_TS: ${{ needs.e2e-test.outputs.slack_ts }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: "#your-channel"
-          APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
+          SLACK_CHANNEL: "#automated-testing-results"
+          DEPLOYMENT_ID: ${{ needs.e2e-test.inputs.deployment_id }}
         run: |
-          APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${APPLITOOLS_BATCH_ID}/"
-          THREAD_MESSAGE="🔎 Applitools Batch is now complete. Review details here: ${APPLITOOLS_LINK}"
+          THREAD_MESSAGE="Deployment ID: ${DEPLOYMENT_ID}\n\n✅ Screenshots have been reviewed & approved. Rollout proceeds!"
           curl -s -X POST \
             -H "Content-type: application/json" \
             -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
