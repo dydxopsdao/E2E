@@ -18,7 +18,7 @@ config.setApiKey(process.env.APPLITOOLS_API_KEY || "");
 config.setServerUrl(process.env.APPLITOOLS_SERVER_URL || "https://eyesapi.applitools.com");
 
 const batchId = process.env.APPLITOOLS_BATCH_ID;
-const batch = new BatchInfo(`My-Batch-${batchId}`);
+const batch = new BatchInfo(`DYDX-${batchId}`);
 batch.setId(batchId);
 config.setBatch(batch);
 

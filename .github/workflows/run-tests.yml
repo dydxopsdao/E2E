@@ -22,8 +22,8 @@ jobs:
     runs-on: self-hosted
 
     # Provide a stable APPLITOOLS_BATCH_ID to your test code so it doesn't fail.
-    # For a PR, we use pull_request.head.sha; otherwise we fallback to github.sha.
     env:
+      # For a PR, we use pull_request.head.sha; otherwise fallback to github.sha.
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
 
       # Additional env vars for your tests
@@ -64,7 +64,6 @@ jobs:
 
       - name: Run E2E Tests (Playwright + Applitools)
         run: |
-          # Because APPLITOOLS_BATCH_ID is set in env, your applitools.config.ts won't throw an error.
           PLAYWRIGHT_JUNIT_OUTPUT=results.xml \
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
           npx playwright test --grep "eth-usd market page connected landing page"
