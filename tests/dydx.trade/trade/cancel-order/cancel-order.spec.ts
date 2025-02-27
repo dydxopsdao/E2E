@@ -7,18 +7,54 @@ import { OrderSide, OrderTimeInForce } from "@dydxprotocol/v4-client-js";
 import { OrdersTableSelectors } from "@interactions/dydx/orders/selectors/orders-table.selectors";
 import { checkMultiOrderCancellationNotification, checkNotificationAppearance } from "@interactions/dydx/notifications/actions/notification-actions";
 import { NotificationSelectors } from "@interactions/dydx/notifications/selectors/notification-selectors";
+import { BrowserContext, Page } from "@playwright/test";
 
 /**
  * Tests for canceling different types of orders via the UI after placing them with the API
+ * 
+ * IMPORTANT: This is a special implementation that uses a single-test approach to
+ * ensure we only create one browser instance for all test cases.
  */
-combinedTest.describe("Cancel Orders UI", () => {
+
+// Single test that runs all our test cases in sequence
+combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper }) => {
+  // Set up a single shared page that will be used for all test cases
+  logger.info("Creating shared MetaMask page for all test cases");
+  const sharedPage = await metamaskContext.newPage();
   
-  // Test for canceling a buy limit order
-  combinedTest("Cancel buy limit order", async ({
-    metamaskContext,
-    page,
-    dydxTradeHelper
-  }) => {
+  // Connect to MetaMask just once for all test cases
+  logger.info("Connecting to MetaMask once for all test cases");
+  await openDydxConnectMetaMask(sharedPage, metamaskContext, {
+    dydxPage: "/trade/BTC-USD",
+  });
+  
+  // Wait for page to load completely
+  await sharedPage.waitForSelector(OrderbookSelectors.orderbook, {
+    state: "visible",
+    timeout: 30000
+  });
+  
+  logger.success("MetaMask connection established - will be used for all test cases");
+  
+  // Navigate to orders tab once for all tests
+  logger.info("Navigating to orders tab for all test cases");
+  await sharedPage.click(OrdersTableSelectors.ordersTab);
+  await sharedPage.waitForSelector(OrdersTableSelectors.ordersTable, {
+    state: "visible",
+  });
+  
+  // Helper function to clean up after each test case
+  async function cleanupOrders() {
+    logger.step("Cleaning up any remaining orders");
+    await dydxTradeHelper.cancelAllOrders();
+  }
+  
+  try {
+    //-------------------------------------------------------------------------
+    // TEST CASE 1: Cancel buy limit order
+    //-------------------------------------------------------------------------
+    logger.info("======= STARTING TEST CASE: Cancel buy limit order =======");
+    
     try {
       // Arrange - place order via API
       const market = "BTC-USD";
@@ -36,7 +72,6 @@ combinedTest.describe("Cancel Orders UI", () => {
           clientId: Math.floor(Math.random() * 900000) + 100000 // 6-digit number
         }
       );
-      
       
       // Store the client ID from the order response
       const orderId = order.id;
@@ -62,27 +97,11 @@ combinedTest.describe("Cancel Orders UI", () => {
       
       logger.info(`Order ${orderId} confirmed as OPEN in the API`);
       
-      // Open UI and navigate to orders page
-      logger.step("Opening dYdX UI and navigating to btc-usd page");
-      await openDydxConnectMetaMask(page, metamaskContext, {
-        dydxPage: "/trade/BTC-USD",
-      });
-      
-      // Wait for page to load
-      await page.waitForSelector(OrderbookSelectors.orderbook, {
-        state: "visible",
-      });
-      
-      // Navigate to the orders tab
-      logger.step("Navigating to orders tab");
-      await page.click(OrdersTableSelectors.ordersTab);
-      
       // Find our order in the table
       logger.step("Finding and canceling the order");
-      await page.waitForSelector(OrdersTableSelectors.ordersTable);
       
       // Verify order is visible in the table - updated to match actual UI values
-      const orderRow = page
+      const orderRow = sharedPage
         .locator(OrdersTableSelectors.orderRow)
         .filter({ hasText: displayMarket })
         .filter({ hasText: "Buy" })
@@ -92,7 +111,7 @@ combinedTest.describe("Cancel Orders UI", () => {
       await expect(orderRow).toBeVisible();
       
       const cancelButton = orderRow.locator(OrdersTableSelectors.cancelButton);
-      await page.waitForTimeout(2500)
+      await sharedPage.waitForTimeout(2500)
       
       // Implement retry logic for cancel button
       let maxRetries = 3;
@@ -102,14 +121,14 @@ combinedTest.describe("Cancel Orders UI", () => {
       do {
         if (retryCount > 0) {
           logger.info(`Retrying cancel button click (attempt ${retryCount})`);
-          await page.waitForTimeout(1000); // Wait before retry
+          await sharedPage.waitForTimeout(1000); // Wait before retry
         }
         
         await cancelButton.click();
         
         // Wait for cancellation notification
         notificationResult = await checkNotificationAppearance(
-          page,
+          sharedPage,
           NotificationSelectors.cancelOrderToast,
           NotificationSelectors.cancelOrderHeader,
           NotificationSelectors.cancelOrderMessage,
@@ -139,21 +158,19 @@ combinedTest.describe("Cancel Orders UI", () => {
       
       expect(canceledOrder?.status).toBe("CANCELED");
       
-      // Clean up - make sure all orders are canceled
-      await dydxTradeHelper.cancelAllOrders();
-      
+      await cleanupOrders();
+      logger.success("======= COMPLETED TEST CASE: Cancel buy limit order =======");
     } catch (error) {
-      logger.error("Cancel buy limit order test failed", error as Error);
+      logger.error("Cancel buy limit order test case failed", error as Error);
+      await cleanupOrders();
       throw error;
     }
-  });
-  
-  // Test for canceling a sell limit order
-  combinedTest("Cancel sell limit order", async ({
-    metamaskContext,
-    page,
-    dydxTradeHelper
-  }) => {
+    
+    //-------------------------------------------------------------------------
+    // TEST CASE 2: Cancel sell limit order
+    //-------------------------------------------------------------------------
+    logger.info("======= STARTING TEST CASE: Cancel sell limit order =======");
+    
     try {
       // Arrange - place order via API
       const market = "BTC-USD";
@@ -172,9 +189,6 @@ combinedTest.describe("Cancel Orders UI", () => {
           clientId: Math.floor(Math.random() * 900000) + 100000 // 6-digit number
         }
       );
-       await openDydxConnectMetaMask(page, metamaskContext, {
-         dydxPage: "/trade/BTC-USD",
-       });
 
       // Store the client ID from the order response
       const orderId = order.id;
@@ -200,25 +214,11 @@ combinedTest.describe("Cancel Orders UI", () => {
       
       logger.info(`Order ${orderId} confirmed as OPEN in the API`);
       
-      // Open UI and navigate to orders page
-      logger.step("Opening dYdX UI and navigating to btc-usd page");
-     
-
-      // Wait for page to load
-      await page.waitForSelector(OrderbookSelectors.orderbook, {
-        state: "visible",
-      });
-
-      // Navigate to the orders tab
-      logger.step("Navigating to orders tab");
-      await page.click(OrdersTableSelectors.ordersTab);
-
       // Find our order in the table
       logger.step("Finding and canceling the order");
-      await page.waitForSelector(OrdersTableSelectors.ordersTable);
-
+      
       // Verify order is visible in the table - updated to match actual UI values
-      const orderRow = page
+      const orderRow = sharedPage
         .locator(OrdersTableSelectors.orderRow)
         .filter({ hasText: displayMarket })
         .filter({ hasText: "Sell" }) 
@@ -226,9 +226,9 @@ combinedTest.describe("Cancel Orders UI", () => {
         .first();
 
       await expect(orderRow).toBeVisible();
-      await page.waitForTimeout(2500)
+      await sharedPage.waitForTimeout(2500)
       const cancelButton = orderRow.locator(OrdersTableSelectors.cancelButton);
-      await page.waitForTimeout(2500)
+      await sharedPage.waitForTimeout(2500)
       
       // Implement retry logic for cancel button
       let maxRetries = 3;
@@ -238,14 +238,14 @@ combinedTest.describe("Cancel Orders UI", () => {
       do {
         if (retryCount > 0) {
           logger.info(`Retrying cancel button click (attempt ${retryCount})`);
-          await page.waitForTimeout(1000); // Wait before retry
+          await sharedPage.waitForTimeout(1000); // Wait before retry
         }
         
         await cancelButton.click();
         
         // Wait for cancellation notification
         notificationResult = await checkNotificationAppearance(
-          page,
+          sharedPage,
           NotificationSelectors.cancelOrderToast,
           NotificationSelectors.cancelOrderHeader,
           NotificationSelectors.cancelOrderMessage,
@@ -279,20 +279,19 @@ combinedTest.describe("Cancel Orders UI", () => {
 
       expect(canceledOrder?.status).toBe("CANCELED");
 
-      // Clean up - make sure all orders are canceled
-      await dydxTradeHelper.cancelAllOrders();
+      await cleanupOrders();
+      logger.success("======= COMPLETED TEST CASE: Cancel sell limit order =======");
     } catch (error) {
-      logger.error("Cancel sell limit order test failed", error as Error);
+      logger.error("Cancel sell limit order test case failed", error as Error);
+      await cleanupOrders();
       throw error;
     }
-  });
-  
-  // Test for canceling multiple orders at once
-  combinedTest("Cancel multiple orders at once", async ({
-    metamaskContext,
-    page,
-    dydxTradeHelper
-  }) => {
+    
+    //-------------------------------------------------------------------------
+    // TEST CASE 3: Cancel multiple orders at once
+    //-------------------------------------------------------------------------
+    logger.info("======= STARTING TEST CASE: Cancel multiple orders at once =======");
+    
     try {
       // Arrange - place multiple orders via API
       const market = "BTC-USD";
@@ -353,25 +352,16 @@ combinedTest.describe("Cancel Orders UI", () => {
       
       logger.info(`Both orders confirmed as OPEN in the API`);
       
-      // Open UI and navigate to btc-usd page
-      logger.step("Opening dYdX UI and navigating to btc-usd page");
-      await openDydxConnectMetaMask(page, metamaskContext, {
-        dydxPage: "/trade/BTC-USD",
-      });
-
-      logger.step("Navigating to orders tab");
-      await page.click(OrdersTableSelectors.ordersTab);
-
       // Use the "Cancel All" button - using the selector from the screenshot
       logger.step("Canceling all orders");
-      await page.waitForTimeout(2500);
-      await page.locator(OrdersTableSelectors.cancelAllButton).click();
-      await page.waitForTimeout(500);
-      await page.locator(OrdersTableSelectors.confirmCancelAllButton).click();
+      await sharedPage.waitForTimeout(2500);
+      await sharedPage.locator(OrdersTableSelectors.cancelAllButton).click();
+      await sharedPage.waitForTimeout(500);
+      await sharedPage.locator(OrdersTableSelectors.confirmCancelAllButton).click();
 
       // Wait for cancellation notification
       await checkMultiOrderCancellationNotification(
-        page,
+        sharedPage,
         NotificationSelectors.cancelOrderToast,
         "Canceling all orders",
         "Orders Canceled",
@@ -379,7 +369,7 @@ combinedTest.describe("Cancel Orders UI", () => {
         15000
       );
 
-      expect(page.locator(OrdersTableSelectors.youHaveNoOrders)).toBeVisible();
+      await expect(sharedPage.locator(OrdersTableSelectors.youHaveNoOrders)).toBeVisible();
       
       // Verify specific orders are canceled via API
       logger.step("Verifying specific orders are canceled via API");
@@ -406,15 +396,17 @@ combinedTest.describe("Cancel Orders UI", () => {
       // Double-check that there are no open orders left
       const openOrders = await dydxTradeHelper.getOpenOrders({ market });
       expect(openOrders.length).toBe(0);
+      
+      await cleanupOrders();
+      logger.success("======= COMPLETED TEST CASE: Cancel multiple orders at once =======");
     } catch (error) {
-      logger.error("Cancel multiple orders test failed", error as Error);
+      logger.error("Cancel multiple orders test case failed", error as Error);
+      await cleanupOrders();
       throw error;
     }
-  });
-  
-  // Clean up after all tests - cancel any remaining orders
-  combinedTest.afterEach(async ({ dydxTradeHelper }) => {
-    logger.step("Cleaning up any remaining orders");
-    await dydxTradeHelper.cancelAllOrders();
-  });
+    
+  } finally {
+    // We intentionally do not close the page here to allow reuse by future test suites
+    logger.info("All test cases completed, shared page is being maintained for potential future tests");
+  }
 });
