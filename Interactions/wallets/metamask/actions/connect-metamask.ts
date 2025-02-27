@@ -200,7 +200,7 @@ export async function openDydxConnectMetaMask(
     });
     await page.waitForSelector(GeneralSelectors.walletAddress, {
       state: "visible",
-      timeout: TEST_TIMEOUTS.DEFAULT,
+      timeout: TEST_TIMEOUTS.NAVIGATION,
     });
     await page.bringToFront();
     try {
