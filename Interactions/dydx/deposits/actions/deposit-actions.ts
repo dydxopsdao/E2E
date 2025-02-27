@@ -69,13 +69,14 @@ export async function instantDeposit(
 
     // Confirm in MetaMask (first confirmation)
     logger.step("Confirming in MetaMask (1st time)");
+    await page.waitForTimeout(2500);
     await confirmMetaMaskAction(
       metamaskContext,
       password,
       TEST_TIMEOUTS.ELEMENT,
       MetamaskSelectors.confirmationSubmitButtonFooter
     );
-
+    await page.waitForTimeout(2500);
     // Confirm in MetaMask (second confirmation)
     logger.step("Confirming in MetaMask (2nd time)");
     await confirmMetaMaskAction(
@@ -84,7 +85,6 @@ export async function instantDeposit(
       TEST_TIMEOUTS.ELEMENT,
       MetamaskSelectors.confirmButtonFooter
     );
-
     // Wait for deposit success
     logger.step("Waiting for deposit success");
     await checkDepositCompleted(page, amount);

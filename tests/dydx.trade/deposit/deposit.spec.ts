@@ -28,10 +28,10 @@ test.describe("Instant deposit flow tests", () => {
   }) => {
     // Open dYdX and connect MetaMask
     await openDydxConnectMetaMask(page, metamaskContext);
-    await page.bringToFront();
-    await closeOnboarding(page);
     // Add Arbitrum One network
     await addNetwork(metamaskContext, "Arbitrum One", TEST_TIMEOUTS.DEFAULT);
+    await page.bringToFront();
+    await closeOnboarding(page);
 
     // Check initial portfolio value
     const initialPortfolioValue = await checkInitialPortfolioValue(page);

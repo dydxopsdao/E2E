@@ -146,7 +146,6 @@ export async function openDydxConnectMetaMask(
     logger.error("Missing MetaMask password", error);
     throw error;
   }
-
   logger.step("Starting connection process to dYdX");
 
   try {
