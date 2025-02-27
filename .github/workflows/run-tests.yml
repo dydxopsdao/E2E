@@ -12,6 +12,7 @@ on:
   pull_request:
     branches: [main]
 
+# Global environment
 env:
   APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
   APPLITOOLS_SERVER_URL: https://eyesapi.applitools.com
@@ -21,9 +22,9 @@ jobs:
     name: "E2E Tests (Deployment: ${{ inputs.deployment_id }})"
     runs-on: self-hosted
 
-    # Provide a stable APPLITOOLS_BATCH_ID to your test code so it doesn't fail.
+    # Provide a stable APPLITOOLS_BATCH_ID so Applitools doesn't throw an error.
     env:
-      # For a PR, we use pull_request.head.sha; otherwise fallback to github.sha.
+      # For a PR, we use pull_request.head.sha; otherwise we fallback to github.sha.
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
 
       # Additional env vars for your tests
@@ -67,7 +68,9 @@ jobs:
           PLAYWRIGHT_JUNIT_OUTPUT=results.xml \
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
           npx playwright test --grep "eth-usd market page connected landing page"
+        # If tests fail, we won't check Applitools, but Slack will still notify.
 
+      # Upload test report artifacts if needed
       - name: Upload Test Report
         if: always()
         uses: actions/upload-artifact@v4
@@ -75,6 +78,7 @@ jobs:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
 
+      # Optionally upload results to Datadog
       - name: Upload Test Results to Datadog
         if: always()
         run: |
@@ -85,7 +89,9 @@ jobs:
             echo "results.xml not found, skipping Datadog upload."
           fi
 
+      # Only check Applitools if E2E tests passed
       - name: Check Applitools Batch By Pointer
+        if: success()
         id: check-batch
         run: |
           chmod +x scripts/checkApplitoolsBatchByPointer.sh
@@ -94,21 +100,33 @@ jobs:
             "${APPLITOOLS_API_KEY}" \
             "${APPLITOOLS_BATCH_ID}"
 
+      # Post Slack Notification (always runs, includes logic for pass/fail + Applitools status)
       - name: Post Slack Notification (Main Message)
         id: slack-notify
         if: always()
         env:
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          JOB_STATUS: ${{ job.status }}
+          JOB_STATUS: ${{ job.status }}  # success/failure for E2E tests
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: "#automated-testing-results"
+          NEEDS_REVIEW: ${{ steps.check-batch.outputs.needsReview || 'false' }}
+          FOUND_BATCH_ID: ${{ steps.check-batch.outputs.foundBatchID || '' }}
         run: |
           if [ "${JOB_STATUS}" = "success" ]; then
-            MESSAGE="Deployment ID: ${DEPLOYMENT_ID}\n\n✅ E2E Tests Passed!\nWe've queried the Applitools batch to see if manual review is needed."
+            # E2E tests passed
+            if [ "${NEEDS_REVIEW}" = "true" ]; then
+              # Applitools found differences
+              MESSAGE="Deployment ID: ${DEPLOYMENT_ID}\n\n✅ E2E Tests Passed!\nHowever, visual tests need manual review.\nView Applitools: https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/"
+            else
+              # Applitools is all good (or check-batch didn't run)
+              MESSAGE="Deployment ID: ${DEPLOYMENT_ID}\n\n✅ E2E Tests Passed!\nAll visual checks passed. Rollout can proceed."
+            fi
           else
+            # E2E tests failed
             MESSAGE="Deployment ID: ${DEPLOYMENT_ID}\n\n❌ E2E Tests Failed!\nDetails: ${RUN_URL}"
           fi
+
           RESPONSE=$(curl -s -X POST \
             -H "Content-type: application/json" \
             -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
@@ -117,9 +135,11 @@ jobs:
               \"text\": \"${MESSAGE}\"
             }" \
             https://slack.com/api/chat.postMessage)
+
           TS=$(echo "$RESPONSE" | jq -r '.ts')
           echo "::set-output name=slack_ts::$TS"
 
+  # If Applitools is all good, auto-complete the batch
   applitools-auto-complete:
     name: "Applitools Auto-Completion"
     if: needs.e2e-test.outputs.needs_review == 'false'
@@ -133,13 +153,18 @@ jobs:
           curl -X POST -d '' -H "accept:*/*" \
             "${{ env.APPLITOOLS_SERVER_URL }}/api/externals/github/servers/github.com/commit/${{ needs.e2e-test.outputs.found_batch_id }}/complete?apiKey=${{ env.APPLITOOLS_API_KEY }}"
 
+      # Optional Slack thread message if you want
+      # - name: Post Slack Thread (No Manual Review)
+      #   ...
+
+  # If Applitools has differences, require environment approval
   batch-completion-notification:
     name: "Applitools Batch Completion Notification"
     if: needs.e2e-test.outputs.needs_review == 'true'
     needs: e2e-test
     runs-on: ubuntu-latest
     environment:
-      name: applitools-review
+      name: applitools-review  # Create this environment in repo settings, require manual approval
     steps:
       - name: Pause for Manual Review
         run: |
