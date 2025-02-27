@@ -57,6 +57,7 @@ export async function addNetwork(
       `${MetamaskSelectors.networkDisplay}:has-text("${networkName}")`,
       { state: "visible", timeout }
     );
+    await metaMaskPage.waitForTimeout(2500);
 
     logger.success("Network added successfully", {
       networkName,

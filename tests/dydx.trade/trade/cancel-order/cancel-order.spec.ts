@@ -197,14 +197,15 @@ combinedTest.describe("Cancel Orders UI", () => {
       // Verify order is visible in the table - updated to match actual UI values
       const orderRow = page
         .locator(OrdersTableSelectors.orderRow)
-        .filter({ hasText: displayMarket }) // Just "BTC" not "BTC-USD"
-        .filter({ hasText: "Sell" }) // "Buy" not "BUY"
-        .filter({ hasText: "0.0001" }) // Format shown in UI with trailing zero
+        .filter({ hasText: displayMarket })
+        .filter({ hasText: "Sell" }) 
+        .filter({ hasText: "0.0001" }) 
         .first();
 
       await expect(orderRow).toBeVisible();
 
       const cancelButton = orderRow.locator(OrdersTableSelectors.cancelButton);
+      await page.waitForTimeout(2500)
       await cancelButton.click();
 
       // Wait for cancellation notification

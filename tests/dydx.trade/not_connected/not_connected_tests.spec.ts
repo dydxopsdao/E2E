@@ -49,7 +49,7 @@ for (const { url, name, elementLocator } of urls) {
 
       // Act
       await page.goto(url, { timeout: TEST_TIMEOUTS.PAGE_LOAD, waitUntil: "domcontentloaded" });
-      await waitForAnimations(page, TEST_TIMEOUTS.PAGE_LOAD);
+      await waitForAnimations(page, TEST_TIMEOUTS.ELEMENT);
       await waitForPageLoad(page, elementLocator);
 
       // Assert
