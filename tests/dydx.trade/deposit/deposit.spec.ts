@@ -7,11 +7,12 @@ import {
   checkFinalPortfolioValue,
 } from "@dydx/portfolio/actions/portfolio-actions";
 import { closeOnboarding } from "@dydx/onboarding/actions/onboarding.actions";
-import { checkDepositCompleted, instantDeposit } from "@interactions/dydx/deposits/actions/deposit-actions";
+import { instantDeposit } from "@interactions/dydx/deposits/actions/deposit-actions";
 import { BrowserContext, Page } from "@playwright/test";
 import { checkNotificationAppearance } from "@interactions/dydx/notifications/actions/notification-actions";
 import { Eyes } from "@applitools/eyes-playwright";
 import { NotificationSelectors } from "@interactions/dydx/notifications/selectors/notification-selectors";
+import { DepositsSelectors } from "@interactions/dydx/deposits/selectors/deposits.selectors";
 
 const depositAmount = 12;
 
@@ -47,7 +48,6 @@ test.describe("Instant deposit flow tests", () => {
         performEyesCheck: false,
       }
     );
-
     // Check for notification appearance
     /* await checkNotificationAppearance(
       page,

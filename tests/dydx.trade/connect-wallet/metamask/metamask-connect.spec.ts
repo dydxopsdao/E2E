@@ -76,8 +76,19 @@ test("Connect MetaMask Wallet", async ({ metamaskContext, page, eyes }) => {
     await expect(walletWithFunds).toBeVisible();
     logger.success("MetaMask wallet successfully connected");
   } catch (error) {
-    logger.error("MetaMask connection test failed", error as Error);
-    throw error;
+    try {
+      await confirmMetaMaskAction(
+      metamaskContext,
+      "",
+      TEST_TIMEOUTS.DEFAULT,
+      MetamaskSelectors.confirmButton
+    );
+    const walletWithFunds = page.locator(ConnectWalletSelectors.metamaskWalletWithFunds);
+    await expect(walletWithFunds).toBeVisible();
+    } catch (error) {
+      logger.error("MetaMask connection test failed", error as Error);
+      throw error;
+    }
   }
 });
 /* test("metamask connect", async ({ context }) => {

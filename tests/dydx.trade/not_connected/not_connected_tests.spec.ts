@@ -25,7 +25,7 @@ const urls = [
   {
     url: "https://dydx.trade/vault",
     name: "Megavault page",
-    elementLocator: "table[aria-label='MegaVault']",
+    elementLocator: ".sc-17stuub-0.sc-17stuub-1.eqFWVL.hsAYsL.sc-3i56se-5.hcfdxE",
   },
   {
     url: "https://dydx.trade/referrals",
