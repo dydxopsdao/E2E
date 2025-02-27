@@ -6,6 +6,7 @@ import { TEST_TIMEOUTS } from "@constants/test.constants";
 /**
  * A generic function that checks for a specific toast/header/message match
  * within a given timeout.
+ * @returns An object with { success: boolean, errorMessage?: string } to allow for retry logic
  */
 export async function checkNotificationAppearance(
   page: Page,
@@ -15,7 +16,7 @@ export async function checkNotificationAppearance(
   expectedHeader: string,
   expectedMessage: string | RegExp,
   timeout: number = 580000
-): Promise<void> {
+): Promise<{ success: boolean; errorMessage?: string }> {
   logger.step(
     `Waiting for notification - Header: "${expectedHeader}", Message: "${expectedMessage}"`
   );
@@ -44,6 +45,15 @@ export async function checkNotificationAppearance(
         `Expected notification - Header: "${expectedHeader}", Message: "${expectedMessage}"`
       );
 
+      // Check if the message contains "Error" and return an error result
+      if (trimmedMessage.includes("Error")) {
+        logger.error(`Error notification detected: "${trimmedMessage}"`);
+        return { 
+          success: false, 
+          errorMessage: trimmedMessage 
+        };
+      }
+
       // Check header equality
       const headerMatches = trimmedHeader === expectedHeader;
 
@@ -59,7 +69,7 @@ export async function checkNotificationAppearance(
         logger.success(
           `Notification verified - Header: "${expectedHeader}", Message: "${expectedMessage}"`
         );
-        return;
+        return { success: true };
       }
 
       await page.waitForTimeout(pollInterval);
@@ -91,7 +101,7 @@ export async function checkNotificationSequence(
       `Checking notification ${index + 1} of ${notifications.length}`
     );
 
-    await checkNotificationAppearance(
+    const result = await checkNotificationAppearance(
       page,
       notification.toastSelector,
       notification.headerSelector,
@@ -100,6 +110,10 @@ export async function checkNotificationSequence(
       notification.expectedMessage,
       notification.timeout
     );
+    
+    if (!result.success) {
+      throw new Error(`Error in notification sequence (step ${index + 1}): ${result.errorMessage}`);
+    }
   }
 }
 

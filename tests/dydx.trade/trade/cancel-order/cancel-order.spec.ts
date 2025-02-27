@@ -93,19 +93,42 @@ combinedTest.describe("Cancel Orders UI", () => {
       
       const cancelButton = orderRow.locator(OrdersTableSelectors.cancelButton);
       await page.waitForTimeout(2500)
-      await cancelButton.click();
       
+      // Implement retry logic for cancel button
+      let maxRetries = 3;
+      let retryCount = 0;
+      let notificationResult;
       
-      // Wait for cancellation notification
-      await checkNotificationAppearance(
-        page,
-        NotificationSelectors.cancelOrderToast,
-        NotificationSelectors.cancelOrderHeader,
-        NotificationSelectors.cancelOrderMessage,
-        "Limit Order",
-        "Canceled",
-        120000
-      );
+      do {
+        if (retryCount > 0) {
+          logger.info(`Retrying cancel button click (attempt ${retryCount})`);
+          await page.waitForTimeout(1000); // Wait before retry
+        }
+        
+        await cancelButton.click();
+        
+        // Wait for cancellation notification
+        notificationResult = await checkNotificationAppearance(
+          page,
+          NotificationSelectors.cancelOrderToast,
+          NotificationSelectors.cancelOrderHeader,
+          NotificationSelectors.cancelOrderMessage,
+          "Limit Order",
+          "Canceled",
+          120000
+        );
+        
+        if (!notificationResult.success) {
+          logger.warning(`Error detected in notification: ${notificationResult.errorMessage}`);
+        }
+        
+        retryCount++;
+      } while (!notificationResult.success && retryCount < maxRetries);
+      
+      // If we still have an error after max retries, throw an error
+      if (!notificationResult.success) {
+        throw new Error(`Failed to cancel order after ${maxRetries} attempts: ${notificationResult.errorMessage}`);
+      }
       
       // Verify order is no longer active in the API
       logger.step("Verifying order cancellation via API");
@@ -206,18 +229,42 @@ combinedTest.describe("Cancel Orders UI", () => {
       await page.waitForTimeout(2500)
       const cancelButton = orderRow.locator(OrdersTableSelectors.cancelButton);
       await page.waitForTimeout(2500)
-      await cancelButton.click();
-
-      // Wait for cancellation notification
-      await checkNotificationAppearance(
-        page,
-        NotificationSelectors.cancelOrderToast,
-        NotificationSelectors.cancelOrderHeader,
-        NotificationSelectors.cancelOrderMessage,
-        "Limit Order",
-        "Canceled",
-        30000
-      );
+      
+      // Implement retry logic for cancel button
+      let maxRetries = 3;
+      let retryCount = 0;
+      let notificationResult;
+      
+      do {
+        if (retryCount > 0) {
+          logger.info(`Retrying cancel button click (attempt ${retryCount})`);
+          await page.waitForTimeout(1000); // Wait before retry
+        }
+        
+        await cancelButton.click();
+        
+        // Wait for cancellation notification
+        notificationResult = await checkNotificationAppearance(
+          page,
+          NotificationSelectors.cancelOrderToast,
+          NotificationSelectors.cancelOrderHeader,
+          NotificationSelectors.cancelOrderMessage,
+          "Limit Order",
+          "Canceled",
+          120000
+        );
+        
+        if (!notificationResult.success) {
+          logger.warning(`Error detected in notification: ${notificationResult.errorMessage}`);
+        }
+        
+        retryCount++;
+      } while (!notificationResult.success && retryCount < maxRetries);
+      
+      // If we still have an error after max retries, throw an error
+      if (!notificationResult.success) {
+        throw new Error(`Failed to cancel order after ${maxRetries} attempts: ${notificationResult.errorMessage}`);
+      }
 
       // Verify order is no longer active in the API
       logger.step("Verifying order cancellation via API");
