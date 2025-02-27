@@ -83,7 +83,7 @@ export async function handlePasswordPrompt(page: Page): Promise<void> {
 export async function confirmMetaMaskAction(
   context: BrowserContext,
   password: string,
-  timeout: number = TEST_TIMEOUTS.DEFAULT,
+  timeout: number = TEST_TIMEOUTS.ACTION,
   confirmSelector: string
 ): Promise<void> {
   logger.step("Confirming MetaMask action", {
