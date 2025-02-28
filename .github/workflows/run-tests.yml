@@ -177,21 +177,114 @@ jobs:
             }" \
             https://slack.com/api/chat.postMessage
 
-  # If Applitools has differences, require environment approval
-  batch-completion-notification:
-    name: "Applitools Batch Completion Notification"
+  # If Applitools has differences, poll for status resolution
+  batch-status-polling:
+    name: "Applitools Batch Status Polling"
     if: needs.e2e-test.outputs.needs_review == 'true'
     needs: e2e-test
     runs-on: ubuntu-latest
-    environment:
-      name: applitools-review  # Create this environment in your repo settings, require manual approval
+    
     steps:
-      - name: Pause for Manual Review
+      - name: Checkout repository 
+        uses: actions/checkout@v4
+      
+      - name: Poll Applitools Batch Status
+        id: poll-status
+        env:
+          THREAD_TS: ${{ needs.e2e-test.outputs.slack_ts }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: "#automated-testing-results"
+          FOUND_BATCH_ID: ${{ needs.e2e-test.outputs.found_batch_id }}
+          APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
+          APPLITOOLS_SERVER_URL: ${{ env.APPLITOOLS_SERVER_URL }}
         run: |
-          echo "Paused: Applitools found differences. Approve environment to continue."
-
-      - name: Update Applitools Batch Status
+          # Create helper function to send Slack messages
+          send_slack_message() {
+            local message="$1"
+            local ts="${THREAD_TS}"
+            
+            curl -s -X POST \
+              -H "Content-type: application/json" \
+              -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+              --data "{
+                \"channel\": \"${SLACK_CHANNEL}\",
+                \"text\": \"${message}\",
+                \"thread_ts\": \"${ts}\"
+              }" \
+              https://slack.com/api/chat.postMessage
+          }
+          
+          # Post initial message
+          APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/"
+          GITHUB_RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          INITIAL_MESSAGE="Visual differences detected. Waiting for manual review at: ${APPLITOOLS_LINK}\n\nThis job will monitor batch status for up to 1 hour."
+          send_slack_message "${INITIAL_MESSAGE}"
+          
+          # Poll status for up to 1 hour (120 attempts × 30 seconds = 3600 seconds)
+          MAX_ATTEMPTS=120
+          ATTEMPT=0
+          POLL_INTERVAL=30
+          FINAL_STATUS=""
+          
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Polling attempt $ATTEMPT of $MAX_ATTEMPTS..."
+            
+            # Get batch status from Applitools API
+            RESPONSE=$(curl -s -X GET \
+              -H "Content-Type: application/json" \
+              "${APPLITOOLS_SERVER_URL}/api/batches/${FOUND_BATCH_ID}?apiKey=${APPLITOOLS_API_KEY}")
+            
+            # Extract the status - adjust this based on actual API response format
+            # This is a simplified example - you may need to parse JSON properly
+            STATUS=$(echo "$RESPONSE" | grep -o '"state":"[^"]*"' | cut -d'"' -f4)
+            echo "Current batch status: $STATUS"
+            
+            # Check if status is resolved
+            if [ "$STATUS" = "PASSED" ]; then
+              FINAL_STATUS="PASSED"
+              break
+            elif [ "$STATUS" = "FAILED" ]; then
+              FINAL_STATUS="FAILED"
+              break
+            elif [ "$STATUS" = "COMPLETED" ]; then
+              FINAL_STATUS="COMPLETED"
+              break
+            fi
+            
+            # Status still unresolved, wait and try again
+            sleep $POLL_INTERVAL
+          done
+          
+          # Handle final status
+          if [ "$FINAL_STATUS" = "PASSED" ]; then
+            FINAL_MESSAGE="✅ Visual differences have been reviewed and APPROVED. Proceeding with rollout.\n\nAdditional details:\n- GitHub Action: ${GITHUB_RUN_URL}\n- Applitools: ${APPLITOOLS_LINK}"
+            send_slack_message "${FINAL_MESSAGE}"
+            echo "status=approved" >> $GITHUB_OUTPUT
+          elif [ "$FINAL_STATUS" = "FAILED" ]; then
+            FINAL_MESSAGE="❌ Visual differences have been reviewed and REJECTED. Rollout will be stopped.\n\nAdditional details:\n- GitHub Action: ${GITHUB_RUN_URL}\n- Applitools: ${APPLITOOLS_LINK}"
+            send_slack_message "${FINAL_MESSAGE}"
+            echo "status=rejected" >> $GITHUB_OUTPUT
+          elif [ "$FINAL_STATUS" = "COMPLETED" ]; then
+            FINAL_MESSAGE="✅ Batch was marked as completed. Proceeding with rollout.\n\nAdditional details:\n- GitHub Action: ${GITHUB_RUN_URL}\n- Applitools: ${APPLITOOLS_LINK}"
+            send_slack_message "${FINAL_MESSAGE}"
+            echo "status=approved" >> $GITHUB_OUTPUT
+          else
+            # Timeout reached, still unresolved
+            FINAL_MESSAGE="⚠️ Batch review timed out after 1 hour. Please review manually and re-run the workflow if needed.\n\nAdditional details:\n- GitHub Action: ${GITHUB_RUN_URL}\n- Applitools: ${APPLITOOLS_LINK}"
+            send_slack_message "${FINAL_MESSAGE}"
+            echo "status=timeout" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Mark Applitools Batch as Complete
+        if: steps.poll-status.outputs.status == 'approved'
         run: |
-          echo "Completing the batch after manual approval."
+          echo "Completing the batch after approval."
           curl -X POST -d '' -H "accept:*/*" \
             "${{ env.APPLITOOLS_SERVER_URL }}/api/externals/github/servers/github.com/commit/${{ needs.e2e-test.outputs.found_batch_id }}/complete?apiKey=${{ env.APPLITOOLS_API_KEY }}"
+      
+      - name: Fail Workflow if Review Rejected
+        if: steps.poll-status.outputs.status == 'rejected'
+        run: |
+          echo "Visual tests were rejected. Failing the workflow."
+          exit 1
