@@ -498,7 +498,6 @@ export class DydxTradeHelper {
         logger.info(`Retrieved ${allOrders.length} orders from API`);
         
         if (allOrders.length > 0) {
-          // Log the first few orders to help with debugging
           
           // Check all possible ID fields that might contain our order ID
           const matchingOrder = allOrders.find((o: any) => {

@@ -199,14 +199,6 @@ export class OrderManager {
       
       // Get the response data 
       const data = await response.json();
-      
-      // Log response structure for debugging
-      logger.debug("API response structure:", { 
-        responseType: typeof data,
-        isArray: Array.isArray(data),
-        length: Array.isArray(data) ? data.length : 'N/A',
-        keys: !Array.isArray(data) && typeof data === 'object' ? Object.keys(data) : 'N/A'
-      });
 
       // Based on the example, the API returns the array of orders directly
       const orders = Array.isArray(data) ? data : [];

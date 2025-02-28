@@ -10,6 +10,7 @@ import { NotificationSelectors } from "@interactions/dydx/notifications/selector
 import { BrowserContext, Page } from "@playwright/test";
 import { TIMEOUT } from "dns";
 import { TEST_TIMEOUTS } from "@constants/test.constants";
+import { navigateToViaHeader } from "@interactions/dydx/general/actions/navigation.actions";
 
 /**
  * Tests for canceling different types of orders via the UI after placing them with the API
@@ -401,7 +402,13 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
         15000
       );
 
-      await expect(sharedPage.locator(OrdersTableSelectors.youHaveNoOrders)).toBeVisible();
+      try { 
+        await expect(sharedPage.locator(OrdersTableSelectors.youHaveNoOrders)).toBeVisible();
+      } catch (error) {
+        await navigateToViaHeader(sharedPage, "PORTFOLIO");
+        await navigateToViaHeader(sharedPage, "TRADE");
+        await expect(sharedPage.locator(OrdersTableSelectors.youHaveNoOrders)).toBeVisible();
+      }
       
       // Verify specific orders are canceled via API
       logger.step("Verifying specific orders are canceled via API");

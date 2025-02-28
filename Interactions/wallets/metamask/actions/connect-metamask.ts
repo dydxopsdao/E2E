@@ -158,7 +158,7 @@ export async function openDydxConnectMetaMask(
     //wait for orderbook to be visible
     await waitForAnimations(page, TEST_TIMEOUTS.PAGE_LOAD);
     try {
-      await page.locator(NotificationSelectors.withdrawalMessage).click({ force: true });
+      await page.locator(NotificationSelectors.withdrawalMessage).click();
     } catch (error) {
     }
     // Trigger wallet connection modal and select MetaMask

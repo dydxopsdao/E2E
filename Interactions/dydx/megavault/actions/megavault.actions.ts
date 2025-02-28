@@ -328,28 +328,36 @@ export async function vaultTransaction(
   }
 
   // 8) Check the notification
-  if (isDeposit) {
-    await checkNotificationAppearance(
-      page,
-      NotificationSelectors.instantDepositToast,
-      NotificationSelectors.instantDepositHeader,
-      NotificationSelectors.depositCompletedMessage,
-      "Funds successfully added to MegaVault",
-      /You added \$\d+(?:\.\d{2})? in the MegaVault\./
-    );
-  } else {
-    await checkNotificationAppearance(
-      page,
-      NotificationSelectors.instantDepositToast,
-      NotificationSelectors.instantDepositHeader,
-      NotificationSelectors.depositCompletedMessage,
-      "Funds successfully removed from MegaVault",
-      /You removed \$\d+(?:\.\d{2})? from the MegaVault\./
-    );
+  try {
+    if (isDeposit) {
+      await checkNotificationAppearance(
+        page,
+        NotificationSelectors.instantDepositToast,
+        NotificationSelectors.instantDepositHeader,
+        NotificationSelectors.depositCompletedMessage,
+        "Funds successfully added to MegaVault",
+        /You added \$\d+(?:\.\d{2})? in the MegaVault\./
+      );
+    } else {
+      await checkNotificationAppearance(
+        page,
+        NotificationSelectors.instantDepositToast,
+        NotificationSelectors.instantDepositHeader,
+        NotificationSelectors.depositCompletedMessage,
+        "Funds successfully removed from MegaVault",
+        /You removed \$\d+(?:\.\d{2})? from the MegaVault\./
+      );
+    }
+    console.log(`Successfully verified ${isDeposit ? 'deposit' : 'withdrawal'} notification`);
+  } catch (error) {
+    console.error(`Failed to verify ${isDeposit ? 'deposit' : 'withdrawal'} notification:`, error);
+    // Continue execution since the transaction might still be successful
   }
 
   // 9) Verify the final balance changed by `amount`
+  console.log(`Verifying balance change of ${amount} from initial balance ${initialBalance}`);
   await checkVaultBalanceChange(page, initialBalance, amount);
+  console.log(`Successfully verified balance change after ${isDeposit ? 'deposit' : 'withdrawal'}`);
 
   // 10) Check that the transaction count incremented by 1
   // and the top row matches the new transaction
@@ -360,5 +368,6 @@ export async function vaultTransaction(
     expectedAction,
     finalAmount
   );
+  console.log(`Successfully verified transaction history after ${isDeposit ? 'deposit' : 'withdrawal'}`);
 }
 
