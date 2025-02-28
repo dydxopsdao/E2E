@@ -157,7 +157,8 @@ export async function openDydxConnectMetaMask(
     });
     //wait for orderbook to be visible
     await waitForAnimations(page, TEST_TIMEOUTS.PAGE_LOAD);
-    try {
+    try { 
+      await page.waitForTimeout(2000);
       await page.locator(NotificationSelectors.withdrawalMessage).click();
     } catch (error) {
     }

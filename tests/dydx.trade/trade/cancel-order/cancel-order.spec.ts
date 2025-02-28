@@ -261,9 +261,9 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
         .first();
 
       await expect(orderRow).toBeVisible();
-      await sharedPage.waitForTimeout(2500)
+      await sharedPage.waitForTimeout(3000)
       const cancelButton = orderRow.locator(OrdersTableSelectors.cancelButton);
-      await sharedPage.waitForTimeout(2500)
+      await sharedPage.waitForTimeout(3000)
       
       // Implement retry logic for cancel button
       let maxRetries = 3;
@@ -273,7 +273,7 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       do {
         if (retryCount > 0) {
           logger.info(`Retrying cancel button click (attempt ${retryCount})`);
-          await sharedPage.waitForTimeout(1000); // Wait before retry
+          await sharedPage.waitForTimeout(2000); // Wait before retry
         }
         
         await cancelButton.click();
@@ -387,9 +387,9 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       
       // Use the "Cancel All" button - using the selector from the screenshot
       logger.step("Canceling all orders");
-      await sharedPage.waitForTimeout(2500);
+      await sharedPage.waitForTimeout(3000);
       await sharedPage.locator(OrdersTableSelectors.cancelAllButton).click({ timeout: TEST_TIMEOUTS.ACTION });
-      await sharedPage.waitForTimeout(500);
+      await sharedPage.waitForTimeout(1000);
       await sharedPage.locator(OrdersTableSelectors.confirmCancelAllButton).click();
 
       // Wait for cancellation notification
