@@ -11,7 +11,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  workers: 1,
+  workers: 2,
   reporter: [
     ...(isApplitoolsRun
       ? [["@applitools/eyes-playwright/reporter"] as ReporterDescription]
@@ -28,6 +28,7 @@ export default defineConfig({
             appName: "dydx.trade",
             matchLevel: "Layout",
             waitBeforeScreenshots: 5,
+            testConcurrency: 10,
           },
         }
       : {}),

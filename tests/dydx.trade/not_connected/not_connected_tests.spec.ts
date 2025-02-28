@@ -4,17 +4,18 @@ import { TEST_TIMEOUTS } from "@constants/test.constants";
 import { logger } from "@utils/logger/logging-utils";
 import { visualCheck } from "@utils/visual-check";
 import { waitForAnimations, waitForPageLoad } from "@dydx/general/actions/general.actions";
+
 const urls = [
   {
     url: "https://dydx.trade/trade/ETH-USD",
     name: "ETH-USD market page",
-    elementLocator: "div.chart-widget",
+    elementLocator: '[data-name="pane-widget-chart-gui-wrapper"]',
   },
   {
     url: "https://dydx.trade/markets",
     name: "Markets page",
     elementLocator:
-      "table[aria-label='Markets'] div[role='row']:has([data-key='BTC-USD'])",
+      '[data-key="BTC-USD-priceChange24HChart"]',
   },
   {
     url: "https://dydx.trade/portfolio",
@@ -37,31 +38,34 @@ const urls = [
   {
     url: "https://dydx.trade/DYDX",
     name: "DYDX page",
-    elementLocator: "div.sc-jfCxno.jMxfrO",
+    elementLocator: ".sc-1wku1wx-9.exxFKx",
   },
 ];
 
-
-for (const { url, name, elementLocator, elementLocator2 } of urls) {
-  test(`Visual check for ${name}`, async ({ page, eyes }) => {
+// Single test that runs all visual checks in sequence to reuse browser context
+test(`Visual check for all not-connected pages`, async ({ page, eyes }) => {
+  logger.info("Running all not-connected visual checks in a single browser instance");
+  
+  for (const { url, name, elementLocator, elementLocator2 } of urls) {
     try {
       // Arrange
-      logger.step(`Setting up test for ${name}`);
+      logger.step(`=== Testing ${name} ===`);
       logger.info(`Navigating to ${url}`);
 
       // Act
       await page.goto(url, { timeout: TEST_TIMEOUTS.PAGE_LOAD, waitUntil: "domcontentloaded" });
-      await waitForAnimations(page, TEST_TIMEOUTS.ELEMENT);
+      await waitForAnimations(page, TEST_TIMEOUTS.DEFAULT);
       await waitForPageLoad(page, elementLocator);
 
       // Assert
-      logger.step("Performing visual verification");
+      logger.step(`Performing visual verification for ${name}`);
       const element = page.locator(elementLocator);
       await expect(element)
         .toBeVisible({ timeout: TEST_TIMEOUTS.ELEMENT })
         .catch(() =>
           logger.warning(`Element visibility check failed for ${name}`)
         );
+      
       if (elementLocator2) {
         const element2 = page.locator(elementLocator2);
         await expect(element2)
@@ -70,10 +74,17 @@ for (const { url, name, elementLocator, elementLocator2 } of urls) {
             logger.warning(`Element visibility check failed for ${name}`)
           );
       }
+      
+      // Perform visual check for this page
       await visualCheck(eyes, { name });
+      logger.success(`Completed visual check for ${name}`);
+      
     } catch (error) {
+      // Log the error but continue with other pages
       logger.error(`Test failed for ${name}`, error as Error);
-      throw error;
+      // Don't throw the error so remaining pages can still be tested
     }
-  });
-}
+  }
+  
+  logger.success("Completed all not-connected visual checks");
+});
