@@ -8,6 +8,8 @@ import { OrdersTableSelectors } from "@interactions/dydx/orders/selectors/orders
 import { checkMultiOrderCancellationNotification, checkNotificationAppearance } from "@interactions/dydx/notifications/actions/notification-actions";
 import { NotificationSelectors } from "@interactions/dydx/notifications/selectors/notification-selectors";
 import { BrowserContext, Page } from "@playwright/test";
+import { TIMEOUT } from "dns";
+import { TEST_TIMEOUTS } from "@constants/test.constants";
 
 /**
  * Tests for canceling different types of orders via the UI after placing them with the API
@@ -18,15 +20,80 @@ import { BrowserContext, Page } from "@playwright/test";
 
 // Single test that runs all our test cases in sequence
 combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper }) => {
-  // Set up a single shared page that will be used for all test cases
+  let firstOrderId = '';
+  let firstOrderHash = '';
+  
+  // Start placing the first order immediately via API (in parallel with browser setup)
+  logger.info("Starting first order placement in parallel with browser setup");
+  const firstOrderPromise = (async () => {
+    try {
+      const market = "BTC-USD";
+      logger.step("Placing a buy limit order via API (in parallel)");
+      const order = await dydxTradeHelper.placeLimitOrder(
+        market,
+        OrderSide.BUY,
+        0.0001, // Small size
+        "10", // Price below market to avoid fills
+        {
+          timeInForce: OrderTimeInForce.GTT,
+          goodTilTimeInSeconds: 3600, // 1 hour
+          postOnly: true,
+          clientId: Math.floor(Math.random() * 900000) + 100000 // 6-digit number
+        }
+      );
+      
+      // Store the client ID from the order response
+      firstOrderId = order.id;
+      if (order.hash) {
+        firstOrderHash = order.hash;
+      }
+      
+      logger.info(`First order placed with ID: ${firstOrderId}`);
+      if (firstOrderHash) {
+        logger.info(`First order hash: ${firstOrderHash}`);
+      }
+      
+      // Log entire order object to debug
+      logger.info('First order response details:', { orderDetails: order });
+      
+      // Wait for the order to be indexed
+      logger.step(`Waiting for order ${firstOrderId} to be indexed as OPEN`);
+      const openOrder = await dydxTradeHelper.waitForOrderStatus(firstOrderId, "OPEN", {
+        timeoutMs: 30000,
+        pollIntervalMs: 2000,
+      });
+      
+      if (!openOrder) {
+        throw new Error(`Order ${firstOrderId} was not found or did not reach OPEN status`);
+      }
+      
+      logger.info(`Order ${firstOrderId} confirmed as OPEN in the API`);
+      return order;
+    } catch (error) {
+      logger.error("Failed to place first order in parallel", error as Error);
+      throw error;
+    }
+  })();
+  
+  // In parallel, set up the browser context
   logger.info("Creating shared MetaMask page for all test cases");
   const sharedPage = await metamaskContext.newPage();
   
   // Connect to MetaMask just once for all test cases
   logger.info("Connecting to MetaMask once for all test cases");
-  await openDydxConnectMetaMask(sharedPage, metamaskContext, {
+  const metaMaskPromise = openDydxConnectMetaMask(sharedPage, metamaskContext, {
     dydxPage: "/trade/BTC-USD",
   });
+  
+  // Wait for both operations to complete
+  logger.info("Waiting for both MetaMask connection and first order placement to complete");
+  try {
+    await Promise.all([metaMaskPromise, firstOrderPromise]);
+    logger.success("Successfully completed both MetaMask connection and first order placement");
+  } catch (error) {
+    logger.error("Failed during parallel operations", error as Error);
+    // Continue with the test - we'll check for firstOrderId later
+  }
   
   // Wait for page to load completely
   await sharedPage.waitForSelector(OrderbookSelectors.orderbook, {
@@ -56,46 +123,15 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
     logger.info("======= STARTING TEST CASE: Cancel buy limit order =======");
     
     try {
-      // Arrange - place order via API
+      // First order was already placed in parallel with browser setup
+      if (!firstOrderId) {
+        throw new Error("First order ID is not available. Order placement may have failed.");
+      }
+      
+      logger.info(`Using already placed order ID: ${firstOrderId}`);
+      const orderId = firstOrderId;
       const market = "BTC-USD";
       const displayMarket = "BTC"; // Only the base asset is shown in the UI
-      logger.step("Placing a buy limit order via API");
-      const order = await dydxTradeHelper.placeLimitOrder(
-        market,
-        OrderSide.BUY,
-        0.0001, // Small size
-        "10", // Price below market to avoid fills
-        {
-          timeInForce: OrderTimeInForce.GTT,
-          goodTilTimeInSeconds: 3600, // 1 hour
-          postOnly: true,
-          clientId: Math.floor(Math.random() * 900000) + 100000 // 6-digit number
-        }
-      );
-      
-      // Store the client ID from the order response
-      const orderId = order.id;
-      logger.info(`Order placed with clientId: ${orderId}`);
-      
-      if (order.hash) {
-        logger.info(`Order hash: ${order.hash}`);
-      }
-      
-      // Log entire order object to debug
-      logger.info('Order response details:', { orderDetails: order });
-      
-      // Wait for the order to be indexed
-      logger.step(`Waiting for order ${orderId} to be indexed as OPEN`);
-      const openOrder = await dydxTradeHelper.waitForOrderStatus(orderId, "OPEN", {
-        timeoutMs: 30000,
-        pollIntervalMs: 2000,
-      });
-      
-      if (!openOrder) {
-        throw new Error(`Order ${orderId} was not found or did not reach OPEN status`);
-      }
-      
-      logger.info(`Order ${orderId} confirmed as OPEN in the API`);
       
       // Find our order in the table
       logger.step("Finding and canceling the order");
@@ -157,8 +193,6 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       });
       
       expect(canceledOrder?.status).toBe("CANCELED");
-      
-      await cleanupOrders();
       logger.success("======= COMPLETED TEST CASE: Cancel buy limit order =======");
     } catch (error) {
       logger.error("Cancel buy limit order test case failed", error as Error);
@@ -278,8 +312,6 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       );
 
       expect(canceledOrder?.status).toBe("CANCELED");
-
-      await cleanupOrders();
       logger.success("======= COMPLETED TEST CASE: Cancel sell limit order =======");
     } catch (error) {
       logger.error("Cancel sell limit order test case failed", error as Error);
@@ -355,7 +387,7 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       // Use the "Cancel All" button - using the selector from the screenshot
       logger.step("Canceling all orders");
       await sharedPage.waitForTimeout(2500);
-      await sharedPage.locator(OrdersTableSelectors.cancelAllButton).click();
+      await sharedPage.locator(OrdersTableSelectors.cancelAllButton).click({ timeout: TEST_TIMEOUTS.ACTION });
       await sharedPage.waitForTimeout(500);
       await sharedPage.locator(OrdersTableSelectors.confirmCancelAllButton).click();
 

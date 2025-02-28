@@ -499,16 +499,6 @@ export class DydxTradeHelper {
         
         if (allOrders.length > 0) {
           // Log the first few orders to help with debugging
-          logger.debug("Sample orders:", { 
-            samples: allOrders.slice(0, 3).map((o: any) => ({
-              id: o.id,
-              clientId: o.clientId,
-              cid: o.cid, // Some APIs return cid instead of clientId
-              orderId: o.orderId, // Another potential field
-              status: o.status,
-              market: o.market || o.ticker
-            }))
-          });
           
           // Check all possible ID fields that might contain our order ID
           const matchingOrder = allOrders.find((o: any) => {
