@@ -6,6 +6,7 @@ import { checkNotificationAppearance } from "@interactions/dydx/notifications/ac
 import { NotificationSelectors } from "@interactions/dydx/notifications/selectors/notification-selectors";
 import { TEST_TIMEOUTS } from "@constants/test.constants";
 import { navigateToDydxPage, navigateToViaHeader } from "@interactions/dydx/general/actions/navigation.actions";
+import { logger } from "@utils/logger/logging-utils";
 interface VaultDepositOptions {
   eyes?: Eyes;
   performEyesCheck?: boolean;
@@ -89,11 +90,16 @@ export async function getVaultHistoryTransactionCount(
     throw new Error("Could not retrieve vault history transaction count text.");
   }
 
+  logger.info(`Raw history text: "${fullText}"`);
+
   const match = fullText.match(/\d+/);
   if (!match) {
     throw new Error(`Unable to parse transaction count from: "${fullText}"`);
   }
-  return parseInt(match[0], 10);
+
+  const count = parseInt(match[0], 10);
+  logger.info(`Parsed transaction count: ${count} from text: "${fullText}"`);
+  return count;
 }
 
 /**
@@ -106,11 +112,41 @@ export async function checkVaultHistoryAfterTransaction(
   expectedAction: "Add funds" | "Remove funds",
   expectedAmount: number
 ): Promise<void> {
+  logger.info(`Checking vault history after transaction. Old count: ${oldCount}`);
+  
+  // Wait for history to be visible and stable
   await checkVaultHistory(page);
-  const newCount = await getVaultHistoryTransactionCount(page);
+  
+  // Add a small delay to ensure the page has updated
+  await page.waitForTimeout(1000);
+  
+  // Try multiple times to get the new count
+  const maxRetries = 5;
+  let retryCount = 0;
+  let newCount = oldCount;
+  
+  while (retryCount < maxRetries) {
+    newCount = await getVaultHistoryTransactionCount(page);
+    logger.info(`Attempt ${retryCount + 1}: New transaction count: ${newCount}`);
+    
+    if (newCount === oldCount + 1) {
+      break;
+    }
+    
+    retryCount++;
+    if (retryCount < maxRetries) {
+      logger.info(`Count mismatch, waiting 2 seconds before retry...`);
+      await page.waitForTimeout(2000);
+    }
+  }
+  
   if (newCount !== oldCount + 1) {
     throw new Error(
-      `Displayed transaction count did not increase by 1. Old: ${oldCount}, New: ${newCount}`
+      `Transaction count mismatch after ${maxRetries} attempts.\n` +
+      `Initial count (before transaction): ${oldCount}\n` +
+      `Final count (after transaction): ${newCount}\n` +
+      `Expected final count: ${oldCount + 1}\n` +
+      `Raw history text: "${await page.locator("text=Your MegaVault History").textContent()}"`
     );
   }
 
@@ -132,6 +168,11 @@ export async function checkVaultHistoryAfterTransaction(
   const dateTimeText = (await dateTimeCell.textContent())?.trim() || "";
   const actionText = (await actionCell.textContent())?.trim() || "";
   const amountText = (await amountCell.textContent())?.trim() || "";
+
+  logger.info(`Top row details:
+    Date/Time: ${dateTimeText}
+    Action: ${actionText}
+    Amount: ${amountText}`);
 
   // Check that date/time is not empty
   if (!dateTimeText) {
@@ -355,9 +396,9 @@ export async function vaultTransaction(
   }
 
   // 9) Verify the final balance changed by `amount`
-  console.log(`Verifying balance change of ${amount} from initial balance ${initialBalance}`);
+  logger.info(`Verifying balance change of ${amount} from initial balance ${initialBalance}`);
   await checkVaultBalanceChange(page, initialBalance, amount);
-  console.log(`Successfully verified balance change after ${isDeposit ? 'deposit' : 'withdrawal'}`);
+  logger.info(`Successfully verified balance change after ${isDeposit ? 'deposit' : 'withdrawal'}`);
 
   // 10) Check that the transaction count incremented by 1
   // and the top row matches the new transaction
@@ -368,6 +409,6 @@ export async function vaultTransaction(
     expectedAction,
     finalAmount
   );
-  console.log(`Successfully verified transaction history after ${isDeposit ? 'deposit' : 'withdrawal'}`);
+  logger.info(`Successfully verified transaction history after ${isDeposit ? 'deposit' : 'withdrawal'}`);
 }
 
