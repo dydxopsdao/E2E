@@ -203,12 +203,15 @@ jobs:
             local message="$1"
             local ts="${THREAD_TS}"
             
+            # Escape special characters in the message
+            escaped_message=$(echo "$message" | sed 's/"/\\"/g')
+            
             curl -s -X POST \
               -H "Content-type: application/json" \
               -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
               --data "{
                 \"channel\": \"${SLACK_CHANNEL}\",
-                \"text\": \"${message}\",
+                \"text\": \"${escaped_message}\",
                 \"thread_ts\": \"${ts}\"
               }" \
               https://slack.com/api/chat.postMessage
@@ -226,7 +229,7 @@ jobs:
           POLL_INTERVAL=30
           FINAL_STATUS=""
           
-          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+          while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
             ATTEMPT=$((ATTEMPT + 1))
             echo "Polling attempt $ATTEMPT of $MAX_ATTEMPTS..."
             
@@ -243,9 +246,9 @@ jobs:
             
             if [ -z "$BATCH_INFO" ]; then
               echo "Warning: Batch ${FOUND_BATCH_ID} not found in response"
-              sleep $POLL_INTERVAL
+              sleep "$POLL_INTERVAL"
               continue
-            }
+            fi
             
             # Extract status information
             FAILED=$(echo "$BATCH_INFO" | jq -r '.failed')
@@ -269,27 +272,27 @@ jobs:
             fi
             
             # Status still unresolved, wait and try again
-            sleep $POLL_INTERVAL
+            sleep "$POLL_INTERVAL"
           done
           
           # Handle final status
           if [ "$FINAL_STATUS" = "PASSED" ]; then
             FINAL_MESSAGE="✅ **Visual Review Approved**\n\n🎉 *All differences approved – rollout can proceed.*\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             send_slack_message "${FINAL_MESSAGE}"
-            echo "status=approved" >> $GITHUB_OUTPUT
+            echo "status=approved" >> "$GITHUB_OUTPUT"
           elif [ "$FINAL_STATUS" = "FAILED" ]; then
             FINAL_MESSAGE="❌ **Visual Review Rejected**\n\n🚨 *Differences were not approved – rollout stopped.*\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             send_slack_message "${FINAL_MESSAGE}"
-            echo "status=rejected" >> $GITHUB_OUTPUT
+            echo "status=rejected" >> "$GITHUB_OUTPUT"
           elif [ "$FINAL_STATUS" = "COMPLETED" ]; then
             FINAL_MESSAGE="✅ **Batch Marked as Completed**\n\n🚀 *Proceeding with rollout.*\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             send_slack_message "${FINAL_MESSAGE}"
-            echo "status=approved" >> $GITHUB_OUTPUT
+            echo "status=approved" >> "$GITHUB_OUTPUT"
           else
             # Timeout reached, still unresolved
             FINAL_MESSAGE="⚠️ **Batch Review Timed Out**\n\n⏳ *Review was not completed within 1 hour.*\n🔍 Please check manually and re-run if needed.\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             send_slack_message "${FINAL_MESSAGE}"
-            echo "status=timeout" >> $GITHUB_OUTPUT
+            echo "status=timeout" >> "$GITHUB_OUTPUT"
       
       - name: Mark Applitools Batch as Complete
         if: steps.poll-status.outputs.status == 'approved'
