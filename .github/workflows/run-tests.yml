@@ -116,7 +116,7 @@ jobs:
             # E2E tests passed
             if [ "${NEEDS_REVIEW}" = "true" ]; then
               # Applitools found differences
-              MESSAGE="✅ E2E Tests Passed!\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n🔍 *Visual differences detected – manual review needed.*\n[Review in Applitools](${https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/})" "
+              MESSAGE="✅ E2E Tests Passed!\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n🔍 *Visual differences detected – manual review needed.*\n[Review in Applitools](https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/)"
             else
               # Applitools is all good (or check-batch didn't run)
               MESSAGE="✅ E2E Tests Passed!\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n🎉 *All visual checks passed. Rollout can proceed.*"
@@ -137,7 +137,7 @@ jobs:
 
           # Capture the Slack message timestamp so we can post a thread if needed
           TS=$(echo "$RESPONSE" | jq -r '.ts')
-          echo "::set-output name=slack_ts::$TS"
+          echo "slack_ts=${TS}" >> $GITHUB_OUTPUT
 
   # If Applitools is all good, auto-complete the batch & optionally post a thread with links
   applitools-auto-complete:
