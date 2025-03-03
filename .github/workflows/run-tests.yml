@@ -116,14 +116,14 @@ jobs:
             # E2E tests passed
             if [ "${NEEDS_REVIEW}" = "true" ]; then
               # Applitools found differences
-              MESSAGE="Deployment ID: ${DEPLOYMENT_ID}\n\n✅ E2E Tests Passed!\nHowever, visual tests need manual review.\nView Applitools: https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/"
+              MESSAGE="✅ E2E Tests Passed!\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n🔍 *Visual differences detected – manual review needed.*\n[Review in Applitools](${https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/})" "
             else
               # Applitools is all good (or check-batch didn't run)
-              MESSAGE="Deployment ID: ${DEPLOYMENT_ID}\n\n✅ E2E Tests Passed!\nAll visual checks passed. Rollout can proceed."
+              MESSAGE="✅ E2E Tests Passed!\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n🎉 *All visual checks passed. Rollout can proceed.*"
             fi
           else
             # E2E tests failed
-            MESSAGE="Deployment ID: ${DEPLOYMENT_ID}\n\n❌ E2E Tests Failed!\nDetails: ${RUN_URL}"
+            MESSAGE="❌ E2E Tests Failed!\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n[Details & Logs](${RUN_URL})"
           fi
 
           RESPONSE=$(curl -s -X POST \
@@ -217,7 +217,7 @@ jobs:
           # Post initial message
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/"
           GITHUB_RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          INITIAL_MESSAGE="Visual differences detected. Waiting for manual review at: ${APPLITOOLS_LINK}\n\nThis job will monitor batch status for up to 1 hour."
+          INITIAL_MESSAGE="⚠️ **Visual differences detected**\n\n🔍 *Waiting for manual review...*\n[Review in Applitools](${APPLITOOLS_LINK})\n⏳ This job will monitor for **up to 1 hour**."
           send_slack_message "${INITIAL_MESSAGE}"
           
           # Poll status for up to 1 hour (120 attempts × 30 seconds = 3600 seconds)
@@ -230,24 +230,40 @@ jobs:
             ATTEMPT=$((ATTEMPT + 1))
             echo "Polling attempt $ATTEMPT of $MAX_ATTEMPTS..."
             
-            # Get batch status from Applitools API
-            RESPONSE=$(curl -s -X GET \
-              -H "Content-Type: application/json" \
-              "${APPLITOOLS_SERVER_URL}/api/batches/${FOUND_BATCH_ID}?apiKey=${APPLITOOLS_API_KEY}")
+            # Get batch status using the same endpoint as checkApplitoolsBatchByPointer.sh
+            START_DATE="$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ)"
+            END_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             
-            # Extract the status - adjust this based on actual API response format
-            # This is a simplified example - you may need to parse JSON properly
-            STATUS=$(echo "$RESPONSE" | grep -o '"state":"[^"]*"' | cut -d'"' -f4)
+            RESPONSE=$(curl -s -X GET \
+              -H "X-Eyes-Api-Key: ${APPLITOOLS_API_KEY}" \
+              "${APPLITOOLS_SERVER_URL}/api/v1/batches?start=${START_DATE}&end=${END_DATE}&pageSize=100")
+            
+            # Extract batch info using jq
+            BATCH_INFO=$(echo "$RESPONSE" | jq --arg bid "${FOUND_BATCH_ID}" '.batches[] | select(.id == $bid)')
+            
+            if [ -z "$BATCH_INFO" ]; then
+              echo "Warning: Batch ${FOUND_BATCH_ID} not found in response"
+              sleep $POLL_INTERVAL
+              continue
+            }
+            
+            # Extract status information
+            FAILED=$(echo "$BATCH_INFO" | jq -r '.failed')
+            UNRESOLVED=$(echo "$BATCH_INFO" | jq -r '.unresolved')
+            NEW=$(echo "$BATCH_INFO" | jq -r '.new')
+            STATUS=$(echo "$BATCH_INFO" | jq -r '.status')
+            
             echo "Current batch status: $STATUS"
+            echo "Failed: $FAILED, Unresolved: $UNRESOLVED, New: $NEW"
             
             # Check if status is resolved
-            if [ "$STATUS" = "PASSED" ]; then
+            if [ "$STATUS" = "Passed" ] && [ "$FAILED" -eq 0 ] && [ "$UNRESOLVED" -eq 0 ] && [ "$NEW" -eq 0 ]; then
               FINAL_STATUS="PASSED"
               break
-            elif [ "$STATUS" = "FAILED" ]; then
+            elif [ "$FAILED" -gt 0 ]; then
               FINAL_STATUS="FAILED"
               break
-            elif [ "$STATUS" = "COMPLETED" ]; then
+            elif [ "$STATUS" = "Completed" ]; then
               FINAL_STATUS="COMPLETED"
               break
             fi
@@ -258,23 +274,22 @@ jobs:
           
           # Handle final status
           if [ "$FINAL_STATUS" = "PASSED" ]; then
-            FINAL_MESSAGE="✅ Visual differences have been reviewed and APPROVED. Proceeding with rollout.\n\nAdditional details:\n- GitHub Action: ${GITHUB_RUN_URL}\n- Applitools: ${APPLITOOLS_LINK}"
+            FINAL_MESSAGE="✅ **Visual Review Approved**\n\n🎉 *All differences approved – rollout can proceed.*\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             send_slack_message "${FINAL_MESSAGE}"
             echo "status=approved" >> $GITHUB_OUTPUT
           elif [ "$FINAL_STATUS" = "FAILED" ]; then
-            FINAL_MESSAGE="❌ Visual differences have been reviewed and REJECTED. Rollout will be stopped.\n\nAdditional details:\n- GitHub Action: ${GITHUB_RUN_URL}\n- Applitools: ${APPLITOOLS_LINK}"
+            FINAL_MESSAGE="❌ **Visual Review Rejected**\n\n🚨 *Differences were not approved – rollout stopped.*\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             send_slack_message "${FINAL_MESSAGE}"
             echo "status=rejected" >> $GITHUB_OUTPUT
           elif [ "$FINAL_STATUS" = "COMPLETED" ]; then
-            FINAL_MESSAGE="✅ Batch was marked as completed. Proceeding with rollout.\n\nAdditional details:\n- GitHub Action: ${GITHUB_RUN_URL}\n- Applitools: ${APPLITOOLS_LINK}"
+            FINAL_MESSAGE="✅ **Batch Marked as Completed**\n\n🚀 *Proceeding with rollout.*\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             send_slack_message "${FINAL_MESSAGE}"
             echo "status=approved" >> $GITHUB_OUTPUT
           else
             # Timeout reached, still unresolved
-            FINAL_MESSAGE="⚠️ Batch review timed out after 1 hour. Please review manually and re-run the workflow if needed.\n\nAdditional details:\n- GitHub Action: ${GITHUB_RUN_URL}\n- Applitools: ${APPLITOOLS_LINK}"
+            FINAL_MESSAGE="⚠️ **Batch Review Timed Out**\n\n⏳ *Review was not completed within 1 hour.*\n🔍 Please check manually and re-run if needed.\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             send_slack_message "${FINAL_MESSAGE}"
             echo "status=timeout" >> $GITHUB_OUTPUT
-          fi
       
       - name: Mark Applitools Batch as Complete
         if: steps.poll-status.outputs.status == 'approved'
