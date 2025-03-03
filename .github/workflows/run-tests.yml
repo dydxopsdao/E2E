@@ -254,20 +254,18 @@ jobs:
             FAILED=$(echo "$BATCH_INFO" | jq -r '.failed')
             UNRESOLVED=$(echo "$BATCH_INFO" | jq -r '.unresolved')
             NEW=$(echo "$BATCH_INFO" | jq -r '.new')
-            STATUS=$(echo "$BATCH_INFO" | jq -r '.status')
             
-            echo "Current batch status: $STATUS"
-            echo "Failed: $FAILED, Unresolved: $UNRESOLVED, New: $NEW"
+            echo "Current batch counters - Failed: $FAILED, Unresolved: $UNRESOLVED, New: $NEW"
             
-            # Check if status is resolved
-            if [ "$STATUS" = "Passed" ] && [ "$FAILED" -eq 0 ] && [ "$UNRESOLVED" -eq 0 ] && [ "$NEW" -eq 0 ]; then
-              FINAL_STATUS="PASSED"
-              break
-            elif [ "$FAILED" -gt 0 ]; then
+            # Check if there are any failed tests
+            if [ "$FAILED" -gt 0 ]; then
               FINAL_STATUS="FAILED"
               break
-            elif [ "$STATUS" = "Completed" ]; then
-              FINAL_STATUS="COMPLETED"
+            fi
+            
+            # Check if all counters are 0 (indicating success)
+            if [ "$FAILED" -eq 0 ] && [ "$UNRESOLVED" -eq 0 ] && [ "$NEW" -eq 0 ]; then
+              FINAL_STATUS="PASSED"
               break
             fi
             
@@ -284,15 +282,12 @@ jobs:
             FINAL_MESSAGE="❌ **Visual Review Rejected**\n\n🚨 *Differences were not approved – rollout stopped.*\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             send_slack_message "${FINAL_MESSAGE}"
             echo "status=rejected" >> "$GITHUB_OUTPUT"
-          elif [ "$FINAL_STATUS" = "COMPLETED" ]; then
-            FINAL_MESSAGE="✅ **Batch Marked as Completed**\n\n🚀 *Proceeding with rollout.*\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
-            send_slack_message "${FINAL_MESSAGE}"
-            echo "status=approved" >> "$GITHUB_OUTPUT"
           else
-            # Timeout reached, still unresolved
-            FINAL_MESSAGE="⚠️ **Batch Review Timed Out**\n\n⏳ *Review was not completed within 1 hour.*\n🔍 Please check manually and re-run if needed.\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
+            # Timeout reached or still has issues
+            FINAL_MESSAGE="⚠️ **Batch Review Timed Out or Has Issues**\n\n⏳ *Review was not completed within 1 hour or has unresolved issues.*\n🔍 Please check manually and re-run if needed.\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             send_slack_message "${FINAL_MESSAGE}"
             echo "status=timeout" >> "$GITHUB_OUTPUT"
+          fi
       
       - name: Mark Applitools Batch as Complete
         if: steps.poll-status.outputs.status == 'approved'
