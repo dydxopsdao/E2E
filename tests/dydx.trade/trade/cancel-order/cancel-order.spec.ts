@@ -407,6 +407,8 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       } catch (error) {
         await navigateToViaHeader(sharedPage, "PORTFOLIO");
         await navigateToViaHeader(sharedPage, "TRADE");
+        await sharedPage.waitForTimeout(3000);
+        await sharedPage.locator(OrdersTableSelectors.cancelAllButton).click({ timeout: TEST_TIMEOUTS.ACTION });
         await expect(sharedPage.locator(OrdersTableSelectors.youHaveNoOrders)).toBeVisible();
       }
       
