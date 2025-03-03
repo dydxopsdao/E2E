@@ -28,9 +28,10 @@ test.describe("Megavault flows", () => {
       await vaultTransaction(page, depositAmount, { eyes, performEyesCheck: false });
       logger.success(`Successfully deposited $${depositAmount} to MegaVault`);
       
-      // Optional: Add a small pause between operations
-      await page.waitForTimeout(3000);
-      
+      await navigateToViaHeader(page, "PORTFOLIO");
+      await page.waitForTimeout(1000);
+      await navigateToViaHeader(page, "VAULT");
+      await page.waitForTimeout(1000);
       // Step 2: Perform withdrawal (using the same amount for simplicity)
       const withdrawAmount = -12; // Negative for withdrawal
       logger.step(`Performing withdrawal of $${Math.abs(withdrawAmount)}`);
