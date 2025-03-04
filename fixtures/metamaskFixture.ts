@@ -5,6 +5,7 @@ import { BrowserContext, Page } from "@playwright/test";
 import { setupMetaMaskContext } from "../Interactions/wallets/metamask/actions/setup-metamask";
 import { importWallet } from "../Interactions/wallets/metamask/actions/import-wallet";
 import "dotenv/config";
+import { logger } from "@utils/logger/logging-utils";
 
 type MyFixtures = {
   metamaskContext: BrowserContext;
@@ -53,7 +54,11 @@ export const metamaskTest = base.extend<MyFixtures>({
     await use(context);
 
     // 6. Cleanup
-    await context.close();
+    try {
+      await context.close();
+    } catch (error) {
+      logger.warning("Error closing context:");
+    }
   },
 
   page: async ({ metamaskContext }, use) => {

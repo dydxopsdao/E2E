@@ -7,10 +7,6 @@ on:
         description: 'Deployment ID'
         required: false
         default: 'manual'
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
 
 # Global environment
 env:
