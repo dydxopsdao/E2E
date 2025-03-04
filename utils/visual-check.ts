@@ -13,13 +13,17 @@ export async function visualCheck(eyes: Eyes, opts: VisualCheckOptions) {
 
   logger.step(`Performing visual check: ${name}`);
 
+  // Create the target
   let target = Target.window();
 
   if (fully) {
     target = target.fully();
   }
-  target = target.matchLevel(matchLevel);
-  await new Promise(resolve => setTimeout(resolve, 2500));
+
+  target = target.matchLevel(matchLevel)
+                .ignoreDisplacements(true)
+                .enablePatterns(true);
+
   await eyes.check(name, target);
 
   logger.success(`Completed visual check: ${name}`);
