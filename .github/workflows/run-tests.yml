@@ -29,9 +29,6 @@ jobs:
       NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
       SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
       METAMASK_PASSWORD: ${{ secrets.METAMASK_PASSWORD }}
-      DD_API_KEY: ${{ secrets.DD_API_KEY }}
-      DD_SITE: ap1.datadoghq.com
-      DD_SERVICE: dydx.trade
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       DYDX_MNEMONIC: ${{ secrets.DYDX_MNEMONIC }}
       DYDX_ADDRESS: ${{ secrets.DYDX_ADDRESS }}
@@ -72,17 +69,6 @@ jobs:
         with:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
-
-      # Optionally upload results to Datadog
-      - name: Upload Test Results to Datadog
-        if: always()
-        run: |
-          if [ -f results.xml ]; then
-            echo "Uploading results.xml to Datadog..."
-            # e.g. datadog-ci junit upload results.xml --service "$DD_SERVICE"
-          else
-            echo "results.xml not found, skipping Datadog upload."
-          fi
 
       # Only check Applitools if E2E tests passed
       - name: Check Applitools Batch By Pointer
