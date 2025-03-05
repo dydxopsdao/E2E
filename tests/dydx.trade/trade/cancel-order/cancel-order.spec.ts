@@ -158,7 +158,7 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       do {
         if (retryCount > 0) {
           logger.info(`Retrying cancel button click (attempt ${retryCount})`);
-          await sharedPage.waitForTimeout(1000); // Wait before retry
+          await sharedPage.waitForTimeout(2000); // Wait before retry
         }
         
         await cancelButton.click();
@@ -176,6 +176,7 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
         
         if (!notificationResult.success) {
           logger.warning(`Error detected in notification: ${notificationResult.errorMessage}`);
+          await sharedPage.locator(NotificationSelectors.cancelOrderToast).click();
         }
         
         retryCount++;
