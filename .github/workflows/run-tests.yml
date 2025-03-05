@@ -12,6 +12,7 @@ on:
 env:
   APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
   APPLITOOLS_SERVER_URL: https://eyesapi.applitools.com
+  SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || '#automated-testing-results' }}
 
 jobs:
   e2e-test:
@@ -37,7 +38,6 @@ jobs:
       DYDX_NETWORK_TYPE: mainnet
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      SLACK_CHANNEL: "#automated-testing-results"
 
     outputs:
       slack_ts: ${{ steps.slack-notify.outputs.slack_ts }}
@@ -95,7 +95,7 @@ jobs:
             "${APPLITOOLS_API_KEY}" \
             "${APPLITOOLS_BATCH_ID}"
 
-      # Post Slack Notification (Always)
+      # Post Slack Notification (Main Message)
       - name: Post Slack Notification (Main Message)
         id: slack-notify
         if: always()
@@ -104,8 +104,8 @@ jobs:
           JOB_STATUS: ${{ job.status }}  # success/failure for E2E tests
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          # Use different channel based on deployment ID
-          SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || '#automated-testing-results' }}
+          # Use global Slack channel
+          SLACK_CHANNEL: ${{ env.SLACK_CHANNEL }}
           NEEDS_REVIEW: ${{ steps.check-batch.outputs.needsReview || 'false' }}
           FOUND_BATCH_ID: ${{ steps.check-batch.outputs.foundBatchID || '' }}
         run: |
@@ -154,8 +154,8 @@ jobs:
         env:
           THREAD_TS: ${{ needs.e2e-test.outputs.slack_ts }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          # Use different channel based on deployment ID
-          SLACK_CHANNEL: ${{ needs.e2e-test.inputs.deployment_id == 'manual' && '#test-channel' || '#automated-testing-results' }}
+          # Use global Slack channel from parent job
+          SLACK_CHANNEL: ${{ needs.e2e-test.outputs.slack_channel }}
           FOUND_BATCH_ID: ${{ needs.e2e-test.outputs.found_batch_id }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -191,8 +191,8 @@ jobs:
         env:
           THREAD_TS: ${{ needs.e2e-test.outputs.slack_ts }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          # Use different channel based on deployment ID
-          SLACK_CHANNEL: ${{ needs.e2e-test.inputs.deployment_id == 'manual' && '#test-channel' || '#automated-testing-results' }}
+          # Use global Slack channel from parent job
+          SLACK_CHANNEL: ${{ needs.e2e-test.outputs.slack_channel }}
           FOUND_BATCH_ID: ${{ needs.e2e-test.outputs.found_batch_id }}
           APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
           APPLITOOLS_SERVER_URL: ${{ env.APPLITOOLS_SERVER_URL }}

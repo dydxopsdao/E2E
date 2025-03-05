@@ -148,7 +148,7 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       await expect(orderRow).toBeVisible();
       
       const cancelButton = orderRow.locator(OrdersTableSelectors.cancelButton);
-      await sharedPage.waitForTimeout(2500)
+      await sharedPage.waitForTimeout(3000)
       
       // Implement retry logic for cancel button
       let maxRetries = 3;
