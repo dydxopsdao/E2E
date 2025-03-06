@@ -64,7 +64,7 @@ export const checkVaultHistory = async (page: Page): Promise<void> => {
       .isVisible();
 
     if (!isHistoryTableVisible) {
-      await page.locator(MegaVaultSelectors.historyViewButton).first().click();
+      await page.locator(MegaVaultSelectors.historyViewButton).first().click({ timeout: TEST_TIMEOUTS.NAVIGATION });
       await page
         .locator(MegaVaultSelectors.historyTable)
         .waitFor({ state: "visible" });
