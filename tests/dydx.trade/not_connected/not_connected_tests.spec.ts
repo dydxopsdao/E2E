@@ -10,6 +10,7 @@ const urls = [
     url: "https://dydx.trade/trade/ETH-USD",
     name: "ETH-USD market page",
     elementLocator: '[data-name="pane-widget-chart-gui-wrapper"]',
+    elementLocator2: ".legendMainSourceWrapper-l31H9iuA",
   },
   {
     url: "https://dydx.trade/markets",
@@ -26,7 +27,7 @@ const urls = [
   {
     url: "https://dydx.trade/vault",
     name: "Megavault page",
-    elementLocator: "table[aria-label='MegaVault']",
+    elementLocator: '[data-key="BTC-USD-pnl-sparkline"]',
     elementLocator2: ".sc-17stuub-0.sc-17stuub-1.eqFWVL.hsAYsL.sc-3i56se-5.hcfdxE",
     
   },
