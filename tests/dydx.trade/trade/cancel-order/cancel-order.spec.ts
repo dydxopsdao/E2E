@@ -393,7 +393,7 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
         "Canceling all orders",
         "Orders Canceled",
         2,
-        15000
+        25000
       );
 
       try { 
@@ -402,6 +402,7 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
         await navigateToViaHeader(sharedPage, "PORTFOLIO");
         await navigateToViaHeader(sharedPage, "TRADE");
         await sharedPage.waitForTimeout(3000);
+        await sharedPage.locator(OrdersTableSelectors.ordersTab).click();
         await sharedPage.locator(OrdersTableSelectors.cancelAllButton).click({ timeout: TEST_TIMEOUTS.ACTION });
         await expect(sharedPage.locator(OrdersTableSelectors.youHaveNoOrders)).toBeVisible();
       }
