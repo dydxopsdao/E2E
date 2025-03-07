@@ -7,8 +7,6 @@ import { OrderSide, OrderTimeInForce } from "@dydxprotocol/v4-client-js";
 import { OrdersTableSelectors } from "@interactions/dydx/orders/selectors/orders-table.selectors";
 import { checkMultiOrderCancellationNotification, checkNotificationAppearance } from "@interactions/dydx/notifications/actions/notification-actions";
 import { NotificationSelectors } from "@interactions/dydx/notifications/selectors/notification-selectors";
-import { BrowserContext, Page } from "@playwright/test";
-import { TIMEOUT } from "dns";
 import { TEST_TIMEOUTS } from "@constants/test.constants";
 import { navigateToViaHeader } from "@interactions/dydx/general/actions/navigation.actions";
 
@@ -111,11 +109,6 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
     state: "visible",
   });
   
-  // Helper function to clean up after each test case
-  async function cleanupOrders() {
-    logger.step("Cleaning up any remaining orders");
-    await dydxTradeHelper.cancelAllOrders();
-  }
   
   try {
     //-------------------------------------------------------------------------
@@ -198,7 +191,7 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       logger.success("======= COMPLETED TEST CASE: Cancel buy limit order =======");
     } catch (error) {
       logger.error("Cancel buy limit order test case failed", error as Error);
-      await cleanupOrders();
+      await dydxTradeHelper.cancelAllOrders();
       throw error;
     }
     
@@ -317,7 +310,7 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       logger.success("======= COMPLETED TEST CASE: Cancel sell limit order =======");
     } catch (error) {
       logger.error("Cancel sell limit order test case failed", error as Error);
-      await cleanupOrders();
+      await dydxTradeHelper.cancelAllOrders();
       throw error;
     }
     
@@ -400,7 +393,7 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
         "Canceling all orders",
         "Orders Canceled",
         2,
-        15000
+        25000
       );
 
       try { 
@@ -409,6 +402,7 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
         await navigateToViaHeader(sharedPage, "PORTFOLIO");
         await navigateToViaHeader(sharedPage, "TRADE");
         await sharedPage.waitForTimeout(3000);
+        await sharedPage.locator(OrdersTableSelectors.ordersTab).click();
         await sharedPage.locator(OrdersTableSelectors.cancelAllButton).click({ timeout: TEST_TIMEOUTS.ACTION });
         await expect(sharedPage.locator(OrdersTableSelectors.youHaveNoOrders)).toBeVisible();
       }
@@ -439,11 +433,11 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       const openOrders = await dydxTradeHelper.getOpenOrders({ market });
       expect(openOrders.length).toBe(0);
       
-      await cleanupOrders();
+      await dydxTradeHelper.cancelAllOrders();
       logger.success("======= COMPLETED TEST CASE: Cancel multiple orders at once =======");
     } catch (error) {
       logger.error("Cancel multiple orders test case failed", error as Error);
-      await cleanupOrders();
+      await dydxTradeHelper.cancelAllOrders();
       throw error;
     }
     

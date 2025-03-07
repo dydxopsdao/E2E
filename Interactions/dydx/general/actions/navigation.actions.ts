@@ -6,20 +6,54 @@ export async function navigateToDydxPage(
   path: string,
   options: {
     waitUntil?: "load" | "domcontentloaded" | "networkidle" | "commit";
+    maxRetries?: number;
+    retryDelay?: number;
   } = {}
 ): Promise<void> {
-  const { waitUntil = "domcontentloaded" } = options;
+  const { 
+    waitUntil = "domcontentloaded", 
+    maxRetries = 3,
+    retryDelay = 1000 
+  } = options;
+  
   const url = `https://dydx.trade${path}`;
-
   logger.step(`Navigating to dYdX page: ${url}`);
-  try {
-    await page.goto(url, { waitUntil });
-    await page.bringToFront();
-    logger.success(`Navigated to dYdX page: ${url}`);
-  } catch (error) {
-    logger.error(`Failed to navigate to dYdX page: ${url}`, error as Error);
-    throw error;
+  
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    try {
+      if (attempt > 1) {
+        logger.info(`Retry attempt ${attempt - 1} of ${maxRetries} for navigation to ${url}`);
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = retryDelay * Math.pow(2, attempt - 2);
+        await page.waitForTimeout(delay);
+      }
+      
+      await page.goto(url, { waitUntil });
+      await page.bringToFront();
+      
+      logger.success(`Navigated to dYdX page: ${url}${attempt > 1 ? ` on attempt ${attempt}` : ''}`);
+      return; // Success - exit the function
+      
+    } catch (error) {
+      lastError = error as Error;
+      logger.warning(
+        `Navigation attempt ${attempt} failed for ${url}: ${(error as Error).message}`
+      );
+      
+      // If this was the last attempt, we'll exit the loop and throw the error below
+      if (attempt > maxRetries) {
+        break;
+      }
+      
+      // Otherwise, we'll try again
+    }
   }
+  
+  // If we got here, all attempts failed
+  logger.error(`Failed to navigate to dYdX page after ${maxRetries + 1} attempts: ${url}`, lastError as Error);
+  throw lastError;
 }
 
 export async function navigateToViaHeader(

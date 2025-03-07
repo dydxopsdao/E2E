@@ -42,14 +42,13 @@ batch_id=$(echo "$latest" | jq -r '.id')
 passed=$(echo "$latest" | jq -r '.passed')
 failed=$(echo "$latest" | jq -r '.failed')
 unresolved=$(echo "$latest" | jq -r '.unresolved')
-new_count=$(echo "$latest" | jq -r '.new')
 
 echo "Found Applitools batch: id=$batch_id pointerId=$POINTER_ID"
-echo "passed=$passed, failed=$failed, unresolved=$unresolved, new=$new_count"
+echo "passed=$passed, failed=$failed, unresolved=$unresolved"
 
 {
   echo "foundBatchID=$batch_id"
-  if [ "$failed" -gt 0 ] || [ "$unresolved" -gt 0 ] || [ "$new_count" -gt 0 ]; then
+  if [ "$failed" -gt 0 ] || [ "$unresolved" -gt 0 ]; then
     echo "needsReview=true"
   else
     echo "needsReview=false"

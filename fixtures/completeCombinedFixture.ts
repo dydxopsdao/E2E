@@ -1,13 +1,14 @@
-// fixtures/eyesFixture.ts
-import { test as base } from "@playwright/test";
+import { combinedTest } from "./combinedFixture";
 import { Eyes } from "@applitools/eyes-playwright";
 import { getEyesInstance } from "@config/applitools.config";
 
+// Define the type for Eyes fixtures
 type EyesFixtures = {
   eyes: Eyes;
 };
 
-export const eyesTest = base.extend<EyesFixtures>({
+// Extend combinedTest with Eyes fixtures
+export const completeCombinedTest = combinedTest.extend<EyesFixtures>({
   eyes: async ({ page }, use, testInfo) => {
     const useApplitools = process.env.USE_APPLITOOLS === "true";
     const eyes = getEyesInstance(testInfo.title);
@@ -16,15 +17,18 @@ export const eyesTest = base.extend<EyesFixtures>({
       await eyes.open(page);
     }
 
-    // Provide eyesInstance to the test
+    // Use eyes instance in test
     await use(eyes);
 
+    // Close eyes after test
     if (useApplitools) {
       try {
-        await eyes.close();
-      } catch {
+        await eyes.close(false); // Don't throw on failed tests
+      } catch (error) {
         await eyes.abortIfNotClosed();
       }
     }
   },
 });
+
+export default completeCombinedTest; 

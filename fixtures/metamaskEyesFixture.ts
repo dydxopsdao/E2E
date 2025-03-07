@@ -1,8 +1,7 @@
 // fixtures/metamaskEyesFixture.ts
 import { metamaskTest } from "./metamaskFixture";
 import { Eyes } from "@applitools/eyes-playwright";
-import { runner, config } from "@config/applitools.config";
-import { DummyEyes } from "./dummyEyes";
+import { getEyesInstance } from "@config/applitools.config";
 
 type MetaMaskEyesFixtures = {
   eyes: Eyes;
@@ -11,23 +10,20 @@ type MetaMaskEyesFixtures = {
 export const metamaskEyesTest = metamaskTest.extend<MetaMaskEyesFixtures>({
   eyes: async ({ page }, use, testInfo) => {
     const useApplitools = process.env.USE_APPLITOOLS === "true";
-
-    // Instantiate either a real or dummy Eyes instance
-    const eyesInstance = useApplitools ? new Eyes(runner) : new DummyEyes();
+    const eyes = getEyesInstance(testInfo.title);
 
     if (useApplitools) {
-      eyesInstance.setConfiguration(config);
-      await eyesInstance.open(page, "dYdX App", testInfo.title);
+      await eyes.open(page);
     }
 
     // Provide `eyes` (always defined) to the test
-    await use(eyesInstance as Eyes);
+    await use(eyes);
 
     if (useApplitools) {
       try {
-        await eyesInstance.close();
+        await eyes.close();
       } catch {
-        await eyesInstance.abortIfNotClosed();
+        await eyes.abortIfNotClosed();
       }
     }
   },

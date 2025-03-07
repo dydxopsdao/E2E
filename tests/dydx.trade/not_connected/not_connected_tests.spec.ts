@@ -10,6 +10,8 @@ const urls = [
     url: "https://dydx.trade/trade/ETH-USD",
     name: "ETH-USD market page",
     elementLocator: '[data-name="pane-widget-chart-gui-wrapper"]',
+    elementLocator2: ".legendMainSourceWrapper-l31H9iuA",
+    disableDom: true,
   },
   {
     url: "https://dydx.trade/markets",
@@ -26,7 +28,7 @@ const urls = [
   {
     url: "https://dydx.trade/vault",
     name: "Megavault page",
-    elementLocator: "table[aria-label='MegaVault']",
+    elementLocator: '[data-key="BTC-USD-pnl-sparkline"]',
     elementLocator2: ".sc-17stuub-0.sc-17stuub-1.eqFWVL.hsAYsL.sc-3i56se-5.hcfdxE",
     
   },
@@ -39,6 +41,7 @@ const urls = [
     url: "https://dydx.trade/DYDX",
     name: "DYDX page",
     elementLocator: ".sc-1wku1wx-9.exxFKx",
+    elementLocator2: ".sc-17stuub-0.sc-17stuub-1.eqFWVL.hsAYsL.sc-3i56se-5.hcfdxE",
   },
 ];
 
@@ -46,7 +49,7 @@ const urls = [
 test(`Visual check for all not-connected pages`, async ({ page, eyes }) => {
   logger.info("Running all not-connected visual checks in a single browser instance");
   
-  for (const { url, name, elementLocator, elementLocator2 } of urls) {
+  for (const { url, name, elementLocator, elementLocator2, disableDom } of urls) {
     try {
       // Arrange
       logger.step(`=== Testing ${name} ===`);
@@ -76,7 +79,11 @@ test(`Visual check for all not-connected pages`, async ({ page, eyes }) => {
       }
       
       // Perform visual check for this page
-      await visualCheck(eyes, { name });
+      await visualCheck(eyes, { 
+        name,
+        useDom: disableDom ? false : true
+      });
+      
       logger.success(`Completed visual check for ${name}`);
       
     } catch (error) {
