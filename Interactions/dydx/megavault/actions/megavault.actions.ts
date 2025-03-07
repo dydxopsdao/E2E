@@ -136,7 +136,11 @@ export async function checkVaultHistoryAfterTransaction(
     retryCount++;
     if (retryCount < maxRetries) {
       logger.info(`Count mismatch, waiting 2 seconds before retry...`);
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(3000);
+      await navigateToViaHeader(page, "PORTFOLIO");
+      await page.waitForTimeout(3000);
+      await navigateToViaHeader(page, "VAULT");
+      await page.waitForTimeout(3000);
     }
   }
   

@@ -1,7 +1,6 @@
 import { combinedTest } from "./combinedFixture";
 import { Eyes } from "@applitools/eyes-playwright";
-import { runner, config } from "@config/applitools.config";
-import { DummyEyes } from "./dummyEyes";
+import { getEyesInstance } from "@config/applitools.config";
 
 // Define the type for Eyes fixtures
 type EyesFixtures = {
@@ -12,23 +11,21 @@ type EyesFixtures = {
 export const completeCombinedTest = combinedTest.extend<EyesFixtures>({
   eyes: async ({ page }, use, testInfo) => {
     const useApplitools = process.env.USE_APPLITOOLS === "true";
-
-    // Instantiate either a real or dummy Eyes instance
-    const eyesInstance = useApplitools ? new Eyes(runner) : new DummyEyes();
+    const eyes = getEyesInstance(testInfo.title);
 
     if (useApplitools) {
-      eyesInstance.setConfiguration(config);
-      await eyesInstance.open(page, "dYdX App", testInfo.title);
+      await eyes.open(page);
     }
 
-    // Provide `eyes` (always defined) to the test
-    await use(eyesInstance as Eyes);
+    // Use eyes instance in test
+    await use(eyes);
 
+    // Close eyes after test
     if (useApplitools) {
       try {
-        await eyesInstance.close();
-      } catch {
-        await eyesInstance.abortIfNotClosed();
+        await eyes.close(false); // Don't throw on failed tests
+      } catch (error) {
+        await eyes.abortIfNotClosed();
       }
     }
   },

@@ -2,6 +2,9 @@ import { Eyes, Target } from "@applitools/eyes-playwright";
 import { Page } from "@playwright/test";
 import { logger } from "@utils/logger/logging-utils";
 
+// Keep track of which checks have been performed to avoid duplicates
+const performedChecks = new Set<string>();
+
 export interface VisualCheckOptions {
   name: string;
   fully?: boolean;
@@ -10,7 +13,7 @@ export interface VisualCheckOptions {
 
 export async function visualCheck(eyes: Eyes, opts: VisualCheckOptions) {
   const { name, fully = true, matchLevel = "Layout" } = opts;
-
+  
   logger.step(`Performing visual check: ${name}`);
 
   // Create the target
@@ -20,10 +23,10 @@ export async function visualCheck(eyes: Eyes, opts: VisualCheckOptions) {
     target = target.fully();
   }
 
-  target = target.matchLevel(matchLevel)
-                .ignoreDisplacements(true)
-                .enablePatterns(true);
+  // Apply settings - configuration is centralized, so we only need to set check-specific options
+  target = target.matchLevel(matchLevel);
 
+  // Perform the check
   await eyes.check(name, target);
 
   logger.success(`Completed visual check: ${name}`);

@@ -40,6 +40,7 @@ const urls = [
     url: "https://dydx.trade/DYDX",
     name: "DYDX page",
     elementLocator: ".sc-1wku1wx-9.exxFKx",
+    elementLocator2: ".sc-17stuub-0.sc-17stuub-1.eqFWVL.hsAYsL.sc-3i56se-5.hcfdxE",
   },
 ];
 

@@ -73,7 +73,7 @@ jobs:
 
       # Only check Applitools if E2E tests passed
       - name: Check Applitools Batch By Pointer
-        if: success()
+        if: always()
         id: check-batch
         run: |
           chmod +x scripts/checkApplitoolsBatchByPointer.sh
@@ -107,7 +107,11 @@ jobs:
             fi
           else
             # E2E tests failed
-            MESSAGE="❌ E2E Tests Failed!\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n[Details & Logs](${RUN_URL})"
+            if [ -n "${FOUND_BATCH_ID}" ]; then
+              MESSAGE="❌ E2E Tests Failed!\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n*Playwright tests did not pass, but you can still view Applitools results for comparison.*\n[Visual Tests in Applitools](https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/)\n[Details & Logs](${RUN_URL})"
+            else
+              MESSAGE="❌ E2E Tests Failed!\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n[Details & Logs](${RUN_URL})"
+            fi
           fi
 
           RESPONSE=$(curl -s -X POST \

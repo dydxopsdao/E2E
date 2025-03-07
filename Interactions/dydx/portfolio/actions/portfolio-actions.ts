@@ -2,6 +2,7 @@ import { expect, Page } from "@playwright/test";
 import { logger } from "@utils/logger/logging-utils";
 import { PortfolioSelectors } from "@dydx/portfolio/selectors/portfolio-selectors";
 import { TEST_TIMEOUTS } from "@constants/test.constants";
+import { navigateToViaHeader } from "@interactions/dydx/general/actions/navigation.actions";
 
 /**
  * Gets the portfolio value from the Portfolio page, waiting up to 15 seconds if the value is empty.
@@ -94,12 +95,22 @@ export async function checkFinalPortfolioValue(
       success = true;
       break;
     }
+    
     if (actualChange === 0 && attempt < 3) {
       logger.warn(
         `Portfolio value change is 0 on attempt ${attempt}. ` +
-          "Waiting 5 seconds before re-checking..."
+          "Navigating to DYDX and back to trigger refresh..."
       );
-      await page.waitForTimeout(5000);
+      
+      // Navigate to DYDX home via logo to trigger refresh
+      logger.info("Clicking DYDX logo to navigate to home");
+      await navigateToViaHeader(page, "DYDX");
+      await page.waitForTimeout(2000);
+      
+      // Navigate back to portfolio
+      logger.info("Navigating back to portfolio overview");
+      await navigateToViaHeader(page, "PORTFOLIO");
+      await page.waitForTimeout(3000);
     } else {
       break;
     }

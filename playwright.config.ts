@@ -22,13 +22,10 @@ export default defineConfig({
   use: {
     ...(isApplitoolsRun
       ? {
+          // This is just for the Applitools reporter - the actual configuration is in config/applitools.config.ts
           eyesConfig: {
-            apiKey: process.env.APPLITOOLS_API_KEY || "",
-            serverUrl: "https://eyes.applitools.com/",
-            appName: "dydx.trade",
-            matchLevel: "Layout",
-            waitBeforeScreenshots: 5,
             testConcurrency: 10,
+            dontCloseBatches: true,
           },
         }
       : {}),

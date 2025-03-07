@@ -105,6 +105,7 @@ export class DydxTradeHelper {
       reduceOnly,
       postOnly: false, // Market orders cannot be post-only
       clientId,
+      goodTilTimeInSeconds: 3000,
     };
 
     return this.orderManager.placeOrder(subaccountNumber, orderParams);
