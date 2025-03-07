@@ -58,6 +58,8 @@ jobs:
           sleep 3
 
       - name: Run E2E Tests (Playwright + Applitools)
+        env:
+          DEPLOYMENT_ID: ${{ inputs.deployment_id }}
         run: |
           PLAYWRIGHT_JUNIT_OUTPUT=results.xml \
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
