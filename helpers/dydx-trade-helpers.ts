@@ -467,8 +467,6 @@ export class DydxTradeHelper {
       pollIntervalMs = 2000,
     } = options;
 
-    // Add initial delay to allow time for order to be indexed
-    logger.info(`Adding initial delay of 2.5s to allow order ${orderId} to be indexed...`);
     await waitForTimeout(2500);
     
     // Validate target status
@@ -478,7 +476,7 @@ export class DydxTradeHelper {
     }
 
     logger.step(
-      `Waiting for order with ID ${orderId} to reach status: ${targetStatus}`
+      `Waiting for order with ID ${orderId} to reach status: ${targetStatus} through API`
     );
 
     const startTime = Date.now();
@@ -488,7 +486,7 @@ export class DydxTradeHelper {
       try {
         // First approach: Get all orders without filtering by status to catch orders in any state
         // This matches how cancelAllOrders finds orders
-        logger.info(`Searching for order ${orderIdStr} in all available orders`);
+        logger.info(`Searching for order ${orderIdStr} in all available orders through API`);
         const allOrders = await this.orderManager.getOrders(
           subaccountNumber, 
           market, 
@@ -514,7 +512,7 @@ export class DydxTradeHelper {
           });
           
           if (matchingOrder) {
-            logger.info(`Found order ${orderIdStr} with status: ${matchingOrder.status}`);
+            logger.info(`Found order ${orderIdStr} with status: ${matchingOrder.status} through API`);
             
             // If it's in the target status, we're done
             if (matchingOrder.status === targetStatus) {
@@ -535,7 +533,7 @@ export class DydxTradeHelper {
         
         // Second approach: Try status-specific searches
         // Try the target status first
-        logger.info(`Specifically searching for order ${orderIdStr} with status=${targetStatus}`);
+        logger.info(`Specifically searching for order ${orderIdStr} with status=${targetStatus} through API`);
         const targetStatusOrders = await this.orderManager.getOrders(
           subaccountNumber, 
           market, 
@@ -556,7 +554,7 @@ export class DydxTradeHelper {
         });
         
         if (targetMatch) {
-          logger.success(`Found order ${orderIdStr} with target status ${targetStatus}`);
+          logger.success(`Found order ${orderIdStr} with target status ${targetStatus} through API`);
           return targetMatch;
         }
         
@@ -582,7 +580,7 @@ export class DydxTradeHelper {
           });
           
           if (pendingMatch) {
-            logger.info(`Order ${orderIdStr} is currently PENDING, waiting for it to become OPEN`);
+            logger.info(`Order ${orderIdStr} is currently PENDING, waiting for it to become OPEN through API`);
           }
         }
         
@@ -607,7 +605,7 @@ export class DydxTradeHelper {
           });
           
           if (stillOpen) {
-            logger.info(`Order ${orderIdStr} is still OPEN, waiting for CANCELED status`);
+            logger.info(`Order ${orderIdStr} is still OPEN, waiting for CANCELED status through API`);
           }
         }
       } catch (error) {
@@ -620,7 +618,7 @@ export class DydxTradeHelper {
 
     // One final check before giving up
     try {
-      logger.warning(`Timeout reached. Final attempt to find order ${orderIdStr}`);
+      logger.warning(`Timeout reached. Final attempt to find order ${orderIdStr} through API`);
       
       // Get all orders without status filtering, with a higher limit
       const finalOrders = await this.orderManager.getOrders(
@@ -642,7 +640,7 @@ export class DydxTradeHelper {
       });
       
       if (finalMatch) {
-        logger.warning(`Found order ${orderIdStr} with status ${finalMatch.status} in final check (wanted ${targetStatus})`);
+        logger.warning(`Found order ${orderIdStr} with status ${finalMatch.status} in final check (wanted ${targetStatus}) through API`);
         return finalMatch;
       }
       
@@ -666,14 +664,14 @@ export class DydxTradeHelper {
       });
       
       if (finalStatusMatch) {
-        logger.success(`Found order ${orderIdStr} with target status ${targetStatus} in final status check`);
+        logger.success(`Found order ${orderIdStr} with target status ${targetStatus} in final status check through API`);
         return finalStatusMatch;
       }
     } catch (error) {
       logger.error(`Error in final order status check: ${(error as Error).message}`);
     }
     
-    logger.warning(`Order ${orderIdStr} not found with status=${targetStatus} after timeout`);
+    logger.warning(`Order ${orderIdStr} not found with status=${targetStatus} after timeout through API`);
     return null;
   }
 
