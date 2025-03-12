@@ -11,7 +11,7 @@ const urls = [
     name: "ETH-USD market page",
     elementLocator: '[data-name="pane-widget-chart-gui-wrapper"]',
     elementLocator2: ".legendMainSourceWrapper-l31H9iuA",
-    disableDom: true,
+    useDom: true,
   },
   {
     url: "https://dydx.trade/markets",
@@ -49,7 +49,7 @@ const urls = [
 test(`Visual check for all not-connected pages`, async ({ page, eyes }) => {
   logger.info("Running all not-connected visual checks in a single browser instance");
   
-  for (const { url, name, elementLocator, elementLocator2, disableDom, clickBeforeCheck } of urls) {
+  for (const { url, name, elementLocator, elementLocator2, useDom, clickBeforeCheck } of urls) {
     try {
       // Arrange
       logger.step(`=== Testing ${name} ===`);
@@ -96,7 +96,7 @@ test(`Visual check for all not-connected pages`, async ({ page, eyes }) => {
       // If disableDom is true, disable DOM usage for Applitools
       await visualCheck(eyes, { 
         name,
-        useDom: disableDom ? false : true
+        useDom: useDom ? true : false
       });
       
       logger.success(`Completed visual check for ${name}`);

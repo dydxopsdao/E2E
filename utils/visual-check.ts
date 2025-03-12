@@ -26,6 +26,8 @@ export async function visualCheck(eyes: Eyes, opts: VisualCheckOptions) {
 
   // Apply settings - configuration is centralized, so we only need to set check-specific options
   target = target.matchLevel(matchLevel);
+  target = target.enablePatterns(true);
+  target = target.ignoreDisplacements(true);
   
   // Override DOM usage if specified
   if (useDom === false) {
