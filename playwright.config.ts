@@ -11,7 +11,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 1,
-  workers: 2,
+  workers: 3,
   reporter: [
     ...(isApplitoolsRun
       ? [["@applitools/eyes-playwright/reporter"] as ReporterDescription]
