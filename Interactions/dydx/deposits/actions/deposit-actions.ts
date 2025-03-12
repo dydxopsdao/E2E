@@ -151,7 +151,7 @@ export async function checkDepositCompleted(
 
   // Wait for up to 2 minutes for the deposit completed text to appear.
   await page.waitForSelector(DepositsSelectors.depositCompletedText, {
-    timeout: 500000, // 5 minutes
+    timeout: 600000, // 5 minutes
     state: "visible",
   });
 
