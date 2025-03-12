@@ -159,48 +159,113 @@ export async function checkVaultHistoryAfterTransaction(
   // [0]: date/time
   // [1]: action ("Remove funds"/"Add funds")
   // [2]: amount
-  const topRow = page
-    .locator(`${MegaVaultSelectors.historyTable} tbody tr`)
-    .first();
+  
+  try {
+    const topRow = page
+      .locator(`${MegaVaultSelectors.historyTable} tbody tr`)
+      .first();
 
-  await topRow.waitFor({ state: "visible" });
+    await topRow.waitFor({ state: "visible" });
 
-  const dateTimeCell = topRow.locator("td").nth(0);
-  const actionCell = topRow.locator("td").nth(1);
-  const amountCell = topRow.locator("td").nth(2);
+    const dateTimeCell = topRow.locator("td").nth(0);
+    const actionCell = topRow.locator("td").nth(1);
+    const amountCell = topRow.locator("td").nth(2);
 
-  const dateTimeText = (await dateTimeCell.textContent())?.trim() || "";
-  const actionText = (await actionCell.textContent())?.trim() || "";
-  const amountText = (await amountCell.textContent())?.trim() || "";
+    const dateTimeText = (await dateTimeCell.textContent())?.trim() || "";
+    const actionText = (await actionCell.textContent())?.trim() || "";
+    const amountText = (await amountCell.textContent())?.trim() || "";
 
-  logger.info(`Top row details:
-    Date/Time: ${dateTimeText}
-    Action: ${actionText}
-    Amount: ${amountText}`);
+    logger.info(`Top row details:
+      Date/Time: ${dateTimeText}
+      Action: ${actionText}
+      Amount: ${amountText}`);
 
-  // Check that date/time is not empty
-  if (!dateTimeText) {
-    throw new Error(
-      "Time data is missing from the top row of the vault history."
-    );
-  }
+    // Check that date/time is not empty
+    if (!dateTimeText) {
+      throw new Error(
+        "Time data is missing from the top row of the vault history."
+      );
+    }
 
-  // Check action text
-  if (actionText !== expectedAction) {
-    throw new Error(
-      `Expected top row action to be "${expectedAction}" but got "${actionText}".`
-    );
-  }
+    // Check action text
+    if (actionText !== expectedAction) {
+      throw new Error(
+        `Expected top row action to be "${expectedAction}" but got "${actionText}".`
+      );
+    }
 
-  // Check amount text, e.g. "$11.99"
-  const expectedAmountString = `$${expectedAmount.toFixed(2)}`;
-  const actualAmount = parseFloat(amountText.replace(/[^0-9.]/g, ""));
-  const allowedVariance = expectedAmount * 0.1;
+    // Check amount text, e.g. "$11.99"
+    const expectedAmountString = `$${expectedAmount.toFixed(2)}`;
+    const actualAmount = parseFloat(amountText.replace(/[^0-9.]/g, ""));
+    const allowedVariance = expectedAmount * 0.1;
 
-  if (Math.abs(actualAmount - expectedAmount) > allowedVariance) {
-    throw new Error(
-      `Expected amount "${expectedAmountString}" (±10%) but got "${amountText}".`
-    );
+    if (Math.abs(actualAmount - expectedAmount) > allowedVariance) {
+      throw new Error(
+        `Expected amount "${expectedAmountString}" (±10%) but got "${amountText}".`
+      );
+    }
+  } catch (error) {
+    // First attempt failed, try clicking the refresh element and check again
+    logger.warning("Initial history verification failed, attempting to refresh data", { error: (error as Error).message });
+    
+    // Click the refresh element
+    logger.info("Clicking refresh element to update history");
+    const viewTable = page.locator(".sc-l0nx5c-0.gdQHqL.sc-1xochuw-0.cDUNfF.sc-1n2lg04-0.kFcrgB");
+    await viewTable.waitFor({ state: "visible", timeout: 5000 }).catch(() => {
+      logger.warning("Refresh element not visible");
+    });
+    await viewTable.click().catch((e) => {
+      logger.warning("Failed to click refresh element", e);
+    });
+    
+    // Wait for potential data refresh
+    await page.waitForTimeout(2000);
+    
+    // Try again with the verification
+    logger.info("Retrying history verification after refresh");
+    const topRow = page
+      .locator(`${MegaVaultSelectors.historyTable} tbody tr`)
+      .first();
+
+    await topRow.waitFor({ state: "visible" });
+
+    const dateTimeCell = topRow.locator("td").nth(0);
+    const actionCell = topRow.locator("td").nth(1);
+    const amountCell = topRow.locator("td").nth(2);
+
+    const dateTimeText = (await dateTimeCell.textContent())?.trim() || "";
+    const actionText = (await actionCell.textContent())?.trim() || "";
+    const amountText = (await amountCell.textContent())?.trim() || "";
+
+    logger.info(`Top row details after refresh:
+      Date/Time: ${dateTimeText}
+      Action: ${actionText}
+      Amount: ${amountText}`);
+
+    // Check that date/time is not empty
+    if (!dateTimeText) {
+      throw new Error(
+        "Time data is missing from the top row of the vault history after refresh."
+      );
+    }
+
+    // Check action text
+    if (actionText !== expectedAction) {
+      throw new Error(
+        `Expected top row action to be "${expectedAction}" but got "${actionText}" after refresh.`
+      );
+    }
+
+    // Check amount text, e.g. "$11.99"
+    const expectedAmountString = `$${expectedAmount.toFixed(2)}`;
+    const actualAmount = parseFloat(amountText.replace(/[^0-9.]/g, ""));
+    const allowedVariance = expectedAmount * 0.1;
+
+    if (Math.abs(actualAmount - expectedAmount) > allowedVariance) {
+      throw new Error(
+        `Expected amount "${expectedAmountString}" (±10%) but got "${amountText}" after refresh.`
+      );
+    }
   }
 }
 
