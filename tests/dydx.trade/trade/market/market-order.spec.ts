@@ -104,5 +104,7 @@ test("btc-usd market order LONG", async ({
     // Clean up - close any positions via API regardless of test result
     logger.step("Post-test cleanup: Closing any open positions");
     await closePositions(dydxTradeHelper, "BTC-USD", "Post-test: ");
+    await page.waitForTimeout(5000);
+    await closePositions(dydxTradeHelper, "BTC-USD", "Post-test: ");
   }
 });

@@ -30,7 +30,7 @@ const urls = [
     name: "Megavault page",
     elementLocator: '[data-key="BTC-USD-pnl-sparkline"]',
     elementLocator2: ".sc-17stuub-0.sc-17stuub-1.eqFWVL.hsAYsL.sc-3i56se-5.hcfdxE",
-    
+    clickBeforeCheck: true,
   },
   {
     url: "https://dydx.trade/referrals",
@@ -49,7 +49,7 @@ const urls = [
 test(`Visual check for all not-connected pages`, async ({ page, eyes }) => {
   logger.info("Running all not-connected visual checks in a single browser instance");
   
-  for (const { url, name, elementLocator, elementLocator2, disableDom } of urls) {
+  for (const { url, name, elementLocator, elementLocator2, disableDom, clickBeforeCheck } of urls) {
     try {
       // Arrange
       logger.step(`=== Testing ${name} ===`);
@@ -78,7 +78,22 @@ test(`Visual check for all not-connected pages`, async ({ page, eyes }) => {
           );
       }
       
+      // Click on the Market element for the vault/megavault page before visual check
+      if (clickBeforeCheck && name === "Megavault page") {
+        logger.info("Clicking on Market element before visual check");
+        const marketElement = page.locator('text=Market >> xpath=//ancestor::div[contains(@class, "sc-1drcdyj-9") and contains(@class, "kFEJXg")]');
+        await marketElement.waitFor({ state: "visible", timeout: 10000 }).catch(() => {
+          logger.warning("Market element not visible for clicking");
+        });
+        await marketElement.click().catch((e) => {
+          logger.warning("Failed to click Market element", { error: e.message });
+        });
+        // Wait for any animations or updates after clicking
+        await page.waitForTimeout(1000);
+      }
+      
       // Perform visual check for this page
+      // If disableDom is true, disable DOM usage for Applitools
       await visualCheck(eyes, { 
         name,
         useDom: disableDom ? false : true
