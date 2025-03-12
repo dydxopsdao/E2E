@@ -108,11 +108,11 @@ export async function confirmMetaMaskAction(
     
     // Use a shorter polling interval to check for the button more frequently
     const shortPollingInterval = 100; // milliseconds
-    const maxAttempts = 10;
+    const maxAttempts = 50;
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       if (await confirmButton.count() > 0 && await confirmButton.isVisible()) {
-        await metaMaskPage.waitForTimeout(200);
+        await metaMaskPage.waitForTimeout(300);
         await confirmButton.click();
         logger.success(`MetaMask action confirmed on attempt ${attempt + 1}`);
         return;

@@ -29,6 +29,7 @@ export async function selectWallet(
     const selector = getWalletSelector(walletType);
     await page.click(selector);
     logger.success(`${walletType} wallet selected`);
+    await page.waitForTimeout(2000);
   } catch (error) {
     logger.error(`Failed to select wallet: ${walletType}`, error as Error);
     throw error;
