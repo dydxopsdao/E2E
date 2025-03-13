@@ -37,8 +37,30 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
+    // Main tests that run first - all tests except cancel-order tests
     {
-      name: "chromium",
+      name: "main-tests",
+      testIgnore: ['**/cancel-order/**/*.spec.ts'],
+      use: {
+        browserName: "chromium",
+        launchOptions: {
+          args: [
+            "--disable-blink-features=AutomationControlled",
+            "--disable-infobars",
+            "--disable-dev-shm-usage",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+          ],
+        },
+        ignoreHTTPSErrors: true,
+      },
+    },
+    
+    // Cancel-order tests that run last (after main tests)
+    {
+      name: "cancel-order-tests",
+      testMatch: ['**/cancel-order/**/*.spec.ts'],
+      dependencies: ['main-tests'], // Only run after main tests complete
       use: {
         browserName: "chromium",
         launchOptions: {
