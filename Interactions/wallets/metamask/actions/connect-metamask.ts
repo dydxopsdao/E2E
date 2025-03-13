@@ -18,6 +18,7 @@ export interface ConnectMetaMaskOptions {
   timeout?: number;
   password?: string;
   dydxPage?: string;
+  waitForSelector?: string | string[];
 }
 
 
@@ -138,6 +139,7 @@ export async function openDydxConnectMetaMask(
     password = process.env.METAMASK_PASSWORD ||
       WALLET_CONSTANTS.METAMASK.DEFAULT_PASSWORD,
     dydxPage = "/portfolio/overview",
+    waitForSelector = null
   } = options;
 
   if (!password) {
@@ -154,6 +156,7 @@ export async function openDydxConnectMetaMask(
     await page.bringToFront();
     await navigateToDydxPage(page, dydxPage, {
       waitUntil: "domcontentloaded",
+      waitForSelector: waitForSelector || undefined
     });
     //wait for orderbook to be visible
     await waitForAnimations(page, TEST_TIMEOUTS.PAGE_LOAD);

@@ -8,12 +8,14 @@ export async function navigateToDydxPage(
     waitUntil?: "load" | "domcontentloaded" | "networkidle" | "commit";
     maxRetries?: number;
     retryDelay?: number;
+    waitForSelector?: string | string[];
   } = {}
 ): Promise<void> {
   const { 
     waitUntil = "domcontentloaded", 
     maxRetries = 3,
-    retryDelay = 1000 
+    retryDelay = 1000,
+    waitForSelector = null
   } = options;
   
   const url = `https://dydx.trade${path}`;
@@ -32,6 +34,27 @@ export async function navigateToDydxPage(
       
       await page.goto(url, { waitUntil });
       await page.bringToFront();
+      
+      // Wait for specific selector(s) if provided
+      if (waitForSelector) {
+        const selectors = Array.isArray(waitForSelector) ? waitForSelector : [waitForSelector];
+        logger.info(`Waiting for ${selectors.length} selector(s) to be visible`);
+        
+        for (const selector of selectors) {
+          logger.debug(`Waiting for selector: ${selector}`);
+          try {
+            await page.waitForSelector(selector, { 
+              state: "visible", 
+              timeout: 10000 
+            });
+            logger.debug(`Selector visible: ${selector}`);
+          } catch (error) {
+            logger.warning(`Timeout waiting for selector: ${selector}`, { error: (error as Error).message });
+            throw error; // Re-throw to trigger retry
+          }
+        }
+        logger.info(`All selectors are now visible`);
+      }
       
       logger.success(`Navigated to dYdX page: ${url}${attempt > 1 ? ` on attempt ${attempt}` : ''}`);
       return; // Success - exit the function

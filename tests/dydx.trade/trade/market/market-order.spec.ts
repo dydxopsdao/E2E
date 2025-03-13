@@ -21,6 +21,7 @@ test("btc-usd market order LONG", async ({
     logger.step("Setting up connected market page test");
     await openDydxConnectMetaMask(page, metamaskContext, {
       dydxPage: "/trade/BTC-USD",
+      waitForSelector: '.sc-1h5n0ah-2.fQXTnK'
     });
     // Wait for orderbook to be visible
     await page.waitForSelector(OrderbookSelectors.orderbook, {
