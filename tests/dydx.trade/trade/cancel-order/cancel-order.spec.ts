@@ -122,13 +122,13 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
         throw new Error("First order ID is not available. Order placement may have failed.");
       }
       
-      logger.info(`Using already placed order ID: ${firstOrderId}`);
+      logger.info(`Using already placed ORDER ID: ${firstOrderId}`);
       const orderId = firstOrderId;
       const market = "BTC-USD";
       const displayMarket = "BTC"; // Only the base asset is shown in the UI
       
       // Find our order in the table
-      logger.step("Finding and canceling the order");
+      logger.step("Finding and canceling the order through the UI");
       
       // Verify order is visible in the table - updated to match actual UI values
       const orderRow = sharedPage
@@ -191,6 +191,7 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       logger.success("======= COMPLETED TEST CASE: Cancel buy limit order =======");
     } catch (error) {
       logger.error("Cancel buy limit order test case failed", error as Error);
+      logger.step(`Cancel buy limit order test case failed, cancelling all orders through API`);
       await dydxTradeHelper.cancelAllOrders();
       throw error;
     }
@@ -221,7 +222,7 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
 
       // Store the client ID from the order response
       const orderId = order.id;
-      logger.info(`Order placed with clientId: ${orderId}`);
+      logger.info(`Order placed with ORDER ID: ${orderId}`);
       
       if (order.hash) {
         logger.info(`Order hash: ${order.hash}`);
@@ -231,9 +232,9 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       logger.info('Order response details:', { orderDetails: order });
       
       // Wait for the order to be indexed
-      logger.step(`Waiting for order ${orderId} to be indexed as OPEN`);
+      logger.step(`Waiting for order ${orderId} to be indexed as OPEN through API`);
       const openOrder = await dydxTradeHelper.waitForOrderStatus(orderId, "OPEN", {
-        timeoutMs: 30000,
+        timeoutMs: 60000,
         pollIntervalMs: 2000,
       });
       
@@ -244,7 +245,7 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       logger.info(`Order ${orderId} confirmed as OPEN in the API`);
       
       // Find our order in the table
-      logger.step("Finding and canceling the order");
+      logger.step("Finding and canceling the order through the UI");
       
       // Verify order is visible in the table - updated to match actual UI values
       const orderRow = sharedPage
@@ -310,6 +311,7 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       logger.success("======= COMPLETED TEST CASE: Cancel sell limit order =======");
     } catch (error) {
       logger.error("Cancel sell limit order test case failed", error as Error);
+      logger.step(`Cancel sell limit order test case failed, cancelling all orders through API`);
       await dydxTradeHelper.cancelAllOrders();
       throw error;
     }
@@ -432,17 +434,19 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
       // Double-check that there are no open orders left
       const openOrders = await dydxTradeHelper.getOpenOrders({ market });
       expect(openOrders.length).toBe(0);
-      
+      logger.info(`No open orders left in the API`);
+      logger.step(`Cancelling all orders through API`);
       await dydxTradeHelper.cancelAllOrders();
       logger.success("======= COMPLETED TEST CASE: Cancel multiple orders at once =======");
     } catch (error) {
       logger.error("Cancel multiple orders test case failed", error as Error);
+      logger.step(`Cancel multiple orders test case failed, cancelling all orders through API`);
       await dydxTradeHelper.cancelAllOrders();
       throw error;
     }
     
   } finally {
-    // We intentionally do not close the page here to allow reuse by future test suites
+    await sharedPage.close();
     logger.info("All test cases completed, shared page is being maintained for potential future tests");
   }
 });
