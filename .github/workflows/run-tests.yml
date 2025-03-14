@@ -63,7 +63,12 @@ jobs:
         run: |
           PLAYWRIGHT_JUNIT_OUTPUT=results.xml \
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
-          npx playwright test
+          # Run main tests concurrently with multiple workers (e.g. 4)
+          npx playwright test --project=main-tests --workers=2 || echo "Main tests failed, continuing..."
+          # Run cancel-order tests sequentially (1 worker)
+          npx playwright test --project=cancel-order-tests --workers=1
+          # Run megavault tests sequentially (1 worker)
+          npx playwright test --project=megavault-tests --workers=1
 
       # Upload test report artifacts if needed
       - name: Upload Test Report

@@ -8,15 +8,14 @@ export default defineConfig({
   globalSetup: require.resolve("./global-setup"),
   globalTeardown: require.resolve("./globalTeardown"),
   testDir: "./tests/",
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 1,
-  workers: 2,
+  // Note: Global workers setting removed so we can override per command.
   reporter: [
     ...(isApplitoolsRun
       ? [["@applitools/eyes-playwright/reporter"] as ReporterDescription]
       : []),
-    // HTML reporter for the browser report.
     ["html", { outputFolder: "playwright-report" }] as ReporterDescription,
   ],
   use: {
@@ -37,10 +36,14 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    // Main tests that run first - excluding cancel-order and megavault tests
+    // Main tests that will run concurrently (using multiple workers via CLI override).
     {
       name: "main-tests",
-      testIgnore: ['**/cancel-order/**/*.spec.ts', '**/megavault/**/*.spec.ts'],
+      testDir: "./tests/",
+      testIgnore: [
+        '**/cancel-order/**/*.spec.ts', 
+        '**/megavault/**/*.spec.ts'
+      ],
       use: {
         browserName: "chromium",
         launchOptions: {
@@ -56,11 +59,11 @@ export default defineConfig({
       },
     },
     
-    // Cancel-order tests that run after main tests
+    // Cancel-order tests that will run sequentially.
     {
       name: "cancel-order-tests",
+      testDir: "./tests/",
       testMatch: ['**/cancel-order/**/*.spec.ts'],
-      dependencies: ['main-tests'], // Only run after main tests complete
       use: {
         browserName: "chromium",
         launchOptions: {
@@ -76,11 +79,11 @@ export default defineConfig({
       },
     },
 
-    // Megavault tests that run after main tests
+    // Megavault tests that will run sequentially.
     {
       name: "megavault-tests",
+      testDir: "./tests/",
       testMatch: ['**/megavault/**/*.spec.ts'],
-      dependencies: ['main-tests'], // Only run after main tests complete
       use: {
         browserName: "chromium",
         launchOptions: {
