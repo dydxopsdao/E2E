@@ -61,7 +61,11 @@ export async function instantDeposit(
 
     // Select Instant Deposit
     logger.step("Select Instant Deposit");
-    await page.click(DepositsSelectors.instantDepositSelect);
+    try {
+      await page.click(DepositsSelectors.instantDepositSelect);
+    } catch (error) {
+      await page.click(DepositsSelectors.instantDepositSelect2);
+    }
 
     // Wait for and click Confirm Order
     logger.step("Waiting for Confirm Order and clicking it");

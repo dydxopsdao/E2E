@@ -3,7 +3,6 @@ import {
   checkInitialPortfolioValue,
   checkFinalPortfolioValue,
 } from "@dydx/portfolio/actions/portfolio-actions";
-import { closeOnboarding } from "@dydx/onboarding/actions/onboarding.actions";
 import { BrowserContext, Page } from "@playwright/test";
 import { WALLET_ADDRESSES } from "@constants/wallet-addresses.constants";
 import { metamaskTest as test } from "@fixtures/metamaskFixture";
@@ -27,7 +26,6 @@ test.skip("Withdraw flow tests", () => {
     // Open dYdX and connect MetaMask
     await openDydxConnectMetaMask(page, metamaskContext);
     await page.bringToFront();
-    await closeOnboarding(page);
     await page.bringToFront();
     const initialPortfolioValue = await checkInitialPortfolioValue(page);
     await completeWithdrawal(

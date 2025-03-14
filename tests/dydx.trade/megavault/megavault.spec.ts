@@ -1,10 +1,7 @@
 import { openDydxConnectMetaMask } from "@wallets/metamask/actions/connect-metamask";
-import { closeOnboarding } from "@dydx/onboarding/actions/onboarding.actions";
-import { BrowserContext, Page } from "@playwright/test";
 import { metamaskEyesTest as test } from "@fixtures/metamaskEyesFixture";
 import { navigateToViaHeader } from "@interactions/dydx/general/actions/navigation.actions";
 import { vaultTransaction } from "@interactions/dydx/megavault/actions/megavault.actions";
-import { Eyes } from "@applitools/eyes-playwright";
 import { logger } from "@utils/logger/logging-utils";
 
 test.describe("Megavault flows", () => {
@@ -19,7 +16,6 @@ test.describe("Megavault flows", () => {
       logger.info("Connecting to MetaMask and navigating to vault page");
       await openDydxConnectMetaMask(page, metamaskContext);
       await page.bringToFront();
-      await closeOnboarding(page);
       await navigateToViaHeader(page, "VAULT");
       
       // Step 1: Perform deposit

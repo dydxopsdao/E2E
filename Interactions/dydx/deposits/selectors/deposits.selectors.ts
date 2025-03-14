@@ -6,7 +6,8 @@ export const DepositsSelectors = {
   amountInput: ".sc-1d2nw9n-5.vPHra",
   loadingStates: ["Estimating gas...", "Preparing your quote..."],
   assetDropdown: ".sc-1d2nw9n-6.fRSOpE",
-  instantDepositSelect: ".sc-kZBLDU.ccIItU:has-text('Instant')",
+  instantDepositSelect: '.sc-fBPCRP.haLuyX:has-text("Instant")',
+  instantDepositSelect2: ".sc-jJBjNq.hwnNNF",
   // Success state selectors
   fillStatusText: "text=Successful",
   newDepositButton: 'button:has-text("New Deposit")',

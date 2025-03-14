@@ -21,49 +21,12 @@ test("btc-usd market order LONG", async ({
     logger.step("Setting up connected market page test");
     await openDydxConnectMetaMask(page, metamaskContext, {
       dydxPage: "/trade/BTC-USD",
+      waitForSelector: '.sc-1h5n0ah-2.fQXTnK'
     });
-    
-    // Wait for chart elements to be visible with polling
-    logger.info("Waiting for chart elements to be visible");
-    const pollTimeout = 10000; // 10 seconds total polling time
-    const pollInterval = 500; // Check every 500ms
-    const startTime = Date.now();
-    let elementsFound = false;
-    
-    while (Date.now() - startTime < pollTimeout && !elementsFound) {
-      try {
-        // Check for chart title
-        const titleVisible = await page.locator('.titleWrapper-l31H9iuA, .mainTitle-l31H9iuA').isVisible()
-          .catch(() => false);
-          
-        // Check for chart visibility
-        const chartVisible = await page.locator('[data-name="pane-widget-chart-gui-wrapper"]').isVisible()
-          .catch(() => false);
-          
-        // Check for orderbook visibility  
-        const orderbookVisible = await page.locator('.sc-1h5n0ah-2').isVisible()
-          .catch(() => false);
-        
-        logger.info(`Chart elements check - Title: ${titleVisible}, Chart: ${chartVisible}, Orderbook: ${orderbookVisible}`);
-        
-        if (titleVisible && chartVisible && orderbookVisible) {
-          elementsFound = true;
-          logger.success("All chart elements are visible");
-          break;
-        }
-      } catch (error) {
-        // Ignore errors during polling
-      }
-      
-      // Wait before next attempt
-      if (!elementsFound) {
-        await page.waitForTimeout(pollInterval);
-      }
-    }
-    
-    if (!elementsFound) {
-      logger.warning("Could not find all chart elements within timeout period");
-    }
+    // Wait for orderbook to be visible
+    await page.waitForSelector(OrderbookSelectors.orderbook, {
+      state: "visible",
+    });
 
     // Act
     await swapAsset(page, "USD");

@@ -96,7 +96,6 @@ export async function confirmMetaMaskAction(
   try {
     const metaMaskPage = await getMetaMaskPage(context, timeout);
     await metaMaskPage.bringToFront();
-    
     // Keep the reload as it's necessary to make the signature request appear
     await metaMaskPage.reload();
     
@@ -160,11 +159,6 @@ export async function openDydxConnectMetaMask(
     });
     //wait for orderbook to be visible
     await waitForAnimations(page, TEST_TIMEOUTS.PAGE_LOAD);
-    try { 
-      await page.waitForTimeout(2000);
-      await page.locator(NotificationSelectors.withdrawalMessage).click();
-    } catch (error) {
-    }
     // Trigger wallet connection modal and select MetaMask
     await triggerWalletConnectionModal(page);
     await selectWallet(page, WALLET_CONSTANTS.SUPPORTED_WALLETS[0]); // MetaMask
