@@ -446,7 +446,6 @@ combinedTest('All cancel order tests', async ({ metamaskContext, dydxTradeHelper
     }
     
   } finally {
-    await sharedPage.close();
     logger.info("All test cases completed, shared page is being maintained for potential future tests");
   }
 });
