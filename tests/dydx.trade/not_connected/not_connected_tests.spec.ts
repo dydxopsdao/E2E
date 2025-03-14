@@ -18,6 +18,7 @@ const urls = [
     name: "Markets page",
     elementLocator:
       '[data-key="BTC-USD-priceChange24HChart"]',
+    useDom: true,
   },
   {
     url: "https://dydx.trade/portfolio",
