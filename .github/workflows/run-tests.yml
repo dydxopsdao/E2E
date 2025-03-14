@@ -61,14 +61,11 @@ jobs:
         env:
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
         run: |
-          PLAYWRIGHT_JUNIT_OUTPUT=results.xml \
-          xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
-          # Run main tests concurrently with multiple workers (e.g. 4)
-          npx playwright test --project=main-tests --workers=2 || echo "Main tests failed, continuing..."
-          # Run cancel-order tests sequentially (1 worker)
-          npx playwright test --project=cancel-order-tests --workers=1
-          # Run megavault tests sequentially (1 worker)
-          npx playwright test --project=megavault-tests --workers=1
+          PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' bash -c "\
+            npx playwright test --project=main-tests --workers=2 || echo 'Main tests failed, continuing...'; \
+            npx playwright test --project=cancel-order-tests --workers=1 & \
+            npx playwright test --project=megavault-tests --workers=1 & \
+            wait"
 
       # Upload test report artifacts if needed
       - name: Upload Test Report

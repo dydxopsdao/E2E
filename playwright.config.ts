@@ -11,7 +11,6 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 1,
-  // Note: Global workers setting removed so we can override per command.
   reporter: [
     ...(isApplitoolsRun
       ? [["@applitools/eyes-playwright/reporter"] as ReporterDescription]
