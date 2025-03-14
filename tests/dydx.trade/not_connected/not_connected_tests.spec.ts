@@ -11,7 +11,7 @@ const urls = [
     name: "ETH-USD market page",
     elementLocator: '[data-name="pane-widget-chart-gui-wrapper"]',
     elementLocator2: ".legendMainSourceWrapper-l31H9iuA",
-    useDom: false,
+    useDom: true,
   },
   {
     url: "https://dydx.trade/markets",
