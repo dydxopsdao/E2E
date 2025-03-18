@@ -45,7 +45,7 @@ export async function navigateToDydxPage(
           try {
             await page.waitForSelector(selector, { 
               state: "visible", 
-              timeout: 10000 
+              timeout: 30000 
             });
             logger.debug(`Selector visible: ${selector}`);
           } catch (error) {

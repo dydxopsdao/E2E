@@ -21,19 +21,19 @@ export async function visualCheck(eyes: Eyes, opts: VisualCheckOptions) {
     matchLevel = "Layout", 
     useDom = true,
     page,
-    clickSelector = '[id="DN70"]'
+    clickSelector = '#DN70'
   } = opts;
   
   // Click the element if page is provided and clickSelector is not false
   if (page && clickSelector !== false) {
     try {
-      const selectorToClick = clickSelector || '[id="DN70"]';
+      const selectorToClick = clickSelector || '#DN70';
       logger.info(`Clicking element ${selectorToClick} before visual check`);
       await page.click(selectorToClick);
       // Add a small delay to allow any animations to complete
       await page.waitForTimeout(500);
     } catch (error) {
-      logger.warn(`Failed to click element ${clickSelector || '[id="DN70"]'}: ${error}`);
+      logger.warn(`Failed to click element ${clickSelector || '#DN70'}: ${error}`);
     }
   }
   
