@@ -26,7 +26,6 @@ test.skip("Withdraw flow tests", () => {
     // Open dYdX and connect MetaMask
     await openDydxConnectMetaMask(page, metamaskContext);
     await page.bringToFront();
-    await page.bringToFront();
     const initialPortfolioValue = await checkInitialPortfolioValue(page);
     await completeWithdrawal(
       page,

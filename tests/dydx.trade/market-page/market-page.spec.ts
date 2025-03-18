@@ -57,6 +57,7 @@ test("eth-usd market page connected landing page", async ({ metamaskContext, eye
       name: "eth-usd market page connected landing page",
       matchLevel: "Layout",
       useDom: false,
+      page
     });
     
   } catch (error) {

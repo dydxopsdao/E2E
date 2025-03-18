@@ -437,6 +437,17 @@ export async function vaultTransaction(
     finalAmount = await completeWithdrawFlow(page);
   }
 
+  // Check for error elements
+  await page.waitForTimeout(1000); // Give time for any error to appear
+  const errorElement = page.locator('.sc-1vvc9p2-0.eyrpv');
+  const hasError = await errorElement.isVisible().catch(() => false);
+  
+  if (hasError) {
+    const errorText = await errorElement.textContent() || 'Unknown error occurred';
+    logger.error(`Vault transaction failed: ${errorText}`);
+    throw new Error(`Vault ${isDeposit ? 'deposit' : 'withdrawal'} failed: ${errorText}`);
+  }
+  
   // 8) Check the notification
   try {
     if (isDeposit) {

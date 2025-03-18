@@ -28,7 +28,8 @@ test("Connect MetaMask Wallet", async ({ metamaskContext, page, eyes }) => {
     await triggerWalletConnectionModal(page);
     if (eyes) {
       await visualCheck(eyes, {
-        name: "Connect Wallet Modal with Options"
+        name: "Connect Wallet Modal with Options",
+        page
       });
     }
 
@@ -46,7 +47,8 @@ test("Connect MetaMask Wallet", async ({ metamaskContext, page, eyes }) => {
     await page.bringToFront();
     if (eyes) {
       await visualCheck(eyes, {
-        name: "Sign Message Modal"
+        name: "Sign Message Modal",
+        page
       });
     }
     await sendRequest(page);

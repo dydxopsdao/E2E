@@ -10,10 +10,32 @@ export interface VisualCheckOptions {
   fully?: boolean;
   matchLevel?: "Layout" | "Strict" | "Dynamic" | "Exact";
   useDom?: boolean; // Option to override DOM usage
+  page?: Page; // Add page parameter to allow element interactions
+  clickSelector?: string | false; // Optional selector to click before check, or false to skip
 }
 
 export async function visualCheck(eyes: Eyes, opts: VisualCheckOptions) {
-  const { name, fully = true, matchLevel = "Layout", useDom = true } = opts;
+  const { 
+    name, 
+    fully = true, 
+    matchLevel = "Layout", 
+    useDom = true,
+    page,
+    clickSelector = '[id="DN70"]'
+  } = opts;
+  
+  // Click the element if page is provided and clickSelector is not false
+  if (page && clickSelector !== false) {
+    try {
+      const selectorToClick = clickSelector || '[id="DN70"]';
+      logger.info(`Clicking element ${selectorToClick} before visual check`);
+      await page.click(selectorToClick);
+      // Add a small delay to allow any animations to complete
+      await page.waitForTimeout(500);
+    } catch (error) {
+      logger.warn(`Failed to click element ${clickSelector || '[id="DN70"]'}: ${error}`);
+    }
+  }
   
   logger.step(`Performing visual check: ${name}`);
 
@@ -49,7 +71,7 @@ export async function maybeVisualCheck(
 ) {
   if (performEyesCheck && eyes) {
     await page.waitForTimeout(2500)
-    return visualCheck(eyes, { name, ...options });
+    return visualCheck(eyes, { name, page, ...options });
   }
   return Promise.resolve();
 }

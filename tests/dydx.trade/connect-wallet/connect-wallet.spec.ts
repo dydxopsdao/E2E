@@ -32,7 +32,8 @@ test("Language Dropdown Works", async ({ page, eyes }: { page: Page, eyes: Eyes 
 
   
     await visualCheck(eyes, {
-      name: "Language Dropdown Open"
+      name: "Language Dropdown Open",
+      page
     });
     logger.success("Visual check completed");
   } catch (error) {

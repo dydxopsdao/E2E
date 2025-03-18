@@ -22,16 +22,17 @@ async function performStep(
     eyes?: Eyes;
     performEyesCheck?: boolean;
     checkName: string;
+    page?: Page;
   }
 ): Promise<void> {
-  const { eyes, performEyesCheck = false, checkName } = options;
+  const { eyes, performEyesCheck = false, checkName, page } = options;
 
   logger.step(stepLabel);
   await action();
 
   if (performEyesCheck && eyes) {
 
-    await visualCheck(eyes, { name: checkName });
+    await visualCheck(eyes, { name: checkName, page });
   }
 }
 
@@ -250,6 +251,7 @@ export async function completeWithdrawal(
       eyes,
       performEyesCheck,
       checkName: "After Clicking Withdraw Button",
+      page
     }
   );
 
@@ -263,6 +265,7 @@ export async function completeWithdrawal(
       eyes,
       performEyesCheck,
       checkName: "After Selecting Dropdown Option",
+      page
     }
   );
 
@@ -276,6 +279,7 @@ export async function completeWithdrawal(
       eyes,
       performEyesCheck,
       checkName: `After Entering Amount (${amount})`,
+      page
     }
   );
 
@@ -290,6 +294,7 @@ export async function completeWithdrawal(
       eyes,
       performEyesCheck,
       checkName: "After Final Withdraw Click",
+      page
     }
   );
 
