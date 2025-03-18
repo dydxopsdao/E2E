@@ -27,13 +27,23 @@ export async function visualCheck(eyes: Eyes, opts: VisualCheckOptions) {
   // Click the element if page is provided and clickSelector is not false
   if (page && clickSelector !== false) {
     try {
+      // Find the iframe with the title "dYdX Chain Status"
+      const iframe = page.frameLocator('iframe[title="dYdX Chain Status"]');
+      
+      // Log that we're switching to the iframe
+      logger.info(`Switching to iframe with title "dYdX Chain Status" before clicking element`);
+      
+      // Use the iframe locator to click the element inside the iframe
       const selectorToClick = clickSelector || '#DN70';
-      logger.info(`Clicking element ${selectorToClick} before visual check`);
-      await page.click(selectorToClick);
+      logger.info(`Clicking element ${selectorToClick} within iframe`);
+      
+      // Click the element inside the iframe
+      await iframe.locator(selectorToClick).click({ force: true });
+      
       // Add a small delay to allow any animations to complete
       await page.waitForTimeout(500);
     } catch (error) {
-      logger.warn(`Failed to click element ${clickSelector || '#DN70'}: ${error}`);
+      logger.warn(`Failed to click element ${clickSelector || '#DN70'} in iframe: ${error}`);
     }
   }
   

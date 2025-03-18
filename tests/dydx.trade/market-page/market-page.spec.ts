@@ -15,7 +15,7 @@ test("eth-usd market page connected landing page", async ({ metamaskContext, eye
     logger.step("Setting up connected market page test");
     await openDydxConnectMetaMask(page, metamaskContext, {
       dydxPage: "/trade/ETH-USD",
-      waitForSelector: ".sc-l0nx5c-0.kvCeBH.sc-1xochuw-0.iczSRt.sc-513u37-4.eSofcy"
+      waitForSelector: ".sc-l0nx5c-0.kvCeBH.sc-1xochuw-0.kwYHWz"
     });
     
     // Poll for top layout elements with basic retry logic
