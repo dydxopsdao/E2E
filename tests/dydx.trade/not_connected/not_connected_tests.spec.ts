@@ -29,7 +29,7 @@ const urls = [
   {
     url: "https://dydx.trade/vault",
     name: "Megavault page",
-    elementLocator: '[data-key="BTC-USD-pnl-sparkline"]',
+    elementLocator: '[data-key="ZRX-USD-pnl-sparkline"]',
     elementLocator2: ".sc-17stuub-0.sc-17stuub-1.eqFWVL.hsAYsL.sc-3i56se-5.hcfdxE",
     clickBeforeCheck: true,
   },
