@@ -9,7 +9,7 @@ test.use({ seedPhraseEnvKey: "SEED_PHRASE_MEGAVAULT" });
 
 test.describe("Megavault flows", () => {
   // Set higher timeout for these long-running transactions
-  test.describe.configure({ retries: 0, timeout: 30000 });
+  test.describe.configure({ retries: 1, timeout: 300000 });
   
   test("megavault deposit and withdraw cycle", async ({ metamaskContext, page, eyes }) => {
     try {
