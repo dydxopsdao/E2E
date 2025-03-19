@@ -5,6 +5,7 @@ import { CompositeClient, LocalWallet } from '@dydxprotocol/v4-client-js';
 import { createDydxApiClient } from '@interactions/dydx/trade/api/client';
 import { OrderManager } from '@interactions/dydx/trade/api/order-manager';
 import { DydxTradeHelper, createDydxTradeHelper } from '../helpers/dydx-trade-helpers';
+import { logger } from '@utils/logger/logging-utils';
 
 // Define the fixtures
 type DydxApiFixtures = {
@@ -32,7 +33,9 @@ export async function createDydxFixtures(credentialsType = 'default') {
     mnemonic, 
     address
   };
-
+  logger.step("-----------CONFIG FOR API TRADING-----------");
+  logger.info(`Config: ${JSON.stringify(config)}`);
+  logger.step("--------------------------------------------");
   // Validate configuration first
   validateConfig(config);
 

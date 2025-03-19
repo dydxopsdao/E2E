@@ -48,7 +48,7 @@ test.use({
 }); */
 
 test.describe("Cancel order flows", () => {
-  test.skip("Cancel orders via UI", async ({ page, metamaskContext, dydxTradeHelper }) => {
+  test("Cancel orders via UI", async ({ page, metamaskContext, dydxTradeHelper }) => {
     let firstOrderId = '';
     let firstOrderHash = '';
     
