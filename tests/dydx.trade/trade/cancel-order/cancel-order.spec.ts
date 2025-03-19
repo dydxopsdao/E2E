@@ -33,19 +33,6 @@ test.use({
   ]
 });
 
-/* test.beforeAll(async ({ dydxTradeHelper }) => {
-  // Verify environment variables are loaded
-  const cancelOrderMnemonic = process.env.DYDX_MNEMONIC_CANCEL_ORDER;
-  const cancelOrderAddress = process.env.DYDX_ADDRESS_CANCEL_ORDER;
-  
-  if (!cancelOrderMnemonic || !cancelOrderAddress) {
-    console.warn('Cancel order credentials not found!');
-    console.log(`DYDX_MNEMONIC_CANCEL_ORDER: ${cancelOrderMnemonic ? 'Found' : 'Missing'}`);
-    console.log(`DYDX_ADDRESS_CANCEL_ORDER: ${cancelOrderAddress ? 'Found' : 'Missing'}`);
-  } else {
-    console.log('Cancel order credentials found successfully');
-  }  
-}); */
 
 test.describe("Cancel order flows", () => {
   test("Cancel orders via UI", async ({ page, metamaskContext, dydxTradeHelper }) => {
@@ -96,7 +83,6 @@ test.describe("Cancel order flows", () => {
       }
       
       logger.info(`Order ${firstOrderId} confirmed as OPEN in the API`);
-      await page.pause();
     } catch (error) {
       logger.error("Failed to place first order", error as Error);
       throw error;

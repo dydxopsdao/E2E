@@ -196,7 +196,7 @@ export async function openDydxConnectMetaMask(
     await page.locator(".sc-1awgn7r-0.klQslm").waitFor({ state: "visible", timeout: TEST_TIMEOUTS.DEPOSIT_SUCCESS });
     await page.bringToFront();
     try {
-      await page.click(NotificationSelectors.withdrawalMessage);
+      await page.click(NotificationSelectors.withdrawalMessage, { timeout: TEST_TIMEOUTS.DEFAULT });
     } catch (error) {
     }
     return page;

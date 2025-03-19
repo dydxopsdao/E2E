@@ -48,7 +48,7 @@ export class DydxTradeHelper {
       timeInForce = OrderTimeInForce.GTT,
       reduceOnly = false,
       postOnly = true,
-      clientId,
+      clientId = Math.floor(Math.random() * 900000) + 100000, // Generate if not provided
       goodTilTimeInSeconds,
     } = options;
 
@@ -67,7 +67,37 @@ export class DydxTradeHelper {
       goodTilTimeInSeconds,
     };
 
-    return this.orderManager.placeOrder(subaccountNumber, orderParams);
+    try {
+      // Try to place the order normally
+      return await this.orderManager.placeOrder(subaccountNumber, orderParams);
+    } catch (error: unknown) {
+      // Check if this is a blockchain timeout error but the transaction was sent
+      if (typeof error === 'object' && error !== null && 'message' in error &&
+          typeof error.message === 'string' &&
+          error.message.includes('timed out after 8 seconds') &&
+          error.message.includes('was submitted')) {
+
+        // Extract hash from error message if possible
+        const hashMatch = error.message.match(/hash \[(.*?)\]/);
+        const hash = hashMatch ? hashMatch[1] : 'unknown';
+        
+        logger.info(`Transaction submitted but timed out waiting for confirmation. Hash: ${hash}`);
+        logger.info(`Continuing anyway as the order was submitted to the blockchain`);
+        
+        // Create a synthetic response object
+        return {
+          id: clientId.toString(),
+          status: "PENDING",
+          market: market,
+          hash: hash,
+          fromTimeout: true
+        };
+      }
+      
+      // If it's not a timeout error, rethrow it
+      logger.error(`Failed to place order: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
+    }
   }
 
   /**
@@ -91,7 +121,7 @@ export class DydxTradeHelper {
     const {
       subaccountNumber = DEFAULT_SUBACCOUNT,
       reduceOnly = false,
-      clientId,
+      clientId = Math.floor(Math.random() * 900000) + 100000, // Generate if not provided
     } = options;
 
     logger.step(`Placing ${side} market order for ${size} ${market}`);
@@ -108,7 +138,35 @@ export class DydxTradeHelper {
       goodTilTimeInSeconds: 3000,
     };
 
-    return this.orderManager.placeOrder(subaccountNumber, orderParams);
+    try {
+      // Try to place the order normally
+      return await this.orderManager.placeOrder(subaccountNumber, orderParams);
+    } catch (error: unknown) {
+      // Check if this is a blockchain timeout error but the transaction was sent
+      if (error instanceof Error && 
+          error.message.includes('timed out after 8 seconds') && 
+          error.message.includes('was submitted')) {
+        // Extract hash from error message if possible
+        const hashMatch = error.message.match(/hash \[(.*?)\]/);
+        const hash = hashMatch ? hashMatch[1] : 'unknown';
+        
+        logger.info(`Transaction submitted but timed out waiting for confirmation. Hash: ${hash}`);
+        logger.info(`Continuing anyway as the order was submitted to the blockchain`);
+        
+        // Create a synthetic response object
+        return {
+          id: clientId.toString(),
+          status: "PENDING",
+          market: market,
+          hash: hash,
+          fromTimeout: true
+        };
+      }
+      
+      // If it's not a timeout error, rethrow it
+      logger.error(`Failed to place order: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
+    }
   }
 
   /**
@@ -764,7 +822,6 @@ export async function closePositions(
     
     if (positions && positions.length > 0) {
       let allPositionsClosed = true;
-      logger.info(`${logPrefix}Found ${positions.length} positions to close`);
       
       for (const position of positions) {
         if (position.size === "0" || parseFloat(position.size) === 0) {
