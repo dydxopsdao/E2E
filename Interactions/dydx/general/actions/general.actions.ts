@@ -73,7 +73,6 @@ export async function removeLongLivedWarning(page: Page, timeout: number = TEST_
       
       // Add a small delay to allow any animations to complete
       await page.waitForTimeout(500);
-      await page.pause()
     } catch (error) {
     logger.warn(`Failed to click element '#DN70' in iframe: ${error}`);
   }

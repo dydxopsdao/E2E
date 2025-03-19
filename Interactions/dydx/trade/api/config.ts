@@ -16,15 +16,15 @@ export const DYDX_CONFIG = {
 };
 
 // Validate configuration
-export function validateConfig() {
+export function validateConfig(config = DYDX_CONFIG) {
   logger.info('Validating dYdX configuration');
   
-  if (!DYDX_CONFIG.mnemonic) {
+  if (!config.mnemonic) {
     logger.error('DYDX_MNEMONIC environment variable is required');
     throw new Error('DYDX_MNEMONIC environment variable is required');
   }
   
-  if (!DYDX_CONFIG.address) {
+  if (!config.address) {
     logger.error('DYDX_ADDRESS environment variable is required');
     throw new Error('DYDX_ADDRESS environment variable is required');
   }

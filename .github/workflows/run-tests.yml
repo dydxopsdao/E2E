@@ -35,7 +35,10 @@ jobs:
       DYDX_NETWORK_TYPE: mainnet
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-
+      DYDX_MNEMONIC_CANCEL_ORDER: ${{ secrets.DYDX_MNEMONIC_CANCEL_ORDER }}
+      DYDX_ADDRESS_CANCEL_ORDER: ${{ secrets.DYDX_ADDRESS_CANCEL_ORDER }}
+      SEED_PHRASE_CANCEL_ORDER: ${{ secrets.SEED_PHRASE_CANCEL_ORDER }}
+      SEED_PHRASE_MEGAVAULT: ${{ secrets.SEED_PHRASE_MEGAVAULT }}
     outputs:
       slack_ts: ${{ steps.slack-notify.outputs.slack_ts }}
       needs_review: ${{ steps.check-batch.outputs.needsReview }}

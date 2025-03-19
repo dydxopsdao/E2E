@@ -112,7 +112,6 @@ export async function   confirmMetaMaskAction(
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       if (await confirmButton.count() > 0 && await confirmButton.isVisible()) {
         await metaMaskPage.waitForTimeout(300);
-        await metaMaskPage.pause()
         await confirmButton.click();
         logger.success(`MetaMask action confirmed on attempt ${attempt + 1}`);
         return;
@@ -173,7 +172,6 @@ export async function openDydxConnectMetaMask(
     // Bring main page to front and send the request
     await page.bringToFront();
     await sendRequest(page);
-    await page.pause()
     await confirmMetaMaskAction(
       context,
       password,

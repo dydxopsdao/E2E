@@ -13,14 +13,31 @@ type DydxApiFixtures = {
   dydxOrderManager: OrderManager;
   dydxWebSocketManager: WebSocketManager;
   dydxTradeHelper: DydxTradeHelper;
+  dydxCredentialsType: string; 
 };
 
-export async function createDydxFixtures() {
+export async function createDydxFixtures(credentialsType = 'default') {
+  // Determine which credentials to use
+  let mnemonic = process.env.DYDX_MNEMONIC || '';
+  let address = process.env.DYDX_ADDRESS || '';
+  
+  if (credentialsType === 'cancel-order') {
+    mnemonic = process.env.DYDX_MNEMONIC_CANCEL_ORDER || process.env.DYDX_MNEMONIC || '';
+    address = process.env.DYDX_ADDRESS_CANCEL_ORDER || process.env.DYDX_ADDRESS || '';
+  }
+
+  // Create a config object with the selected credentials
+  const config = {
+    ...DYDX_CONFIG,
+    mnemonic, 
+    address
+  };
+
   // Validate configuration first
-  validateConfig();
+  validateConfig(config);
 
   // Create the API client and extract the required parts
-  const apiClient = await createDydxApiClient(DYDX_CONFIG);
+  const apiClient = await createDydxApiClient(config);
   const client = await apiClient.getClient();
   const wallet = await apiClient.getWallet();
   const orderManager = new OrderManager(client, wallet);
@@ -38,52 +55,32 @@ export async function createDydxFixtures() {
 
 // Create the fixture extension
 export const dydxApiTest = base.extend<DydxApiFixtures>({
-  dydxClient: async ({}, use) => {
-    // Validate configuration
-    validateConfig();
-    
-    // Create API client
-    const apiClient = await createDydxApiClient(DYDX_CONFIG);
-    const client = await apiClient.getClient();
-    
-    // Use the client in the test
-    await use(client);
+  dydxCredentialsType: ['default', { option: true }],
+  
+  dydxClient: async ({ dydxCredentialsType }, use) => {
+    const fixtures = await createDydxFixtures(dydxCredentialsType);
+    await use(fixtures.dydxClient);
   },
   
-  dydxWallet: async ({}, use) => {
-    // Create API client and get wallet
-    const apiClient = await createDydxApiClient(DYDX_CONFIG);
-    const wallet = await apiClient.getWallet();
-    
-    // Use the wallet in the test
-    await use(wallet);
+  dydxWallet: async ({ dydxCredentialsType }, use) => {
+    const fixtures = await createDydxFixtures(dydxCredentialsType);
+    await use(fixtures.dydxWallet);
   },
   
-  dydxOrderManager: async ({ dydxClient, dydxWallet }, use) => {
-    // Create order manager with both client and wallet
-    const orderManager = new OrderManager(dydxClient, dydxWallet);
-    
-    // Use the order manager in the test
-    await use(orderManager);
+  dydxOrderManager: async ({ dydxCredentialsType }, use) => {
+    const fixtures = await createDydxFixtures(dydxCredentialsType);
+    await use(fixtures.dydxOrderManager);
   },
   
-  dydxWebSocketManager: async ({ dydxClient }, use) => {
-    // Create websocket manager
-    const webSocketManager = new WebSocketManager(dydxClient.indexerClient);
-    
-    // Use the websocket manager in the test
-    await use(webSocketManager);
-    
-    // Clean up
-    await webSocketManager.disconnect();
+  dydxWebSocketManager: async ({ dydxCredentialsType }, use) => {
+    const fixtures = await createDydxFixtures(dydxCredentialsType);
+    await use(fixtures.dydxWebSocketManager);
+    await fixtures.dydxWebSocketManager.disconnect();
   },
   
-  dydxTradeHelper: async ({ dydxOrderManager }, use) => {
-    // Create trade helper
-    const tradeHelper = createDydxTradeHelper(dydxOrderManager);
-    
-    // Use the trade helper in the test
-    await use(tradeHelper);
+  dydxTradeHelper: async ({ dydxCredentialsType }, use) => {
+    const fixtures = await createDydxFixtures(dydxCredentialsType);
+    await use(fixtures.dydxTradeHelper);
   },
 });
 
