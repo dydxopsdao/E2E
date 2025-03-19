@@ -4,9 +4,12 @@ import { navigateToViaHeader } from "@interactions/dydx/general/actions/navigati
 import { vaultTransaction } from "@interactions/dydx/megavault/actions/megavault.actions";
 import { logger } from "@utils/logger/logging-utils";
 
+// Override the default seed phrase for all tests in this file
+test.use({ seedPhraseEnvKey: "SEED_PHRASE_MEGAVAULT" });
+
 test.describe("Megavault flows", () => {
   // Set higher timeout for these long-running transactions
-  test.describe.configure({ retries: 1, timeout: 300000 });
+  test.describe.configure({ retries: 0, timeout: 30000 });
   
   test("megavault deposit and withdraw cycle", async ({ metamaskContext, page, eyes }) => {
     try {

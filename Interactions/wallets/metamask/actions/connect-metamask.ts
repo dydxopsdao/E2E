@@ -12,7 +12,6 @@ import { WALLET_CONSTANTS } from "@constants/wallet.constants";
 import { getMetaMaskPage } from "@wallets/metamask/actions/open-metamask";
 import { NotificationSelectors } from "@interactions/dydx/notifications/selectors/notification-selectors";
 import { waitForAnimations } from "@interactions/dydx/general/actions/general.actions";
-import { GeneralSelectors } from "@interactions/dydx/general/selectors/general.selectors";
 
 export interface ConnectMetaMaskOptions {
   timeout?: number;
@@ -82,7 +81,7 @@ export async function handlePasswordPrompt(page: Page): Promise<void> {
 /**
  * Helper function to perform MetaMask confirmation steps.
  */
-export async function confirmMetaMaskAction(
+export async function   confirmMetaMaskAction(
   context: BrowserContext,
   password: string,
   timeout: number = TEST_TIMEOUTS.ACTION,
@@ -113,6 +112,7 @@ export async function confirmMetaMaskAction(
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       if (await confirmButton.count() > 0 && await confirmButton.isVisible()) {
         await metaMaskPage.waitForTimeout(300);
+        await metaMaskPage.pause()
         await confirmButton.click();
         logger.success(`MetaMask action confirmed on attempt ${attempt + 1}`);
         return;
@@ -162,7 +162,6 @@ export async function openDydxConnectMetaMask(
     // Trigger wallet connection modal and select MetaMask
     await triggerWalletConnectionModal(page);
     await selectWallet(page, WALLET_CONSTANTS.SUPPORTED_WALLETS[0]); // MetaMask
-
     // Perform first MetaMask confirmation with faster detection
     await confirmMetaMaskAction(
       context,
@@ -174,7 +173,7 @@ export async function openDydxConnectMetaMask(
     // Bring main page to front and send the request
     await page.bringToFront();
     await sendRequest(page);
-
+    await page.pause()
     await confirmMetaMaskAction(
       context,
       password,
@@ -196,7 +195,7 @@ export async function openDydxConnectMetaMask(
     logger.success("MetaMask connection steps completed successfully", {
       url: page.url(),
     });
-    await page.getByText("dydx1x5m...nsyl").waitFor({ state: "visible", timeout: TEST_TIMEOUTS.DEPOSIT_SUCCESS });
+    await page.locator(".sc-1awgn7r-0.klQslm").waitFor({ state: "visible", timeout: TEST_TIMEOUTS.DEPOSIT_SUCCESS });
     await page.bringToFront();
     try {
       await page.click(NotificationSelectors.withdrawalMessage);

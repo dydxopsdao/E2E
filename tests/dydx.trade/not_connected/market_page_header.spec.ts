@@ -1,3 +1,4 @@
+import { TEST_TIMEOUTS } from "@constants/test.constants";
 import { eyesTest as test } from "@fixtures/eyesFixture";
 import { navigateToDydxPage } from "@interactions/dydx/general/actions/navigation.actions";
 import { MarketPageSelectors } from "@interactions/dydx/market-page/selectors/market-page.selectors";

@@ -10,14 +10,15 @@ import { logger } from "@utils/logger/logging-utils";
 type MyFixtures = {
   metamaskContext: BrowserContext;
   page: Page;
-  seedPhraseEnvKey?: string;
+  seedPhraseEnvKey: string;
 };
 
 export const metamaskTest = base.extend<MyFixtures>({
+  // Default to SEED_PHRASE, but allow tests to override
   seedPhraseEnvKey: ["SEED_PHRASE", { option: true }],
 
   metamaskContext: async (
-    { browser, seedPhraseEnvKey }: { browser: any; seedPhraseEnvKey?: string },
+    { browser, seedPhraseEnvKey }: { browser: any; seedPhraseEnvKey: string },
     use
   ) => {
     // 1. Launch browser context with MetaMask extension
@@ -37,15 +38,11 @@ export const metamaskTest = base.extend<MyFixtures>({
       page.url().startsWith("chrome-extension://")
     );
 
-    // Do NOT close the default page here.
-    // By leaving the default (usually "about:blank") page open,
-    // we ensure that a non-extension page is available for our tests.
-
-    // 4. Import wallet
-    const seedPhrase =
-      (seedPhraseEnvKey ? process.env[seedPhraseEnvKey] : undefined) ||
-      process.env.SEED_PHRASE ||
-      "test test test ...";
+    // 4. Import wallet using the specified environment variable
+    logger.info(`Using seed phrase from environment variable: ${seedPhraseEnvKey}`);
+    const seedPhrase = process.env[seedPhraseEnvKey] || 
+                        process.env.SEED_PHRASE || 
+                        "test test test ...";
     const password = process.env.METAMASK_PASSWORD || "test-password";
 
     await importWallet(metamaskPage, { seedPhrase, password });

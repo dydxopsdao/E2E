@@ -42,7 +42,7 @@ export async function instantDeposit(
     logger.debug("Clicking the Deposit button");
     await page.click(DepositsSelectors.depositButton);
 
-    await maybeVisualCheck(eyes, performEyesCheck, "Deposit - Start", page);
+    await maybeVisualCheck(eyes, performEyesCheck, "Deposit - Start");
 
     // Fill in the deposit amount
     logger.debug(`Filling deposit amount: ${amount}`);
