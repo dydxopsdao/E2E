@@ -53,7 +53,7 @@ test.describe("Cancel order flows", () => {
           timeInForce: OrderTimeInForce.GTT,
           goodTilTimeInSeconds: 3600, // 1 hour
           postOnly: true,
-          clientId: Math.floor(Math.random() * 900000) + 100000 // 6-digit number
+          //clientId: Math.floor(Math.random() * 900000) + 100000 // 6-digit number
         }
       );
       

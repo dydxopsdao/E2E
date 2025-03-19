@@ -83,7 +83,7 @@ export class DydxTradeHelper {
         
         logger.info(`Transaction submitted but timed out waiting for confirmation. Hash: ${hash}`);
         logger.info(`Continuing anyway as the order was submitted to the blockchain`);
-        
+        await waitForTimeout(10000);
         // Create a synthetic response object
         return {
           id: clientId.toString(),

@@ -89,7 +89,7 @@ export class OrderManager {
       });
 
       // Wait for order to be indexed
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      await new Promise((resolve) => setTimeout(resolve, 10000));
 
       // Return order response with ID and market
       return {
