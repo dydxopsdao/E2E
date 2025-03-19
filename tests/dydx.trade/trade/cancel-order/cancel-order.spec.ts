@@ -23,12 +23,29 @@ import { createDydxFixtures } from "@fixtures/dydxClientFixture";
 // Set up the necessary credentials for this test file
 test.use({ 
   seedPhraseEnvKey: "SEED_PHRASE_CANCEL_ORDER",
-  _dydxFixturesWorker: async ({}, use) => {
-    const fixtures = await createDydxFixtures("cancel-order");
-    await use(fixtures);
-    await fixtures.dydxWebSocketManager.disconnect();
-  }
+  _dydxFixturesWorker: [
+    async ({}, use) => {
+      const fixtures = await createDydxFixtures('cancel-order');
+      await use(fixtures);
+      await fixtures.dydxWebSocketManager.disconnect();
+    },
+    { scope: "worker" }
+  ]
 });
+
+/* test.beforeAll(async ({ dydxTradeHelper }) => {
+  // Verify environment variables are loaded
+  const cancelOrderMnemonic = process.env.DYDX_MNEMONIC_CANCEL_ORDER;
+  const cancelOrderAddress = process.env.DYDX_ADDRESS_CANCEL_ORDER;
+  
+  if (!cancelOrderMnemonic || !cancelOrderAddress) {
+    console.warn('Cancel order credentials not found!');
+    console.log(`DYDX_MNEMONIC_CANCEL_ORDER: ${cancelOrderMnemonic ? 'Found' : 'Missing'}`);
+    console.log(`DYDX_ADDRESS_CANCEL_ORDER: ${cancelOrderAddress ? 'Found' : 'Missing'}`);
+  } else {
+    console.log('Cancel order credentials found successfully');
+  }  
+}); */
 
 test.describe("Cancel order flows", () => {
   test("Cancel orders via UI", async ({ page, metamaskContext, dydxTradeHelper }) => {
@@ -79,6 +96,7 @@ test.describe("Cancel order flows", () => {
       }
       
       logger.info(`Order ${firstOrderId} confirmed as OPEN in the API`);
+      await page.pause();
     } catch (error) {
       logger.error("Failed to place first order", error as Error);
       throw error;
@@ -122,7 +140,6 @@ test.describe("Cancel order flows", () => {
         
         // Find our order in the table
         logger.step("Finding and canceling the order through the UI");
-        
         // Verify order is visible in the table - updated to match actual UI values
         const orderRow = page
           .locator(OrdersTableSelectors.orderRow)
