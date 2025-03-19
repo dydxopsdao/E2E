@@ -753,7 +753,7 @@ export async function closePositions(
   dydxTradeHelper: DydxTradeHelper, 
   market: string, 
   logPrefix: string = ""
-): Promise<void> {
+): Promise<boolean> {
   try {
     // Cancel any open orders first
     await dydxTradeHelper.cancelAllOrders();
@@ -763,15 +763,21 @@ export async function closePositions(
     const positions = await dydxTradeHelper.getPositions({ market });
     
     if (positions && positions.length > 0) {
+      let allPositionsClosed = true;
       logger.info(`${logPrefix}Found ${positions.length} positions to close`);
       
       for (const position of positions) {
         if (position.size === "0" || parseFloat(position.size) === 0) {
-          logger.info(`${logPrefix}Position for ${position.market} has zero size, skipping`);
           continue;
         }
         
-        logger.info(`${logPrefix}Closing position for ${position.market} with size ${position.size}`);
+        // Define precision for this market
+        const stepSize = market.includes('BTC') ? 0.0001 : 0.01;
+        const sizeFloat = Math.abs(parseFloat(position.size));
+        // Ensure we're using correct precision
+        const size = Math.floor(sizeFloat / stepSize) * stepSize;
+        
+        logger.info(`${logPrefix}Attempting to close position for ${position.market}: ${size} (original: ${position.size})`);
         
         // Determine the closing side (opposite of position side)
         const side = position.side === 'LONG' ? OrderSide.SELL : OrderSide.BUY;
@@ -780,18 +786,58 @@ export async function closePositions(
         await dydxTradeHelper.placeMarketOrder(
           position.market,
           side,
-          Math.abs(parseFloat(position.size)),
+          size,
           { reduceOnly: true }
         );
         
-        logger.success(`${logPrefix}Position for ${position.market} closed successfully`);
+        // Verify position is actually closed with retries
+        let isPositionClosed = false;
+        for (let attempt = 1; attempt <= 5; attempt++) {
+          // Wait for order to be processed
+          await new Promise(resolve => setTimeout(resolve, 3000 * attempt));
+          
+          // Re-check position
+          const updatedPositions = await dydxTradeHelper.getPositions({ market: position.market });
+          const matchingPosition = updatedPositions.find(p => p.market === position.market);
+          
+          if (!matchingPosition || parseFloat(matchingPosition.size) === 0) {
+            logger.success(`${logPrefix}Position for ${position.market} closed successfully (verified)`);
+            isPositionClosed = true;
+            break;
+          }
+          
+          logger.warning(`${logPrefix}Position still open after attempt ${attempt}: ${matchingPosition?.size || 'unknown'}`);
+          
+          // If last attempt and position still open, try one more time with slightly larger size
+          if (attempt === 5 && !isPositionClosed) {
+            const remainingSize = parseFloat(matchingPosition.size);
+            if (Math.abs(remainingSize) > 0.00001) {
+              logger.info(`${logPrefix}Final attempt with adjusted size: ${Math.abs(remainingSize) * 1.01}`);
+              await dydxTradeHelper.placeMarketOrder(
+                position.market,
+                side,
+                Math.abs(remainingSize) * 1.01, // Slightly more to ensure full close
+                { reduceOnly: true }
+              );
+              await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+          }
+        }
+        
+        if (!isPositionClosed) {
+          logger.error(`${logPrefix}Failed to fully close position after multiple attempts`);
+          allPositionsClosed = false;
+        }
       }
+      
+      return allPositionsClosed;
     } else {
       logger.info(`${logPrefix}No open positions found for ${market}`);
+      return true;
     }
   } catch (error) {
-    logger.warning(`${logPrefix}Failed to close positions`, { error: (error as Error).message });
-    // Don't throw the error, as this is cleanup logic
+    logger.error(`${logPrefix}Failed to close positions`, error as Error);
+    return false; // Return false to indicate failure
   }
 }
 
