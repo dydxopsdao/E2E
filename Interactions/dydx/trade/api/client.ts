@@ -16,6 +16,7 @@ export interface DydxClientConfig {
   networkType: 'testnet' | 'mainnet';
   mnemonic: string;
   address?: string;
+  transactionTimeoutMs?: 30000;
 }
 
 export class DydxApiClient {
