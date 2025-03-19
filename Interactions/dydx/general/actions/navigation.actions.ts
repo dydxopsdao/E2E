@@ -1,5 +1,6 @@
 import { Page } from "@playwright/test";
 import { logger } from "@utils/logger/logging-utils";
+import { removeLongLivedWarning } from "./general.actions";
 
 export async function navigateToDydxPage(
   page: Page,
@@ -57,6 +58,7 @@ export async function navigateToDydxPage(
       }
       
       logger.success(`Navigated to dYdX page: ${url}${attempt > 1 ? ` on attempt ${attempt}` : ''}`);
+      await removeLongLivedWarning(page);
       return; // Success - exit the function
       
     } catch (error) {

@@ -415,7 +415,7 @@ export async function vaultTransaction(
   }
 
   // 4) Optional visual check of initial state
-  await maybeVisualCheck(eyes, performEyesCheck, "Initial Vault State", page);
+  await maybeVisualCheck(eyes, performEyesCheck, "Initial Vault State");
 
   // 5) Enter the absolute amount
   await enterAmount(page, displayAmount);
@@ -424,8 +424,7 @@ export async function vaultTransaction(
   await maybeVisualCheck(
     eyes,
     performEyesCheck,
-    "Pre-Confirmation State",
-    page
+    "Pre-Confirmation State"
   );
 
   // 7) Complete deposit or withdraw flow

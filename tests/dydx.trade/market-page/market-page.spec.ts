@@ -56,8 +56,7 @@ test("eth-usd market page connected landing page", async ({ metamaskContext, eye
     await visualCheck(eyes, {
       name: "eth-usd market page connected landing page",
       matchLevel: "Layout",
-      useDom: false,
-      page
+      useDom: false
     });
     
   } catch (error) {

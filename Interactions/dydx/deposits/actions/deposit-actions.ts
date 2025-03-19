@@ -51,8 +51,7 @@ export async function instantDeposit(
     await maybeVisualCheck(
       eyes,
       performEyesCheck,
-      "Instant Deposit - Entered amount",
-      page
+      "Instant Deposit - Entered amount"
     );
 
     // Select the asset from the dropdown
@@ -96,8 +95,7 @@ export async function instantDeposit(
     await maybeVisualCheck(
       eyes,
       performEyesCheck,
-      "Deposit - Success",
-      page
+      "Deposit - Success"
     );
 
     // Close the Instant Deposits modal

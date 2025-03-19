@@ -97,8 +97,7 @@ test(`Visual check for all not-connected pages`, async ({ page, eyes }) => {
       // If disableDom is true, disable DOM usage for Applitools
       await visualCheck(eyes, { 
         name,
-        useDom: useDom ? true : false,
-        page
+        useDom: useDom ? true : false
       });
       
       logger.success(`Completed visual check for ${name}`);

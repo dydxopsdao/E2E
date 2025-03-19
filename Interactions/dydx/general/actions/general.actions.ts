@@ -54,3 +54,27 @@ export async function waitForAnimations(page: Page, timeout: number) {
     );
   }
 }
+
+export async function removeLongLivedWarning(page: Page, timeout: number = TEST_TIMEOUTS.ELEMENT) {
+  // Click the element if page is provided and clickSelector is not false
+    try {
+      // Find the iframe with the title "dYdX Chain Status"
+      const iframe = page.frameLocator('iframe[title="dYdX Chain Status"]');
+      
+      // Log that we're switching to the iframe
+      logger.info(`Switching to iframe with title "dYdX Chain Status" before clicking element`);
+      
+      // Use the iframe locator to click the element inside the iframe
+      const selectorToClick = '#DN70';
+      logger.info(`Clicking element ${selectorToClick} within iframe`);
+      
+      // Click the element inside the iframe
+      await iframe.locator(selectorToClick).click({ force: true });
+      
+      // Add a small delay to allow any animations to complete
+      await page.waitForTimeout(500);
+    } catch (error) {
+    logger.warn(`Failed to click element '#DN70' in iframe: ${error}`);
+  }
+}
+
