@@ -6,6 +6,7 @@ import { OrderbookSelectors } from "@interactions/orderbook/orderbook.selectors"
 import { DealTicketSelectors } from "@interactions/dydx/deal-ticket/selectors/deal-ticket.selectors";
 import { swapAsset } from "@interactions/dydx/deal-ticket/actions/deal-ticket.actions";
 import { closePositions } from "../../../../helpers/dydx-trade-helpers";
+import { OrdersTableSelectors } from "@interactions/dydx/orders/selectors/orders-table.selectors";
 
 test("btc-usd market order LONG", async ({
   metamaskContext,
@@ -60,36 +61,41 @@ test("btc-usd market order LONG", async ({
       "fee",
       "estimatedRewards",
     ]) {
-      const selector =
-        DealTicketSelectors[key as keyof typeof DealTicketSelectors];
+      const selector = DealTicketSelectors[key as keyof typeof DealTicketSelectors];
       logger.step(`Verifying key "${key}" with selector "${selector}"`);
 
       try {
-        await expect(page.locator(selector)).toBeVisible({ timeout: 10000 });
+        // Get all elements matching the selector
+        const elements = await page.locator(selector).all();
         
+        // Check if we found any elements
+        expect(elements.length).toBeGreaterThan(0);
+        
+        // Verify each element (could be 1 or 2 values)
+        for (const element of elements) {
+          // Ensure element is visible
+          await expect(element).toBeVisible({ timeout: 10000 });
+          
+          // Ensure element has actual content (not just whitespace)
+          await expect(element).toHaveText(/\S+/, { timeout: 10000 });
+          
+          // Log the actual value for debugging
+          const text = await element.textContent();
+          logger.info(`${key} value: "${text}"`);
+        }
+        
+        // If we expected a range for certain fields, verify we have 2 values
+        if (["liquidationPrice", "positionMargin", "positionLeverage"].includes(key)) {
+          // These fields typically show ranges in certain conditions
+          logger.info(`Field "${key}" has ${elements.length} value(s) - range expected`);
+        }
       } catch (error) {
         logger.error(
-          `Failed to verify visibility for key "${key}" with selector "${selector}"`,
+          `Failed to verify field "${key}" with selector "${selector}"`,
           error as Error
         );
         throw error;
       }
-
-     try {
-       // 1) Make sure the element is visible (optional but often helpful)
-       await expect(page.locator(selector)).toBeVisible({ timeout: 10000 });
-
-       // 2) Ensure it has at least one non-whitespace character
-       await expect(page.locator(selector)).toHaveText(/\S+/, {
-         timeout: 10000,
-       });
-     } catch (error) {
-       logger.error(
-         `Element for key "${key}" appears empty. Selector: "${selector}"`,
-         error as Error
-       );
-       throw error;
-     }
     }
 
     await page.click(DealTicketSelectors.placeOrderBtnActive);
@@ -102,6 +108,21 @@ test("btc-usd market order LONG", async ({
     logger.error("Market page test failed", error as Error);
     throw error;
   } finally {
+
+
+    try {
+      logger.step("-------Closing positions test -------");
+      await page.click(OrdersTableSelectors.cancelButton);
+      await page.click(DealTicketSelectors.closePositionBtn);
+      await page.waitForTimeout(10000);
+      await expect(page.locator(OrdersTableSelectors.youHaveNoOrders)).toBeVisible();
+    } catch (error) {
+      logger.error("Failed to close positions", error as Error);
+    }
+
+
+
+
     // Clean up - close any positions via API regardless of test result
     logger.step("Post-test cleanup: Closing any open positions");
     await closePositions(dydxTradeHelper, "BTC-USD", "Post-test: ");

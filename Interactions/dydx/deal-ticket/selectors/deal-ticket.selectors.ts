@@ -6,6 +6,7 @@ export const DealTicketSelectors = {
     "button.sc-l0nx5c-0.kvCeBH.sc-1xochuw-0.iczSRt.sc-513u37-4.eSofcy",
   placeOrderBtnActive:
     "button.sc-l0nx5c-0.kvCeBH.sc-1xochuw-0.laVUfR.sc-513u37-4.eSofcy",
+  closePositionBtn: ".sc-l0nx5c-0.kvCeBH.sc-1xochuw-0.jbIjRq.sc-513u37-4.eSofcy",
   swapAssetBtn: ".sc-l0nx5c-0.hXySKe.sc-1t8tdl7-0.eyyfia.sc-11am3s5-0.epGjeL",
   assetSelected: ".sc-dshm8q-0.sc-1711qo3-0.eGHGbY.gdNLGA",
 
