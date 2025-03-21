@@ -1,4 +1,4 @@
-import { BrowserContext, Page } from "@playwright/test";
+import { BrowserContext, expect, Page } from "@playwright/test";
 import { logger } from "@utils/logger/logging-utils";
 import { navigateToDydxPage } from "@dydx/general/actions/navigation.actions";
 import {
@@ -158,6 +158,10 @@ export async function openDydxConnectMetaMask(
     });
     //wait for orderbook to be visible
     await waitForAnimations(page, TEST_TIMEOUTS.PAGE_LOAD);
+    if (dydxPage === "/portfolio/overview") {
+      const element = page.locator("text=Connect your wallet to deposit funds & start trading.");
+      await expect(element).toBeVisible({ timeout: TEST_TIMEOUTS.NAVIGATION });
+    }
     // Trigger wallet connection modal and select MetaMask
     await triggerWalletConnectionModal(page);
     await selectWallet(page, WALLET_CONSTANTS.SUPPORTED_WALLETS[0]); // MetaMask
