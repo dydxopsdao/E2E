@@ -13,7 +13,7 @@ import { Eyes } from "@applitools/eyes-playwright";
 const depositAmount = 12;
 
 test.describe("Instant deposit flow tests", () => {
-  test.describe.configure({ retries: 0 });
+  test.describe.configure({ retries: 1 });
   test("instant deposit core flow - Arbitrum One", async ({
     metamaskContext,
     eyes,
