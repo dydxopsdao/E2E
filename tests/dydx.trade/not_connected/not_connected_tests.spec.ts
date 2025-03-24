@@ -86,7 +86,6 @@ async function performVisualCheck({
       // Optionally perform a click action before the visual check.
       if (clickBeforeCheck && name === "Megavault page") {
         try {
-          await page.pause()
           logger.info("Clicking on Market element before visual check");
           const marketElement = currentPage.locator(
             'text=Market >> xpath=//ancestor::div[contains(@class, "sc-1drcdyj-9") and contains(@class, "kFEJXg")]'
