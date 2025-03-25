@@ -837,7 +837,7 @@ export async function closePositions(
           position.market,
           side,
           Math.abs(parseFloat(position.size)),
-          { reduceOnly: true }
+          { reduceOnly: false }
         );
         
         logger.success(`${logPrefix}Position for ${position.market} closed successfully`);
