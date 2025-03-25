@@ -96,6 +96,18 @@ export class DydxTradeHelper {
 
     logger.step(`Placing ${side} market order for ${size} ${market}`);
 
+    // Get current market price
+    const marketPrice = await this.getCurrentMarketPrice(market);
+    if (!marketPrice) {
+      throw new Error(`Failed to get current price for ${market}`);
+    }
+
+    // Adjust price based on order side: BUY 5% higher, SELL 5% lower
+    const adjustmentFactor = side === OrderSide.BUY ? 1.05 : 0.95;
+    const adjustedPrice = (parseFloat(marketPrice) * adjustmentFactor).toString();
+    
+    logger.info(`Market order price: Using ${adjustedPrice} (adjusted from ${marketPrice})`);
+
     const orderParams: OrderParams = {
       market,
       side,
@@ -103,12 +115,56 @@ export class DydxTradeHelper {
       size,
       timeInForce: OrderTimeInForce.IOC, // Market orders use IOC
       reduceOnly,
+      price: adjustedPrice,
       postOnly: false, // Market orders cannot be post-only
       clientId,
       goodTilTimeInSeconds: 3000,
     };
 
     return this.orderManager.placeOrder(subaccountNumber, orderParams);
+  }
+
+  /**
+   * Get the current market price for a trading pair
+   * @param market The market to get the price for (e.g., "BTC-USD")
+   * @returns Promise resolving to the current price as a string, or null if failed
+   */
+  private async getCurrentMarketPrice(market: string): Promise<string | null> {
+    try {
+      logger.info(`Getting current market price for ${market}`);
+      
+      // Get the client's indexer
+      const indexerClient = this.orderManager['client'].indexerClient;
+      
+      // Build API URL for market data
+      const url = `${indexerClient.config.restEndpoint}/v4/perpetualMarkets/?ticker=${market}`;
+      
+      logger.info(`Fetching market price from: ${url}`);
+      
+      // Make the API request
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        logger.warning(`API returned status ${response.status}: ${response.statusText}`);
+        return null;
+      }
+      
+      // Parse the response
+      const data = await response.json();
+      
+      // Extract the price from the correct response structure
+      const marketData = data?.markets?.[market];
+      if (!marketData || !marketData.oraclePrice) {
+        logger.warning(`No price data found for ${market} in response: ${JSON.stringify(data)}`);
+        return null;
+      }
+      
+      logger.success(`Current price for ${market}: ${marketData.oraclePrice}`);
+      return marketData.oraclePrice;
+    } catch (error) {
+      logger.error(`Failed to fetch market price for ${market}`, error as Error);
+      return null;
+    }
   }
 
   /**
