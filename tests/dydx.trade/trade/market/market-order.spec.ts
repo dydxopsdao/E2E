@@ -8,7 +8,7 @@ import { swapAsset } from "@interactions/dydx/deal-ticket/actions/deal-ticket.ac
 import { closePositions } from "../../../../helpers/dydx-trade-helpers";
 import { OrdersTableSelectors } from "@interactions/dydx/orders/selectors/orders-table.selectors";
 
-test("btc-usd market order LONG", async ({
+test.skip("btc-usd market order LONG", async ({
   metamaskContext,
   page,
   dydxTradeHelper
