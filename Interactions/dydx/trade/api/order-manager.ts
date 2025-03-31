@@ -23,6 +23,7 @@ export interface OrderParams {
   clientId?: number;
   execution?: OrderExecution;
   goodTilTimeInSeconds?: number;
+  goodTilBlock?: number;
 }
 
 // Create interface based on actual API response
@@ -59,10 +60,22 @@ export class OrderManager {
       execution = OrderExecution.DEFAULT,
       // For GTT orders, default to 3600 seconds if not provided.
       goodTilTimeInSeconds = timeInForce === OrderTimeInForce.GTT ? 3600 : 0,
+      goodTilBlock = 9999999999999
     } = params;
 
     logger.step(`Placing ${side} ${type} order for ${size} ${market}`);
-
+    logger.info(`market: ${market}`);
+    logger.info(`side: ${side}`);
+    logger.info(`type: ${type}`);
+    logger.info(`size: ${size}`);
+    logger.info(`price: ${price}`);
+    logger.info(`timeInForce: ${timeInForce}`);
+    logger.info(`reduceOnly: ${reduceOnly}`);
+    logger.info(`postOnly: ${postOnly}`);
+    logger.info(`clientId: ${clientId}`);
+    logger.info(`execution: ${execution}`);
+    logger.info(`goodTilTimeInSeconds: ${goodTilTimeInSeconds}`);
+    logger.info(`goodTilBlock: ${goodTilBlock}`);
     try {
       // Create subaccount client
       const subaccount = new SubaccountClient(this.wallet, subaccountNumber);
@@ -80,13 +93,18 @@ export class OrderManager {
         goodTilTimeInSeconds,
         execution,
         postOnly,
-        reduceOnly
+        reduceOnly,
+        goodTilBlock
       );
 
       logger.success(`Order placed successfully`, {
         hash: response.hash,
         orderId: clientId,
       });
+      logger.success(`response: ${JSON.stringify(response, (key, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+      )}`);
+
 
       // Wait for order to be indexed
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -100,6 +118,7 @@ export class OrderManager {
       };
     } catch (error) {
       logger.error(`Failed to place order for ${market}`, error as Error);
+      logger.info(`error: ${error}`);
       throw error;
     }
   }

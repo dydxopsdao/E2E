@@ -17,4 +17,6 @@ export const OrdersTableSelectors = {
   cancelContainer: "div.sc-1drcyj-9.kFEJXg",
   confirmCancelAllButton:
     ".sc-l0nx5c-0.kvCeBH.sc-1xochuw-0.jbIjRq.sc-16lhsa0-0.JlMLV",
+  closePositionBtn:
+    "button.sc-l0nx5c-0.hXySKe.sc-1t8tdl7-0.eyyfia.sc-mg0yzv-1.fzUhGf.sc-17ff0o-3.hajyyJ",
 }; 

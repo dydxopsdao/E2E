@@ -8,7 +8,7 @@ import { swapAsset } from "@interactions/dydx/deal-ticket/actions/deal-ticket.ac
 import { closePositions } from "../../../../helpers/dydx-trade-helpers";
 import { OrdersTableSelectors } from "@interactions/dydx/orders/selectors/orders-table.selectors";
 
-test.skip("btc-usd market order LONG", async ({
+test("btc-usd market order LONG", async ({
   metamaskContext,
   page,
   dydxTradeHelper
@@ -110,9 +110,9 @@ test.skip("btc-usd market order LONG", async ({
   } finally {
 
 
-    try {
+   try {
       logger.step("-------Closing positions test -------");
-      await page.click(OrdersTableSelectors.cancelButton);
+      await page.click(OrdersTableSelectors.closePositionBtn);
       await page.click(DealTicketSelectors.closePositionBtn);
       await page.waitForTimeout(10000);
       await expect(page.locator(OrdersTableSelectors.youHaveNoOrders)).toBeVisible();
