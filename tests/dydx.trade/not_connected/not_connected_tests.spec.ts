@@ -124,6 +124,13 @@ async function performVisualCheck({
       }
 
       
+      try{ await page.hover(".sc-6q7ny7-4.bQbFa-d");}
+      catch(error){
+        logger.warning(`Hover action failed for ${name}: ${(error as Error).message}. Proceeding.`);
+      }
+
+
+
 
       // Perform the visual check.
       await visualCheck(eyes, { name, useDom: Boolean(useDom) });
