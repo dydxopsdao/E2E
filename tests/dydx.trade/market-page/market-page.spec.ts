@@ -52,6 +52,11 @@ test("eth-usd market page connected landing page", async ({ metamaskContext, eye
     // Add a small wait to ensure page is fully loaded
     await page.waitForTimeout(2000);
     
+    try{ await page.hover(".sc-6q7ny7-4.bQbFa-d");}
+      catch(error){
+        logger.warning(`Hover action failed for ${name}: ${(error as Error).message}. Proceeding.`);
+      }
+      
     // Act - perform visual check only once
     await visualCheck(eyes, {
       name: "eth-usd market page connected landing page",
