@@ -2,6 +2,7 @@ import { completeCombinedTest as test } from "@fixtures/completeCombinedFixture"
 import { openDydxConnectMetaMask } from "@wallets/metamask/actions/connect-metamask";
 import { logger } from "@utils/logger/logging-utils";
 import { visualCheck } from "@utils/visual-check";
+import { expect } from "@playwright/test";
 
 test("eth-usd market page connected landing page", async ({ metamaskContext, eyes, page, dydxTradeHelper }) => {
   try {
@@ -27,7 +28,11 @@ test("eth-usd market page connected landing page", async ({ metamaskContext, eye
     
     while (Date.now() - startTime < pollTimeout && !foundElements) {
       try {
-        const topLayoutElements = await page.locator('.layout__area--top .value-gwXludjS').all();
+        await page.waitForSelector('#tv-price-chart iframe', { state: 'attached' });
+
+    // Create a FrameLocator pointing at that iframe
+        const chartFrame = page.frameLocator('#tv-price-chart iframe');
+        const topLayoutElements = await chartFrame.locator('.layout__area--top .value-gwXludjS').all();
         logger.info(`Found ${topLayoutElements.length} elements in top layout area (expecting 3)`);
         
         if (topLayoutElements.length === 3) {
@@ -56,13 +61,25 @@ test("eth-usd market page connected landing page", async ({ metamaskContext, eye
       catch(error){
         logger.warning(`Hover action failed for ${name}: ${(error as Error).message}. Proceeding.`);
       }
-      
+    await page.waitForSelector('#tv-price-chart iframe', { state: 'attached' });
+
+    // Create a FrameLocator pointing at that iframe
+    const chartFrame = page.frameLocator('#tv-price-chart iframe');
+
+    // Now assert that the canvas inside the frame is attached
+    await expect(
+      chartFrame.locator('canvas[aria-label^="Chart for"]')
+    ).toBeAttached({ timeout: 30_000 });
+    await expect(page.locator(".sc-1ihv8zl-9.fa-djxL")).toBeAttached();
+    await expect(page.locator(".sc-1ea9mg3-0.sc-1ihv8zl-6.ZlGxv.RTcMI").first()).toBeAttached();
     // Act - perform visual check only once
     await visualCheck(eyes, {
       name: "eth-usd market page connected landing page",
       matchLevel: "Layout",
       useDom: false
     });
+    
+    
     
   } catch (error) {
     logger.error("Market page test failed", error as Error);
