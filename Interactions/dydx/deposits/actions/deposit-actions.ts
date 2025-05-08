@@ -79,7 +79,7 @@ export async function instantDeposit(
       TEST_TIMEOUTS.ELEMENT,
       MetamaskSelectors.confirmationSubmitButtonFooter
     );
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(5000);
     // Confirm in MetaMask (second confirmation)
     logger.step("Confirming in MetaMask (2nd time)");
     await confirmMetaMaskAction(

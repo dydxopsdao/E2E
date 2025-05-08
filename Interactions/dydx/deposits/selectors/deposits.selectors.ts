@@ -14,5 +14,5 @@ export const DepositsSelectors = {
   fillStatus: "div:text('Fill status')",
   depositModal: ".sc-18mw14j-2",
   depositCompletedText: "text=Deposit completed",
-  depositAmount: ".sc-17stuub-0.sc-17stuub-1.eqFWVL.hsAYsL.sc-btLlPF.bNYAcg",
+  depositAmount: "//div[normalize-space()='Your deposit']/following-sibling::div[1]/output",
 };
