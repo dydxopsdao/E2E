@@ -71,7 +71,7 @@ function getBatchPrefix(): string {
     case RunEnvironment.CI_MANUAL:
       return "Manual-";
     case RunEnvironment.CI_WEBHOOK:
-      return ""; // No prefix for webhook runs
+      return ""; 
     default:
       return "";
   }
@@ -98,11 +98,22 @@ export function getSharedConfiguration(): Configuration {
   config.setServerUrl(process.env.APPLITOOLS_SERVER_URL || "https://eyesapi.applitools.com");
   
   // Handle batch information consistently
-  const batchId = process.env.APPLITOOLS_BATCH_ID || '';
+  const rawBatchIdFromEnv = process.env.APPLITOOLS_BATCH_ID || '';
+  const environment = getRunEnvironment();
   const batchPrefix = getBatchPrefix();
-  const batch = new BatchInfo({ name: `${batchPrefix}DYDX-${batchId || new Date().toISOString()}` });
-  if (batchId) {
-    batch.setId(batchId);
+
+  // Construct the batch name. It will include the rawBatchIdFromEnv if present,
+  // or a timestamp if not.
+  const batchName = `${batchPrefix}DYDX-${rawBatchIdFromEnv || new Date().toISOString()}`;
+  const batch = new BatchInfo({ name: batchName });
+
+  // For Local and Manual runs, if a batch ID is provided via env var, use it to set the batch ID.
+  // For CI_WEBHOOK runs, we do NOT set the ID from the env var.
+  // This ensures webhook runs always get a new batch ID from Applitools,
+  // even if APPLITOOLS_BATCH_ID is set to a static value in the CI environment.
+  // Applitools will generate a new batch, typically based on the batch name and its start time.
+  if (environment !== RunEnvironment.CI_WEBHOOK && rawBatchIdFromEnv) {
+    batch.setId(rawBatchIdFromEnv);
   }
   config.setBatch(batch);
   
