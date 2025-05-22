@@ -2,9 +2,6 @@ import { Eyes, Target } from "@applitools/eyes-playwright";
 import { Page } from "@playwright/test";
 import { logger } from "@utils/logger/logging-utils";
 
-// Keep track of which checks have been performed to avoid duplicates
-const performedChecks = new Set<string>();
-
 export interface VisualCheckOptions {
   name: string;
   fully?: boolean;
