@@ -7,6 +7,7 @@ on:
         description: 'Deployment ID'
         required: false
         default: 'manual'
+  pull_request:
 
 # Global environment
 env:
