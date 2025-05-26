@@ -46,16 +46,13 @@ jobs:
       found_batch_id: ${{ steps.check-batch.outputs.foundBatchID }}
       slack_channel: ${{ env.SLACK_CHANNEL }}
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ github.token }}
+    steps:                        # The code is already available in GITHUB_WORKSPACE.
 
       - name: Install Dependencies
         run: |
           npm install
-          npx playwright install chromium
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: /opt/playwright
 
       - name: Start Xvfb
         run: |
@@ -73,10 +70,16 @@ jobs:
       # Upload test report artifacts if needed
       - name: Upload Test Report
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-test-report-${{ github.run_id }}
-          path: playwright-report/
+        run: |
+          # Ensure the artifact CLI is available (it should be if pre-installed)
+          if ! command -v artifact &> /dev/null
+          then
+              echo "artifact command could not be found. Please install @actions/artifact globally on the runner."
+              echo "sudo npm install -g @actions/artifact"
+              exit 1
+          fi
+          artifact upload playwright-test-report-${{ github.run_id }} playwright-report/
+
 
       # Only check Applitools if E2E tests passed
       - name: Check Applitools Batch By Pointer
@@ -201,7 +204,7 @@ jobs:
             local ts="${THREAD_TS}"
             
             # Escape special characters in the message
-            escaped_message=$(echo "$message" | sed 's/"/\\"/g')
+            escaped_message=$(echo "$message" | sed 's/"/\\"/g' | sed "s/'/\\\'/g")
             
             curl -s -X POST \
               -H "Content-type: application/json" \
@@ -231,26 +234,27 @@ jobs:
             echo "Polling attempt $ATTEMPT of $MAX_ATTEMPTS..."
             
             # Get batch status using the same endpoint as checkApplitoolsBatchByPointer.sh
-            START_DATE="$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ)"
-            END_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            
+            START_DATE_POLL="$(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%SZ)"
+            END_DATE_POLL="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
             RESPONSE=$(curl -s -X GET \
               -H "X-Eyes-Api-Key: ${APPLITOOLS_API_KEY}" \
-              "${APPLITOOLS_SERVER_URL}/api/v1/batches?start=${START_DATE}&end=${END_DATE}&pageSize=100")
+              "${APPLITOOLS_SERVER_URL}/api/v1/batches?start=${START_DATE_POLL}&end=${END_DATE_POLL}&pageSize=100") # Increased page size just in case
             
             # Extract batch info using jq
             BATCH_INFO=$(echo "$RESPONSE" | jq --arg bid "${FOUND_BATCH_ID}" '.batches[] | select(.id == $bid)')
             
-            if [ -z "$BATCH_INFO" ]; then
-              echo "Warning: Batch ${FOUND_BATCH_ID} not found in response"
+            if [ -z "$BATCH_INFO" ] || [ "$BATCH_INFO" == "null" ]; then 
+              echo "Warning: Batch ${FOUND_BATCH_ID} not found in response for the polling window."
+
               sleep "$POLL_INTERVAL"
               continue
             fi
             
             # Extract status information
-            FAILED=$(echo "$BATCH_INFO" | jq -r '.failed')
-            UNRESOLVED=$(echo "$BATCH_INFO" | jq -r '.unresolved')
-            NEW=$(echo "$BATCH_INFO" | jq -r '.new')
+            FAILED=$(echo "$BATCH_INFO" | jq -r '.runningSummary.failedTests // .statusSummary.Failed // 0')
+            UNRESOLVED=$(echo "$BATCH_INFO" | jq -r '.runningSummary.unresolvedTests // .statusSummary.Unresolved // 0')
+            NEW=$(echo "$BATCH_INFO" | jq -r '.runningSummary.newTests // .statusSummary.New // 0')
             
             echo "Current batch counters - Failed: $FAILED, Unresolved: $UNRESOLVED, New: $NEW"
             
@@ -260,7 +264,7 @@ jobs:
               break
             fi
             
-            # Check if all counters are 0 (indicating success)
+            # Check if all relevant counters are 0 (indicating success or resolved)
             if [ "$FAILED" -eq 0 ] && [ "$UNRESOLVED" -eq 0 ] && [ "$NEW" -eq 0 ]; then
               FINAL_STATUS="PASSED"
               break
