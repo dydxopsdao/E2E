@@ -47,6 +47,12 @@ jobs:
       slack_channel: ${{ env.SLACK_CHANNEL }}
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          fetch-depth: 5
+
       - name: Install Dependencies
         run: |
           npm install
