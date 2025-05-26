@@ -17,9 +17,9 @@
     "typescript": "^4.9.5"
   },
   "dependencies": {
+    "@dydxprotocol/v4-client-js": "^1.0.8",
     "axios": "^1.7.9",
     "dotenv": "^16.4.7",
-    "unzipper": "^0.12.3",
-    "@dydxprotocol/v4-client-js": "^1.0.8"
+    "unzipper": "^0.12.3"
   }
 }
