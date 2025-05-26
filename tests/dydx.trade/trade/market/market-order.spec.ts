@@ -40,7 +40,7 @@ test("btc-usd market order LONG", async ({
     ).toBeDisabled();
     await page.click(DealTicketSelectors.marketOrderBtn);
     await page.click(DealTicketSelectors.marketOrderBtn);
-    await page.fill(DealTicketSelectors.amountInput, "10");
+    await page.fill(DealTicketSelectors.amountInput, "500");
     try {
       await expect(
         page.locator(DealTicketSelectors.placeOrderBtnActive)
@@ -63,7 +63,7 @@ test("btc-usd market order LONG", async ({
     ]) {
       const selector = DealTicketSelectors[key as keyof typeof DealTicketSelectors];
       logger.step(`Verifying key "${key}" with selector "${selector}"`);
-
+      await page.pause();
       try {
         // Get all elements matching the selector
         const elements = await page.locator(selector).all();
@@ -97,7 +97,7 @@ test("btc-usd market order LONG", async ({
         throw error;
       }
     }
-
+    await page.pause();
     await page.click(DealTicketSelectors.placeOrderBtnActive);
     await page.waitForTimeout(10000);
     // TODO: assert Pending notification
