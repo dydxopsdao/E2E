@@ -21,7 +21,7 @@ export const eyesTest = base.extend<EyesFixtures>({
 
     if (useApplitools) {
       try {
-        await eyes.close();
+        await eyes.close(false);
       } catch {
         await eyes.abortIfNotClosed();
       }

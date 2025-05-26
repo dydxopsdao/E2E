@@ -21,7 +21,7 @@ export const metamaskEyesTest = metamaskTest.extend<MetaMaskEyesFixtures>({
 
     if (useApplitools) {
       try {
-        await eyes.close();
+        await eyes.close(false);
       } catch {
         await eyes.abortIfNotClosed();
       }
