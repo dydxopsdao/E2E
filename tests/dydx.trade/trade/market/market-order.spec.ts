@@ -40,7 +40,7 @@ test("btc-usd market order LONG", async ({
     ).toBeDisabled();
     await page.click(DealTicketSelectors.marketOrderBtn);
     await page.click(DealTicketSelectors.marketOrderBtn);
-    await page.fill(DealTicketSelectors.amountInput, "500");
+    await page.fill(DealTicketSelectors.amountInput, "10");
     try {
       await expect(
         page.locator(DealTicketSelectors.placeOrderBtnActive)
