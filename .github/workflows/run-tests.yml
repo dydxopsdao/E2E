@@ -46,8 +46,7 @@ jobs:
       found_batch_id: ${{ steps.check-batch.outputs.foundBatchID }}
       slack_channel: ${{ env.SLACK_CHANNEL }}
 
-    steps:                        # The code is already available in GITHUB_WORKSPACE.
-
+    steps:
       - name: Install Dependencies
         run: |
           npm install
@@ -67,18 +66,33 @@ jobs:
           PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
             npx playwright test --workers=2
 
-      # Upload test report artifacts if needed
+      
       - name: Upload Test Report
         if: always()
         run: |
-          # Ensure the artifact CLI is available (it should be if pre-installed)
-          if ! command -v artifact &> /dev/null
-          then
-              echo "artifact command could not be found. Please install @actions/artifact globally on the runner."
-              echo "sudo npm install -g @actions/artifact"
-              exit 1
+          echo "Installing @actions/artifact locally..."
+          npm install @actions/artifact@2.3.2
+
+          echo "Checking for locally installed artifact command..."
+          ARTIFACT_CLI_PATH="./node_modules/.bin/artifact"
+
+          if [ ! -f "$ARTIFACT_CLI_PATH" ]; then
+            echo "Local artifact CLI not found at $ARTIFACT_CLI_PATH after npm install."
+            echo "Listing contents of ./node_modules/.bin/:"
+            ls -lA ./node_modules/.bin/
+            echo "Listing contents of ./node_modules/@actions/artifact/lib/:"
+            ls -lA ./node_modules/@actions/artifact/lib/
+            echo "Displaying bin field from ./node_modules/@actions/artifact/package.json:"
+            cat ./node_modules/@actions/artifact/package.json | grep -A 3 -B 2 bin || echo "bin field not found"
+            exit 1
           fi
-          artifact upload playwright-test-report-${{ github.run_id }} playwright-report/
+
+          echo "Attempting to run artifact command: $ARTIFACT_CLI_PATH"
+          "$ARTIFACT_CLI_PATH" --version # Test if it runs
+
+          echo "Uploading artifact..."
+          "$ARTIFACT_CLI_PATH" upload playwright-test-report-${{ github.run_id }} playwright-report/
+        working-directory: ${{ github.workspace }}
 
 
       # Only check Applitools if E2E tests passed
