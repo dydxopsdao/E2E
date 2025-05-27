@@ -22,8 +22,13 @@ jobs:
     env:
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
       SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || '#automated-testing-results' }}
-      #APPLITOOLS_SHOW_LOGS: true 
-      #DEBUG: "eyes*,pw:worker,pw:dispatcher,pw:api"
+      
+      # Debugging and Applitools specific logs
+      APPLITOOLS_SHOW_LOGS: "true" 
+      DEBUG: "eyes*,pw:worker,pw:dispatcher,pw:api"
+      APPLITOOLS_SAVE_DEBUG_DATA: "true"
+
+      # Your application specific environment variables
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
       NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
       SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
@@ -53,25 +58,45 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          npm install
+          npm ci # Using npm ci for reliability
         env:
-          PLAYWRIGHT_BROWSERS_PATH: /opt/playwright
-
+          PLAYWRIGHT_BROWSERS_PATH: /opt/playwright # Ensure this path is correct for your runner
 
       - name: Run E2E Tests (Playwright + Applitools)
         env:
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
-          APPLITOOLS_SHOW_LOGS: "true" 
-          DEBUG: "eyes*,pw:worker,pw:dispatcher,pw:api"
-          APPLITOOLS_SAVE_DEBUG_DATA: "true"
+          # DEBUG, APPLITOOLS_SHOW_LOGS, APPLITOOLS_SAVE_DEBUG_DATA are inherited from job level
         run: |
-          echo "CURRENT APPLITOOLS_SAVE_DEBUG_DATA: $APPLITOOLS_SAVE_DEBUG_DATA" # Check its value
-          echo "CURRENT DEBUG: $DEBUG"
+          echo "CI DEBUG: APPLITOOLS_SAVE_DEBUG_DATA is $APPLITOOLS_SAVE_DEBUG_DATA"
+          echo "CI DEBUG: DEBUG is $DEBUG"
+          LOG_FILE_PATH="/tmp/full_e2e_run_${{ github.run_id }}.log"
+          echo "Redirecting ALL test output to $LOG_FILE_PATH"
+          
+          # Run the command and redirect both stdout and stderr to the log file
+          # This method preserves the exit code of npx playwright test
           PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
-            npx playwright test --workers=2
+            npx playwright test --workers=2 > "$LOG_FILE_PATH" 2>&1
+          
+          # Note: With the above redirect, live output for the playwright command won't show in GH Actions UI,
+          # but it will all be in the LOG_FILE_PATH.
 
-      
-      - name: Upload Test Report
+      - name: Upload Full E2E Output Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-e2e-output-log-${{ github.run_id }}
+          path: /tmp/full_e2e_run_${{ github.run_id }}.log
+          if-no-files-found: warn # Warn if the log file isn't found
+
+      - name: Upload Applitools Debug Logs from /tmp
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: applitools-tmp-debug-logs-${{ github.run_id }}
+          path: /tmp/applitools-logs/ # Attempt to grab these if they are created
+          if-no-files-found: ignore # Ignore if not found, as we know they might not be created
+
+      - name: Upload Playwright Test Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -98,7 +123,6 @@ jobs:
           JOB_STATUS: ${{ job.status }}  # success/failure for E2E tests
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          # Use global Slack channel
           SLACK_CHANNEL: ${{ env.SLACK_CHANNEL }}
           NEEDS_REVIEW: ${{ steps.check-batch.outputs.needsReview || 'false' }}
           FOUND_BATCH_ID: ${{ steps.check-batch.outputs.foundBatchID || '' }}
@@ -115,9 +139,9 @@ jobs:
           else
             # E2E tests failed
             if [ -n "${FOUND_BATCH_ID}" ]; then
-              MESSAGE="❌ E2E Tests Failed!\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n*Playwright tests did not pass, but you can still view Applitools results for comparison.*\n[Visual Tests in Applitools](https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/)\n[Details & Logs](${RUN_URL})"
+              MESSAGE="❌ E2E Tests Failed! (Job Status: ${JOB_STATUS})\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n*Playwright tests did not complete successfully, but you can still view Applitools results for comparison.*\n[Visual Tests in Applitools](https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/)\n[Details & Logs](${RUN_URL})"
             else
-              MESSAGE="❌ E2E Tests Failed!\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n[Details & Logs](${RUN_URL})"
+              MESSAGE="❌ E2E Tests Failed! (Job Status: ${JOB_STATUS})\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n[Details & Logs](${RUN_URL})"
             fi
           fi
 
@@ -130,14 +154,13 @@ jobs:
             }" \
             https://slack.com/api/chat.postMessage)
 
-          # Capture the Slack message timestamp so we can post a thread if needed
           TS=$(echo "$RESPONSE" | jq -r '.ts')
           echo "slack_ts=${TS}" >> $GITHUB_OUTPUT
 
   # If Applitools is all good, auto-complete the batch & optionally post a thread with links
   applitools-auto-complete:
     name: "Applitools Auto-Completion"
-    if: needs.e2e-test.outputs.needs_review == 'false'
+    if: needs.e2e-test.outputs.needs_review == 'false' && needs.e2e-test.outputs.found_batch_id != ''
     needs: e2e-test
     runs-on: ubuntu-latest
     env:
@@ -159,7 +182,6 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          # Provide direct links to GitHub Actions and Applitools in a Slack thread
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/"
           GITHUB_RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           THREAD_MESSAGE="Additional details:\n- GitHub Action: ${GITHUB_RUN_URL}\n- Applitools: ${APPLITOOLS_LINK}"
@@ -177,7 +199,7 @@ jobs:
   # If Applitools has differences, poll for status resolution
   batch-status-polling:
     name: "Applitools Batch Status Polling"
-    if: needs.e2e-test.outputs.needs_review == 'true'
+    if: needs.e2e-test.outputs.needs_review == 'true' && needs.e2e-test.outputs.found_batch_id != ''
     needs: e2e-test
     runs-on: ubuntu-latest
     env:
@@ -199,10 +221,7 @@ jobs:
           send_slack_message() {
             local message="$1"
             local ts="${THREAD_TS}"
-            
-            # Escape special characters in the message
             escaped_message=$(echo "$message" | sed 's/"/\\"/g' | sed "s/'/\\\'/g")
-            
             curl -s -X POST \
               -H "Content-type: application/json" \
               -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
@@ -213,65 +232,42 @@ jobs:
               }" \
               https://slack.com/api/chat.postMessage
           }
-          
-          # Post initial message
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/"
           GITHUB_RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           INITIAL_MESSAGE="⚠️ **Visual differences detected**\n\n🔍 *Waiting for manual review...*\n[Review in Applitools](${APPLITOOLS_LINK})\n⏳ This job will monitor for **up to 1 hour**."
           send_slack_message "${INITIAL_MESSAGE}"
-          
-          # Poll status for up to 1 hour (120 attempts × 30 seconds = 3600 seconds)
           MAX_ATTEMPTS=120
           ATTEMPT=0
           POLL_INTERVAL=30
           FINAL_STATUS=""
-          
           while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
             ATTEMPT=$((ATTEMPT + 1))
             echo "Polling attempt $ATTEMPT of $MAX_ATTEMPTS..."
-            
-            # Get batch status using the same endpoint as checkApplitoolsBatchByPointer.sh
             START_DATE_POLL="$(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%SZ)"
             END_DATE_POLL="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
             RESPONSE=$(curl -s -X GET \
               -H "X-Eyes-Api-Key: ${APPLITOOLS_API_KEY}" \
-              "${APPLITOOLS_SERVER_URL}/api/v1/batches?start=${START_DATE_POLL}&end=${END_DATE_POLL}&pageSize=100") # Increased page size just in case
-            
-            # Extract batch info using jq
+              "${APPLITOOLS_SERVER_URL}/api/v1/batches?start=${START_DATE_POLL}&end=${END_DATE_POLL}&pageSize=100")
             BATCH_INFO=$(echo "$RESPONSE" | jq --arg bid "${FOUND_BATCH_ID}" '.batches[] | select(.id == $bid)')
-            
             if [ -z "$BATCH_INFO" ] || [ "$BATCH_INFO" == "null" ]; then 
               echo "Warning: Batch ${FOUND_BATCH_ID} not found in response for the polling window."
-
               sleep "$POLL_INTERVAL"
               continue
             fi
-            
-            # Extract status information
             FAILED=$(echo "$BATCH_INFO" | jq -r '.runningSummary.failedTests // .statusSummary.Failed // 0')
             UNRESOLVED=$(echo "$BATCH_INFO" | jq -r '.runningSummary.unresolvedTests // .statusSummary.Unresolved // 0')
             NEW=$(echo "$BATCH_INFO" | jq -r '.runningSummary.newTests // .statusSummary.New // 0')
-            
             echo "Current batch counters - Failed: $FAILED, Unresolved: $UNRESOLVED, New: $NEW"
-            
-            # Check if there are any failed tests
             if [ "$FAILED" -gt 0 ]; then
               FINAL_STATUS="FAILED"
               break
             fi
-            
-            # Check if all relevant counters are 0 (indicating success or resolved)
             if [ "$FAILED" -eq 0 ] && [ "$UNRESOLVED" -eq 0 ] && [ "$NEW" -eq 0 ]; then
               FINAL_STATUS="PASSED"
               break
             fi
-            
-            # Status still unresolved, wait and try again
             sleep "$POLL_INTERVAL"
           done
-          
-          # Handle final status
           if [ "$FINAL_STATUS" = "PASSED" ]; then
             FINAL_MESSAGE="✅ **Visual Review Approved**\n\n🎉 *All differences approved – rollout can proceed.*\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             send_slack_message "${FINAL_MESSAGE}"
@@ -281,7 +277,6 @@ jobs:
             send_slack_message "${FINAL_MESSAGE}"
             echo "status=rejected" >> "$GITHUB_OUTPUT"
           else
-            # Timeout reached or still has issues
             FINAL_MESSAGE="⚠️ **Batch Review Timed Out or Has Issues**\n\n⏳ *Review was not completed within 1 hour or has unresolved issues.*\n🔍 Please check manually and re-run if needed.\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             send_slack_message "${FINAL_MESSAGE}"
             echo "status=timeout" >> "$GITHUB_OUTPUT"
