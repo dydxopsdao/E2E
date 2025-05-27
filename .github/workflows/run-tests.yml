@@ -61,9 +61,14 @@ jobs:
       - name: Run E2E Tests (Playwright + Applitools)
         env:
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+          APPLITOOLS_SHOW_LOGS: "true" 
+          DEBUG: "eyes*,pw:worker,pw:dispatcher,pw:api"
+          APPLITOOLS_SAVE_DEBUG_DATA: "true"
         run: |
+          echo "CURRENT APPLITOOLS_SAVE_DEBUG_DATA: $APPLITOOLS_SAVE_DEBUG_DATA" # Check its value
+          echo "CURRENT DEBUG: $DEBUG"
           PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
-            npx playwright test --workers=1
+            npx playwright test --workers=2
 
       
       - name: Upload Test Report
