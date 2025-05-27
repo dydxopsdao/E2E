@@ -22,7 +22,7 @@ jobs:
     env:
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
       SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || '#automated-testing-results' }}
-      APPLITOOLS_SHOW_LOGS: true 
+      #APPLITOOLS_SHOW_LOGS: true 
       #DEBUG: "eyes*,pw:worker,pw:dispatcher,pw:api"
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
       NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
@@ -63,7 +63,7 @@ jobs:
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
         run: |
           PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
-            npx playwright test --grep "Megavault flows" --workers=1
+            npx playwright test --grep "not_connected_tests.spec" --workers=1
 
       
       - name: Upload Test Report
