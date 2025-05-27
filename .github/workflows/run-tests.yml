@@ -60,25 +60,18 @@ jobs:
         run: |
           npm ci # Using npm ci for reliability
         env:
-          PLAYWRIGHT_BROWSERS_PATH: /opt/playwright # Ensure this path is correct for your runner
+          PLAYWRIGHT_BROWSERS_PATH: /opt/playwright
 
       - name: Run E2E Tests (Playwright + Applitools)
         env:
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
-          # DEBUG, APPLITOOLS_SHOW_LOGS, APPLITOOLS_SAVE_DEBUG_DATA are inherited from job level
         run: |
-          echo "CI DEBUG: APPLITOOLS_SAVE_DEBUG_DATA is $APPLITOOLS_SAVE_DEBUG_DATA"
-          echo "CI DEBUG: DEBUG is $DEBUG"
-          LOG_FILE_PATH="/tmp/full_e2e_run_${{ github.run_id }}.log"
-          echo "Redirecting ALL test output to $LOG_FILE_PATH"
           
           # Run the command and redirect both stdout and stderr to the log file
           # This method preserves the exit code of npx playwright test
           PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
-            npx playwright test --workers=2 > "$LOG_FILE_PATH" 2>&1
-          
-          # Note: With the above redirect, live output for the playwright command won't show in GH Actions UI,
-          # but it will all be in the LOG_FILE_PATH.
+            npx playwright test --workers=2
+        
 
       - name: Upload Full E2E Output Log
         if: always()

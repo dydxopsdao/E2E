@@ -22,7 +22,7 @@ export default defineConfig({
       ? {
           // This is just for the Applitools reporter - the actual configuration is in config/applitools.config.ts
           eyesConfig: {
-            testConcurrency: 1,
+            testConcurrency: 2,
             dontCloseBatches: true,
           },
         }
