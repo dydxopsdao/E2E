@@ -25,8 +25,6 @@ jobs:
       
       # Debugging and Applitools specific logs
       APPLITOOLS_SHOW_LOGS: "true" 
-      DEBUG: "eyes*,pw:worker,pw:dispatcher,pw:api"
-      APPLITOOLS_SAVE_DEBUG_DATA: "true"
 
       # Your application specific environment variables
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
