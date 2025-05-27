@@ -22,10 +22,6 @@ jobs:
     env:
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
       SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || '#automated-testing-results' }}
-      
-      # Debugging and Applitools specific logs
-      APPLITOOLS_SHOW_LOGS: "true" 
-
       # Your application specific environment variables
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
       NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
