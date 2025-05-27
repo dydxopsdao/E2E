@@ -19,13 +19,11 @@ jobs:
     name: "E2E Tests (Deployment: ${{ inputs.deployment_id }})"
     runs-on: self-hosted
 
-    # Provide a stable APPLITOOLS_BATCH_ID so Applitools doesn't throw an error.
     env:
-      # For a PR, we use pull_request.head.sha; otherwise fallback to github.sha.
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
       SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || '#automated-testing-results' }}
-
-      # Additional env vars for your tests
+      APPLITOOLS_SHOW_LOGS: true 
+      DEBUG: 'eyes*'
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
       NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
       SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
