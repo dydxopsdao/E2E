@@ -12,9 +12,9 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 2,
   reporter: [
-    ...(isApplitoolsRun
+    /* ...(isApplitoolsRun
       ? [["@applitools/eyes-playwright/reporter"] as ReporterDescription]
-      : []),
+      : []), */
     ["html", { outputFolder: "playwright-report" }] as ReporterDescription,
   ],
   use: {
