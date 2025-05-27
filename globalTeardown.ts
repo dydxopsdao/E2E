@@ -48,6 +48,7 @@ async function cleanupWallet(config: typeof DYDX_CONFIG, walletLabel: string) {
 }
 
 async function globalTeardown(config: FullConfig) {
+  console.log("!!!!!!!! GLOBAL TEARDOWN HAS BEEN ENTERED !!!!!!!");
   logger.info("Running global teardown...");
 
   logger.info("[Applitools Global Teardown] Starting Applitools runner finalization...");

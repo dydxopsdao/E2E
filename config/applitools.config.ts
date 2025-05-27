@@ -82,7 +82,7 @@ function getBatchPrefix(): string {
  */
 export function getSharedRunner(): VisualGridRunner {
   if (!sharedRunner) {
-    sharedRunner = new VisualGridRunner({ testConcurrency: 10 });
+    sharedRunner = new VisualGridRunner({ testConcurrency: 2 });
   }
   return sharedRunner;
 }
