@@ -23,7 +23,7 @@ export const eyesTest = base.extend<EyesFixtures>({
     if (useApplitools) {
       try {
         logger.info(`FIXTURE [${testInfo.title} EYES_FIXTURE]: Teardown - CALLING eyes.close(false).`);
-        await eyes.close(false); // Line 24 (approx)
+        await eyes.close(false);
         logger.info(`FIXTURE [${testInfo.title} EYES_FIXTURE]: Teardown - eyes.close(false) RETURNED.`);
       } catch (e) {
         logger.error(`FIXTURE [${testInfo.title} EYES_FIXTURE]: Teardown - ERROR during eyes.close(false):`, e as Error);
