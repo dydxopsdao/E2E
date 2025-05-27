@@ -70,7 +70,7 @@ async function globalTeardown(config: FullConfig) {
   }
   logger.info("[Applitools Global Teardown] Applitools runner finalization complete.");
 
-  logger.info("[dYdX Global Teardown] Starting cleanup of orders and positions for all wallets...");
+  /*logger.info("[dYdX Global Teardown] Starting cleanup of orders and positions for all wallets...");
   try {
     validateConfig(DYDX_CONFIG);
     validateConfig(SECOND_WALLET_CONFIG);
@@ -83,9 +83,9 @@ async function globalTeardown(config: FullConfig) {
     logger.success("[dYdX Global Teardown] Successfully completed cleanup for all wallets");
   } catch (error) {
     logger.error("[dYdX Global Teardown] Failed during dYdX cleanup:", error as Error);
-  }
+  } */
 
-  logger.info("Global teardown finished.");
+  logger.info("GLOBAL TEARDOWN: Process Finished (dYdX cleanup skipped for debug).");
 }
 
 export default globalTeardown;
