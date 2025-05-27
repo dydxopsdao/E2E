@@ -63,7 +63,7 @@ jobs:
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
         run: |
           PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
-            npx playwright test --grep "not_connected_tests.spec" --workers=1
+            npx playwright test --workers=1
 
       
       - name: Upload Test Report
