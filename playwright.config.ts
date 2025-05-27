@@ -12,9 +12,9 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 2,
   reporter: [
-    ...(isApplitoolsRun
+    /* ...(isApplitoolsRun
       ? [["@applitools/eyes-playwright/reporter"] as ReporterDescription]
-      : []),
+      : []), */
     ["html", { outputFolder: "playwright-report" }] as ReporterDescription,
   ],
   use: {
@@ -22,7 +22,7 @@ export default defineConfig({
       ? {
           // This is just for the Applitools reporter - the actual configuration is in config/applitools.config.ts
           eyesConfig: {
-            testConcurrency: 2,
+            testConcurrency: 1,
             dontCloseBatches: true,
           },
         }
