@@ -96,7 +96,6 @@ test.describe("Cancel order flows", () => {
       }
       
       logger.info(`Order ${firstOrderId} confirmed as OPEN in the API`);
-      await page.pause();
     } catch (error) {
       logger.error("Failed to place first order", error as Error);
       throw error;
