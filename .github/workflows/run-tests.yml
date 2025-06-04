@@ -22,8 +22,8 @@ jobs:
     env:
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
       SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || '#automated-testing-results' }}
-      APPLITOOLS_SHOW_LOGS: true 
-      DEBUG: "eyes*,pw:worker,pw:dispatcher,pw:api"
+      #APPLITOOLS_SHOW_LOGS: false 
+      #DEBUG: "eyes*,pw:worker,pw:dispatcher,pw:api"
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
       NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
       SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
