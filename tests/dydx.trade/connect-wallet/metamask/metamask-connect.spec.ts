@@ -43,6 +43,7 @@ test("Connect MetaMask Wallet", async ({ metamaskContext, page, eyes }) => {
     logger.success("Initial MetaMask connection confirmed");
 
     logger.step("Processing signature request");
+    await page.waitForTimeout(5000);
     await page.bringToFront();
     if (eyes) {
       await visualCheck(eyes, {
