@@ -67,7 +67,7 @@ export async function checkFinalPortfolioValue(
   await positionsLink.click();
   const overviewLink = page.locator('[data-item="overview"]');
   await overviewLink.click();
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(5000);
 
   const lowerBound = expectedIncrease * (1 - variancePercent / 100);
   const upperBound = expectedIncrease * (1 + variancePercent / 100);
@@ -105,12 +105,12 @@ export async function checkFinalPortfolioValue(
       // Navigate to DYDX home via logo to trigger refresh
       logger.info("Clicking DYDX logo to navigate to home");
       await navigateToViaHeader(page, "DYDX");
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(5000);
       
       // Navigate back to portfolio
       logger.info("Navigating back to portfolio overview");
       await navigateToViaHeader(page, "PORTFOLIO");
-      await page.waitForTimeout(3000);
+      await page.waitForTimeout(5000);
     } else {
       break;
     }
