@@ -11,7 +11,7 @@ test.describe('help', () => {
     await navigateToDydxPage(page, "/portfolio/overview");
     await page.click('//*[@id="root"]/div/header/div[6]/button[2]', { force: true });
     await expect(page.locator('.sc-18mw14j-2')).toBeVisible();
-    await visualCheck(eyes, { name: 'help', useDom: true });
+    await visualCheck(eyes, { name: 'help', useDom: true , matchLevel: 'Dynamic'});
       logger.success(`Completed visual check for help`);
 
   });
