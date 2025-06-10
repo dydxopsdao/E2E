@@ -12,10 +12,12 @@ npm install
 2. Create `.env.local` file:
 ```bash
 APPLITOOLS_API_KEY=your_key
+METAMASK_VERSION=12.18.3
 METAMASK_PASSWORD=your_test_password
 SEED_PHRASE=your_test_seed_phrase
 USE_APPLITOOLS=true        
-LOCAL_RUN=true            
+LOCAL_RUN=true
+DEPLOYMENT_ID=manual            
 ```
 
 ## 🧪 Running Tests
@@ -28,6 +30,24 @@ ENV_PATH=.env.local npx playwright test
 ### Run a specific test:
 ```bash
 ENV_PATH=.env.local npx playwright test --grep "Connect MetaMask Wallet"
+```
+
+### Skipping Tests
+
+You can skip a test by appending `.skip` to the `test` function. This is useful when a test is failing due to a known issue that you don't want to fix immediately.
+
+**Skip a single test:**
+```typescript
+test.skip('test name', async ({ page }) => {
+  // test code
+});
+```
+
+**Skip a test suite:**
+```typescript
+test.describe.skip('describe block name', () => {
+  // all tests in here are skipped
+});
 ```
 
 ## 📁 Project Structure
