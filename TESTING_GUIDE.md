@@ -93,7 +93,7 @@ This setup allows you to quickly verify the state of the account before, during,
 ### Flaky Tests
 
 If you encounter a flaky test, try the following:
-1.  **Add logging**: Add `console.log` statements or use `page.pause()` to debug the test interactively.
+1.  **Add logging**: Add `console.log` statements or use `await page.pause();` to debug the test interactively.
 
 ---
 
