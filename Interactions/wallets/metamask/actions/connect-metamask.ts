@@ -97,7 +97,6 @@ export async function   confirmMetaMaskAction(
     await metaMaskPage.bringToFront();
     // Keep the reload as it's necessary to make the signature request appear
     await metaMaskPage.reload();
-    
     // Check for and handle password prompt with a shorter timeout
     //await handlePasswordPrompt(metaMaskPage);
 
@@ -119,7 +118,6 @@ export async function   confirmMetaMaskAction(
       // Short wait before checking again
       await metaMaskPage.waitForTimeout(shortPollingInterval);
     }
-    
     // If we reach here, try the standard approach as fallback
     await metaMaskPage.click(confirmSelector, { timeout: timeout / 2 });
     logger.success("MetaMask action confirmed with fallback approach");

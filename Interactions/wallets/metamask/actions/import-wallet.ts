@@ -189,6 +189,11 @@ export async function importWallet(
     logger.success("Wallet import completed successfully", {
       extensionId: metamaskState.getExtensionId(),
     });
+    try {
+      await page.click("data-testid=not-now-button");
+    } catch (error) {
+      logger.error("Not now button not found", error as Error);
+    }
     //await page.close();
   } catch (error) {
     logger.error("Wallet import failed", error as Error, {
