@@ -10,7 +10,6 @@ import { checkWithdrawCompleted, completeWithdrawal } from "@interactions/dydx/w
 
 
 const walletAddress = WALLET_ADDRESSES.PUBLIC_ARBITRUM;
-const withdrawAmount = -111;
 
 test.describe("Withdraw flow tests", () => {
   // Here we override the default retries
@@ -30,12 +29,36 @@ test.describe("Withdraw flow tests", () => {
     await completeWithdrawal(
       page,
       walletAddress,
-      'button:has(div:has-text("Arbitrum"))'
+      'button:has(div:has-text("Arbitrum"))',
+      "101"
     );
-    await checkWithdrawCompleted(page, withdrawAmount);
+    await checkWithdrawCompleted(page, -101);
 
     // Check for both withdrawal notifications in sequence
     //await checkWithdrawalNotifications(page, "$12.00");
-    await checkFinalPortfolioValue(page, initialPortfolioValue, withdrawAmount);
+    await checkFinalPortfolioValue(page, initialPortfolioValue, -101);
+  });
+  test("withdraw flow - Avalanche", async ({
+    metamaskContext,
+    page,
+  }: {
+    metamaskContext: BrowserContext;
+    page: Page;
+  }) => {
+    // Open dYdX and connect MetaMask
+    await openDydxConnectMetaMask(page, metamaskContext);
+    await page.bringToFront();
+    const initialPortfolioValue = await checkInitialPortfolioValue(page);
+    await completeWithdrawal(
+      page,
+      walletAddress,
+      'button:has(div:has-text("Avalanche"))',
+      "11"
+    );
+    await checkWithdrawCompleted(page, -11);
+
+    // Check for both withdrawal notifications in sequence
+    //await checkWithdrawalNotifications(page, "$12.00");
+    await checkFinalPortfolioValue(page, initialPortfolioValue, -11);
   });
 });

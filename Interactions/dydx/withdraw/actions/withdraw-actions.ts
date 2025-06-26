@@ -233,7 +233,7 @@ export async function completeWithdrawal(
   page: Page,
   address: string,
   optionSelector: string,
-  amount: string = "12",
+  amount: string,
   options: WithdrawalOptions = {}
 ): Promise<void> {
   const { eyes, performEyesCheck = false } = options;
