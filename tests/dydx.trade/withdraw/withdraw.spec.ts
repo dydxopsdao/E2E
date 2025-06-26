@@ -10,7 +10,7 @@ import { checkWithdrawCompleted, completeWithdrawal } from "@interactions/dydx/w
 
 
 const walletAddress = WALLET_ADDRESSES.PUBLIC_ARBITRUM;
-const withdrawAmount = -12;
+const withdrawAmount = -111;
 
 test.describe("Withdraw flow tests", () => {
   // Here we override the default retries
