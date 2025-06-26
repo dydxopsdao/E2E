@@ -51,7 +51,6 @@ test("btc-usd market order LONG", async ({
         page.locator(DealTicketSelectors.placeOrderBtnActive)
       ).toBeEnabled();
     }
-    await page.pause();
 
     // Assert each fee/detail field is visible and does not show "--"
     for (const key of [
