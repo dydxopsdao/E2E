@@ -40,7 +40,7 @@ test("btc-usd market order LONG", async ({
     ).toBeDisabled();
     await page.click(DealTicketSelectors.marketOrderBtn);
     await page.click(DealTicketSelectors.marketOrderBtn);
-    await page.fill(DealTicketSelectors.amountInput, "500");
+    await page.fill(DealTicketSelectors.amountInput, "2500");
     try {
       await expect(
         page.locator(DealTicketSelectors.placeOrderBtnActive)
@@ -51,6 +51,7 @@ test("btc-usd market order LONG", async ({
         page.locator(DealTicketSelectors.placeOrderBtnActive)
       ).toBeEnabled();
     }
+    await page.pause();
 
     // Assert each fee/detail field is visible and does not show "--"
     for (const key of [
