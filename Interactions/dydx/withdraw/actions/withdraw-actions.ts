@@ -66,7 +66,6 @@ export async function selectDropdownOption(
   optionSelector: string
 ): Promise<void> {
   logger.step("Opening dropdown and selecting an option");
-
   await page.click(WithdrawSelectors.chainDestinationDropdown);
   await page.waitForSelector(optionSelector, {
     state: "visible",

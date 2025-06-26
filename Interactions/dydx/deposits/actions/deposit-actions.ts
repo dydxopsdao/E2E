@@ -11,7 +11,7 @@ import {
 import { TEST_TIMEOUTS } from "@constants/test.constants";
 import { maybeVisualCheck, visualCheck } from "@utils/visual-check";
 
-interface InstantDepositOptions {
+interface DepositOptions {
   eyes?: Eyes;
   performEyesCheck?: boolean;
 }
@@ -25,12 +25,12 @@ interface InstantDepositOptions {
  * @param optionSelector   Selector for the option to select
  * @param options          Optional visual check + Eyes configuration
  */
-export async function instantDeposit(
+export async function deposit(
   page: Page,
   amount: number,
   metamaskContext: BrowserContext,
   optionSelector: string,
-  options: InstantDepositOptions = {}
+  options: DepositOptions = {}
 ): Promise<void> {
   const password = process.env.METAMASK_PASSWORD || "";
   const { eyes, performEyesCheck = false } = options;
@@ -58,13 +58,7 @@ export async function instantDeposit(
     logger.step("Selecting Asset dropdown option");
     await selectAssetDropdownOptionDeposit(page, optionSelector);
 
-    // Select Instant Deposit
-    logger.step("Select Instant Deposit");
-    try {
-      await page.click(DepositsSelectors.instantDepositSelect);
-    } catch (error) {
-      await page.click(DepositsSelectors.instantDepositSelect2);
-    }
+
 
     // Wait for and click Confirm Order
     logger.step("Waiting for Confirm Order and clicking it");

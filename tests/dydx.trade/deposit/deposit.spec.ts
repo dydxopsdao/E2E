@@ -6,11 +6,12 @@ import {
   checkInitialPortfolioValue,
   checkFinalPortfolioValue,
 } from "@dydx/portfolio/actions/portfolio-actions";
-import { instantDeposit } from "@interactions/dydx/deposits/actions/deposit-actions";
+import { deposit } from "@interactions/dydx/deposits/actions/deposit-actions";
 import { BrowserContext, Page } from "@playwright/test";
 import { Eyes } from "@applitools/eyes-playwright";
 
-const depositAmount = 12;
+const instantDepositAmount = 101;
+const regularDepositAmount = 12;
 
 test.describe("Instant deposit flow tests", () => {
   test.describe.configure({ retries: 1 });
@@ -33,9 +34,9 @@ test.describe("Instant deposit flow tests", () => {
     const initialPortfolioValue = await checkInitialPortfolioValue(page);
 
     // Perform the deposit workflow
-    await instantDeposit(
+    await deposit(
       page,
-      depositAmount,
+      instantDepositAmount,
       metamaskContext,
       'button:has(div:has-text("Arbitrum"))',
       {
@@ -53,6 +54,38 @@ test.describe("Instant deposit flow tests", () => {
       "Deposit completed"
     ); */
     // Check final portfolio value and validate the increase
-    await checkFinalPortfolioValue(page, initialPortfolioValue, depositAmount);
+    await checkFinalPortfolioValue(page, initialPortfolioValue, instantDepositAmount);
+  });
+
+  test("regular deposit core flow - Avalanche", async ({
+    metamaskContext,
+    eyes,
+    page,
+  }: {
+    metamaskContext: BrowserContext;
+    eyes: Eyes;
+    page: Page;
+  }) => {
+    // Open dYdX and connect MetaMask
+    await openDydxConnectMetaMask(page, metamaskContext);
+    // Add Avalanche network
+    await addNetwork(metamaskContext, "Avalanche", TEST_TIMEOUTS.DEFAULT);
+    await page.bringToFront();
+
+    // Check initial portfolio value
+    const initialPortfolioValue = await checkInitialPortfolioValue(page);
+    // Perform the deposit workflow
+    await deposit(
+      page,
+      regularDepositAmount,
+      metamaskContext,
+      'button:has(div:has-text("Avalanche"))',
+      {
+        eyes,
+        performEyesCheck: false,
+      }
+    );
+    // Check final portfolio value and validate the increase
+    await checkFinalPortfolioValue(page, initialPortfolioValue, regularDepositAmount);
   });
 });

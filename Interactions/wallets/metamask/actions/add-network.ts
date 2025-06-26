@@ -17,6 +17,20 @@ export async function addNetwork(
     timeout,
   });
 
+  // Map network names to their corresponding test-id selectors
+  const networkSelectors: Record<string, string> = {
+    "Arbitrum One": MetamaskSelectors.arbitrumNetwork,
+    "Avalanche": MetamaskSelectors.avalancheNetwork,
+  };
+
+  const networkSelector = networkSelectors[networkName];
+  if (!networkSelector) {
+    const supportedNetworks = Object.keys(networkSelectors).join(", ");
+    throw new Error(
+      `Unsupported network: ${networkName}. Supported networks: ${supportedNetworks}`
+    );
+  }
+
   let metaMaskPage: Page | null = null;
 
   try {
@@ -31,8 +45,8 @@ export async function addNetwork(
     await metaMaskPage.click(MetamaskSelectors.networkDisplay);
 
     // Find the network container and wait for it
-    logger.debug("Waiting for network container");
-    await metaMaskPage.waitForSelector(MetamaskSelectors.arbitrumNetwork, {
+    logger.debug(`Waiting for ${networkName} network container`);
+    await metaMaskPage.waitForSelector(networkSelector, {
       state: "visible",
       timeout,
     });
@@ -41,7 +55,7 @@ export async function addNetwork(
     logger.debug("Clicking Add button");
     await metaMaskPage
       .locator(
-        `${MetamaskSelectors.arbitrumNetwork} ${MetamaskSelectors.networkAddButton}`
+        `${networkSelector} ${MetamaskSelectors.networkAddButton}`
       )
       .click();
 

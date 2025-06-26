@@ -26,6 +26,7 @@ export const MetamaskSelectors = {
   networkDisplay: '[data-testid="network-display"]',
   networkListContainer: ".mm-box.new-network-list__list-of-networks",
   arbitrumNetwork: '[data-testid="popular-network-0xa4b1"]',
+  avalancheNetwork: '[data-testid="popular-network-0xa86a"]',
   networkAddButton: '[data-testid="test-add-button"]',
 
 } as const;
