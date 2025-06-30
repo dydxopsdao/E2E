@@ -21,7 +21,7 @@ jobs:
 
     env:
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
-      SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || '#engineering' }}
+      SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
       NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
