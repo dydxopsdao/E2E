@@ -56,44 +56,63 @@ jobs:
         env:
           PLAYWRIGHT_BROWSERS_PATH: /opt/playwright
 
+      - name: Find Release Thread (DIAGNOSTIC)
+        id: find-thread-diagnostic
+        if: ${{ inputs.deployment_id != 'manual' }}
+        run: |
+          echo "::group::Running Slack History Diagnostic"
+          echo "Attempting to fetch history for channel: $SLACK_CHANNEL"
+
+          # Use -f (--fail) to make curl exit with an error on HTTP failures (like 4xx/5xx).
+          # Use -v (--verbose) to see detailed connection info in the logs.
+          HISTORY_RESPONSE=$(curl --fail -s \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+            -G --data-urlencode "channel=$SLACK_CHANNEL" --data-urlencode "limit=100" \
+            "https://slack.com/api/conversations.history")
+          
+          CURL_EXIT_CODE=$?
+          echo "::endgroup::"
+
+          if [ $CURL_EXIT_CODE -ne 0 ]; then
+            echo "::error::curl command failed with exit code $CURL_EXIT_CODE. This is the root cause. The runner may have a network issue (proxy, firewall), or the Slack API returned an HTTP error (e.g., 401, 403, 500)."
+            echo "The (likely empty) response body was: $HISTORY_RESPONSE"
+            exit 1
+          fi
+
+          if [ -z "$HISTORY_RESPONSE" ]; then
+            echo "::error::curl command succeeded but returned an empty response. This is unexpected."
+            exit 1
+          fi
+
+          echo "--- Successfully received a response from Slack. Raw response follows: ---"
+          echo "$HISTORY_RESPONSE"
+          echo "------------------------------------------------------------------------"
+
+          # Now, try the jq filter on the known-good response.
+          JQ_FILTER='if .ok then .messages[] else empty end | select(any(.attachments[]; .fallback? | test("release/" + $id; "i"))) | .ts'
+          THREAD_TS=$(echo "$HISTORY_RESPONSE" | jq -r --arg id "${{ inputs.deployment_id }}" "$JQ_FILTER" | head -n1)
+          
+          if [ -n "$THREAD_TS" ]; then
+            echo "Success! Found thread TS: ${THREAD_TS}"
+            echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
+          else
+            echo "::warning::Successfully fetched and parsed Slack history, but no message matching the release ID was found in the first 100 messages."
+          fi
+
       # ─────────────────────────────────────────────────────────
       # 1) “Tests started” ping, threaded for non-manual IDs
       - name: Post “Tests started” to Slack
         id: slack-started
-        if: ${{ inputs.deployment_id != 'manual' }}
+        if: ${{ inputs.deployment_id != 'manual' && steps.find-thread-diagnostic.outputs.thread_ts }}
         run: |
           TEXT="🏁 E2E tests started for **Deployment ID:** ${{ inputs.deployment_id }}"
-          CHANNEL="$SLACK_CHANNEL"
+          THREAD_TS="${{ steps.find-thread-diagnostic.outputs.thread_ts }}"
 
-          HISTORY_RESPONSE=$(curl -s -G \
+          curl -s -X POST \
+            -H "Content-type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-            --data-urlencode "channel=$CHANNEL" \
-            --data-urlencode "limit=200" \
-            "https://slack.com/api/conversations.history")
-
-          # Corrected jq filter, passed directly as a single argument.
-          THREAD_TS=$(echo "$HISTORY_RESPONSE" | jq -r --arg id "${{ inputs.deployment_id }}" '
-            if .ok then .messages[] else empty end |
-            select(
-              any(.attachments[];
-                (.fallback? | test("release/" + $id; "i")) or
-                (.title? | test("release/" + $id; "i")) or
-                (.text? | test("release/" + $id; "i")) or
-                (.pretext? | test("release/" + $id; "i"))
-              )
-            ) | .ts
-          ' | head -n1)
-
-          if [ -n "$THREAD_TS" ]; then
-            echo "Found thread TS: ${THREAD_TS}. Posting threaded reply."
-            curl -s -X POST \
-              -H "Content-type: application/json" \
-              -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-              --data "{\"channel\":\"${CHANNEL}\",\"thread_ts\":\"${THREAD_TS}\",\"text\":\"${TEXT}\"}" \
-              https://slack.com/api/chat.postMessage
-          else
-            echo "--- WARNING: Thread not found. Skipping 'tests started' message. ---"
-          fi
+            --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"${THREAD_TS}\",\"text\":\"${TEXT}\"}" \
+            https://slack.com/api/chat.postMessage
 
       # ─────────────────────────────────────────────────────────
       - name: Run E2E Tests (Playwright + Applitools)
