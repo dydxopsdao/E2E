@@ -75,31 +75,14 @@ export default defineConfig({
       },
     },
 
-    // Deposit tests that will run sequentially.
+    // Deposit and withdraw tests that will run sequentially together.
     {
-      name: "deposit-tests",
+      name: "deposit-withdraw-tests",
       testDir: "./tests/",
-      testMatch: ['**/deposit/**/*.spec.ts'],
-      use: {
-        browserName: "chromium",
-        launchOptions: {
-          args: [
-            "--disable-blink-features=AutomationControlled",
-            "--disable-infobars",
-            "--disable-dev-shm-usage",
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-          ],
-        },
-        ignoreHTTPSErrors: true,
-      },
-    },
-
-    // Withdraw tests that will run sequentially.
-    {
-      name: "withdraw-tests",
-      testDir: "./tests/",
-      testMatch: ['**/withdraw/**/*.spec.ts'],
+      testMatch: [
+        '**/deposit/**/*.spec.ts',
+        '**/withdraw/**/*.spec.ts'
+      ],
       use: {
         browserName: "chromium",
         launchOptions: {
