@@ -66,20 +66,18 @@ jobs:
           THREAD_ARG=""
 
           if [ "${{ inputs.deployment_id }}" != "manual" ]; then
+            # Define the jq filter in a variable to prevent shell parsing issues.
+            JQ_FILTER='
+              if .ok then .messages[] else empty end |
+              select(.attachments[].title_link? | test("release/" + $id + "$"; "i")) |
+              .ts
+            '
             THREAD_TS=$(curl -s -G \
               -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
               --data-urlencode "channel=$CHANNEL" \
               --data-urlencode "limit=200" \
               "https://slack.com/api/conversations.history" \
-            | jq -r --arg id "${{ inputs.deployment_id }}" '
-                # 1. Safely check if the API call was successful before proceeding
-                if .ok then .messages[] else empty end |
-                # 2. Filter messages by looking inside the attachment's title link, where the GitHub app puts the release name.
-                #    The "$" in the regex ensures it matches the exact version (e.g., v2.8.6, not v2.8.6-hotfix).
-                select(.attachments[].title_link? | test("release/" + $id + "$"; "i")) |
-                # 3. Extract the timestamp
-                .ts
-              ' \
+            | jq -r --arg id "${{ inputs.deployment_id }}" "$JQ_FILTER" \
             | head -n1)
 
             if [ -n "$THREAD_TS" ]; then
@@ -125,19 +123,18 @@ jobs:
         id: find-thread
         if: ${{ inputs.deployment_id != 'manual' }}
         run: |
+          # Define the jq filter in a variable to prevent shell parsing issues.
+          JQ_FILTER='
+            if .ok then .messages[] else empty end |
+            select(.attachments[].title_link? | test("release/" + $id + "$"; "i")) |
+            .ts
+          '
           THREAD_TS=$(curl -s -G \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             --data-urlencode "channel=$SLACK_CHANNEL" \
             --data-urlencode "limit=200" \
             "https://slack.com/api/conversations.history" \
-          | jq -r --arg id "${{ inputs.deployment_id }}" '
-              # 1. Safely check if the API call was successful before proceeding
-              if .ok then .messages[] else empty end |
-              # 2. Filter messages by looking inside the attachment's title link
-              select(.attachments[].title_link? | test("release/" + $id + "$"; "i")) |
-              # 3. Extract the timestamp
-              .ts
-            ' \
+          | jq -r --arg id "${{ inputs.deployment_id }}" "$JQ_FILTER" \
           | head -n1)
 
           if [ -n "$THREAD_TS" ]; then
