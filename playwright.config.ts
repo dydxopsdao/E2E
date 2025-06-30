@@ -83,6 +83,7 @@ export default defineConfig({
         '**/deposit/**/*.spec.ts',
         '**/withdraw/**/*.spec.ts'
       ],
+      fullyParallel: false,
       use: {
         browserName: "chromium",
         launchOptions: {
