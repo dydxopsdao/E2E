@@ -35,7 +35,7 @@ jobs:
       DYDX_MNEMONIC_CANCEL_ORDER: ${{ secrets.DYDX_MNEMONIC_CANCEL_ORDER }}
       DYDX_ADDRESS_CANCEL_ORDER: ${{ secrets.DYDX_ADDRESS_CANCEL_ORDER }}
       SEED_PHRASE_CANCEL_ORDER: ${{ secrets.SEED_PHRASE_CANCEL_ORDER }}
-      SEED_PHRASE_MEGAVAULT: ${{ secrets.SEED_PHRASE_MEGAVAULT }}
+      SEED_PHRASE_MEGAVAULT: ${{ secrets.SEED_PHRASE_MEGAVAULT }}engio
     outputs:
       slack_ts: ${{ steps.slack-notify.outputs.slack_ts }}
       needs_review: ${{ steps.check-batch.outputs.needsReview }}
@@ -63,7 +63,7 @@ jobs:
             CHANNEL="$SLACK_CHANNEL"
             THREAD_ARG=""
           else
-            CHANNEL="#engineering"
+            CHANNEL="C07VDF07WLU"
             THREAD_TS=$(curl -s -G \
               -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
               --data-urlencode "channel=$CHANNEL" \
