@@ -65,26 +65,24 @@ jobs:
           TEXT="🏁 E2E tests started for **Deployment ID:** ${{ inputs.deployment_id }}"
           CHANNEL="$SLACK_CHANNEL"
 
-          # Fetch the channel history
+          # Fetch the channel history.
           HISTORY_RESPONSE=$(curl -s -G \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             --data-urlencode "channel=$CHANNEL" \
-            --data-urlencode "limit=50" \
+            --data-urlencode "limit=200" \
             "https://slack.com/api/conversations.history")
 
-          # Define the filter to find the message timestamp based on the attachment's "fallback" or "title" text
+          # This is the corrected jq filter.
+          # It selects the MESSAGE object if ANY of its attachments have a matching fallback text.
           JQ_FILTER='
             if .ok then .messages[] else empty end |
-            select(
-              (.attachments[].fallback? | test("release/" + $id; "i")) or
-              (.attachments[].title? | test("release/" + $id; "i"))
-            ) | .ts
+            select(any(.attachments[]; .fallback? | test("release/" + $id; "i"))) |
+            .ts
           '
-          # Attempt to extract the timestamp
+          
+          # Attempt to extract the timestamp from the response.
           THREAD_TS=$(echo "$HISTORY_RESPONSE" | jq -r --arg id "${{ inputs.deployment_id }}" "$JQ_FILTER" | head -n1)
 
-          # --- SAFTY CHECK ---
-          # Only post if a thread timestamp was actually found.
           if [ -n "$THREAD_TS" ]; then
             echo "Found thread TS: ${THREAD_TS}. Posting threaded reply."
             curl -s -X POST \
@@ -94,10 +92,6 @@ jobs:
               https://slack.com/api/chat.postMessage
           else
             echo "--- WARNING: Thread not found for release/${{ inputs.deployment_id }}. Skipping 'tests started' message. ---"
-            echo "--- The API response did not contain a matching message. This might be a timing issue (run the workflow again) or a problem with the jq filter. ---"
-            echo "--- Raw Slack API Response for debugging: ---"
-            echo "$HISTORY_RESPONSE" | jq .
-            echo "-------------------------------------------"
           fi
 
       # ─────────────────────────────────────────────────────────
@@ -132,25 +126,25 @@ jobs:
         id: find-thread
         if: ${{ inputs.deployment_id != 'manual' }}
         run: |
-          # Fetch the channel history
+          # Fetch the channel history.
           HISTORY_RESPONSE=$(curl -s -G \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             --data-urlencode "channel=$SLACK_CHANNEL" \
             --data-urlencode "limit=200" \
             "https://slack.com/api/conversations.history")
 
-          # Define the filter to find the message timestamp based on the attachment's "fallback" or "title" text
+          # It selects the MESSAGE object if ANY of its attachments have a matching fallback text.
           JQ_FILTER='
             if .ok then .messages[] else empty end |
-            select(
-              (.attachments[].fallback? | test("release/" + $id; "i")) or
-              (.attachments[].title? | test("release/" + $id; "i"))
-            ) | .ts
+            select(any(.attachments[]; .fallback? | test("release/" + $id; "i"))) |
+            .ts
           '
-          # Attempt to extract the timestamp
+          
+          # Attempt to extract the timestamp from the response.
           THREAD_TS=$(echo "$HISTORY_RESPONSE" | jq -r --arg id "${{ inputs.deployment_id }}" "$JQ_FILTER" | head -n1)
 
           if [ -n "$THREAD_TS" ]; then
+            echo "Found thread TS for results: ${THREAD_TS}"
             echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
           else
             echo "Warning: no release thread found for release/${{ inputs.deployment_id }} during the 'Find release thread' step."
@@ -162,6 +156,13 @@ jobs:
         id: slack-notify
         if: always()
         run: |
+          # --- SAFTY CHECK for automated runs ---
+          # For non-manual runs, if no thread was found, do not post the results at all.
+          if [ "${{ inputs.deployment_id }}" != "manual" ] && [ -z "${{ steps.find-thread.outputs.thread_ts }}" ]; then
+            echo "Warning: Not a manual run and release thread was not found. Skipping final Slack notification to avoid spamming the main channel."
+            exit 0
+          fi
+
           # build the message text
           if [ "${{ job.status }}" = "success" ]; then
             if [ "${{ steps.check-batch.outputs.needsReview }}" = "true" ]; then
