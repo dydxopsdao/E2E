@@ -226,7 +226,7 @@ jobs:
             echo "Polling attempt $ATTEMPT of $MAX_ATTEMPTS..."
             
             # Get batch status using the same endpoint as checkApplitoolsBatchByPointer.sh
-            START_DATE_POLL="$(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%SZ)"
+            START_DATE_POLL="$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"
             END_DATE_POLL="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
             RESPONSE=$(curl -s -X GET \
