@@ -58,7 +58,7 @@ jobs:
 
       # ─────────────────────────────────────────────────────────
       # 1) “Tests started” ping, threaded for non-manual IDs
-       - name: Post “Tests started” to Slack
+      - name: Post “Tests started” to Slack
         id: slack-started
         run: |
           TEXT="🏁 E2E tests started for **Deployment ID:** ${{ inputs.deployment_id }}"
