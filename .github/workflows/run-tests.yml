@@ -66,12 +66,14 @@ jobs:
           THREAD_ARG=""
 
           if [ "${{ inputs.deployment_id }}" != "manual" ]; then
-            # Define the jq filter in a variable to prevent shell parsing issues.
-            # The regex now searches for the release ID anywhere in the link, without the '$' anchor.
+            # This robust filter checks multiple fields in the attachment, which is necessary for GitHub app messages.
             JQ_FILTER='
               if .ok then .messages[] else empty end |
-              select(.attachments[].title_link? | test("release/" + $id; "i")) |
-              .ts
+              select(
+                (.attachments[].title? | test("release/" + $id; "i")) or
+                (.attachments[].fallback? | test("release/" + $id; "i")) or
+                (.attachments[].text? | test("release/" + $id; "i"))
+              ) | .ts
             '
             THREAD_TS=$(curl -s -G \
               -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
@@ -124,12 +126,14 @@ jobs:
         id: find-thread
         if: ${{ inputs.deployment_id != 'manual' }}
         run: |
-          # Define the jq filter in a variable to prevent shell parsing issues.
-          # The regex now searches for the release ID anywhere in the link, without the '$' anchor.
+          # This robust filter checks multiple fields in the attachment, which is necessary for GitHub app messages.
           JQ_FILTER='
             if .ok then .messages[] else empty end |
-            select(.attachments[].title_link? | test("release/" + $id; "i")) |
-            .ts
+            select(
+              (.attachments[].title? | test("release/" + $id; "i")) or
+              (.attachments[].fallback? | test("release/" + $id; "i")) or
+              (.attachments[].text? | test("release/" + $id; "i"))
+            ) | .ts
           '
           THREAD_TS=$(curl -s -G \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
