@@ -54,6 +54,39 @@ jobs:
         env:
           PLAYWRIGHT_BROWSERS_PATH: /opt/playwright
 
+      - name: Post “Tests started” to Slack
+        id: slack-started
+        run: |
+          TEXT="🏁 E2E tests started for **Deployment ID:** ${{ inputs.deployment_id }}"
+          # if manual, go to #test‐channel; else find the engineering thread:
+          if [ "${{ inputs.deployment_id }}" = "manual" ]; then
+            CHANNEL="$SLACK_CHANNEL"
+            THREAD_ARG=""
+          else
+            CHANNEL="#engineering"
+            THREAD_TS=$(curl -s -G \
+              -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+              --data-urlencode "channel=$CHANNEL" \
+              --data-urlencode "limit=50" \
+              "https://slack.com/api/conversations.history" \
+            | jq -r --arg id "${{ inputs.deployment_id }}" \
+                '.messages[] 
+                   | select((.text//"") 
+                   | test("release\\/"+$id; "i")) 
+                   | .ts' | head -n1)
+
+            if [ -n "$THREAD_TS" ]; then
+              THREAD_ARG=",\"thread_ts\":\"$THREAD_TS\""
+            fi
+          fi
+
+          curl -s -X POST \
+            -H "Content-type: application/json" \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+            --data "{\"channel\":\"${CHANNEL}\",\"text\":\"${TEXT}\"${THREAD_ARG}}" \
+            https://slack.com/api/chat.postMessage
+    
+
       - name: Run E2E Tests (Playwright + Applitools)
         env:
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
