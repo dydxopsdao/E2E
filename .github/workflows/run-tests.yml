@@ -25,8 +25,19 @@ jobs:
       # manual → #test-channel; else → engineering channel ID
       SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      # … other secrets omitted for brevity …
-
+      NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
+      NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
+      SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
+      METAMASK_PASSWORD: ${{ secrets.METAMASK_PASSWORD }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      DYDX_MNEMONIC: ${{ secrets.DYDX_MNEMONIC }}
+      DYDX_ADDRESS: ${{ secrets.DYDX_ADDRESS }}
+      DYDX_NETWORK_TYPE: mainnet
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      DYDX_MNEMONIC_CANCEL_ORDER: ${{ secrets.DYDX_MNEMONIC_CANCEL_ORDER }}
+      DYDX_ADDRESS_CANCEL_ORDER: ${{ secrets.DYDX_ADDRESS_CANCEL_ORDER }}
+      SEED_PHRASE_CANCEL_ORDER: ${{ secrets.SEED_PHRASE_CANCEL_ORDER }}
+      SEED_PHRASE_MEGAVAULT: ${{ secrets.SEED_PHRASE_MEGAVAULT }}engio
     outputs:
       slack_ts: ${{ steps.slack-notify.outputs.slack_ts }}
       needs_review: ${{ steps.check-batch.outputs.needsReview }}
@@ -47,7 +58,7 @@ jobs:
 
       # ─────────────────────────────────────────────────────────
       # 1) “Tests started” ping, threaded for non-manual IDs
-      - name: Post “Tests started” to Slack
+       - name: Post “Tests started” to Slack
         id: slack-started
         run: |
           TEXT="🏁 E2E tests started for **Deployment ID:** ${{ inputs.deployment_id }}"
@@ -60,10 +71,15 @@ jobs:
               --data-urlencode "channel=$CHANNEL" \
               --data-urlencode "limit=200" \
               "https://slack.com/api/conversations.history" \
-            | jq -r --arg id "${{ inputs.deployment_id }}" \
-                '.messages[]
-                 | select((.text // "") | test("release\\/"+$id; "i"))
-                 | .ts' \
+            | jq -r --arg id "${{ inputs.deployment_id }}" '
+                # 1. Safely check if the API call was successful before proceeding
+                if .ok then .messages[] else empty end |
+                # 2. Filter messages by looking inside the attachment's title link, where the GitHub app puts the release name.
+                #    The "$" in the regex ensures it matches the exact version (e.g., v2.8.6, not v2.8.6-hotfix).
+                select(.attachments[].title_link? | test("release/" + $id + "$"; "i")) |
+                # 3. Extract the timestamp
+                .ts
+              ' \
             | head -n1)
 
             if [ -n "$THREAD_TS" ]; then
@@ -114,10 +130,14 @@ jobs:
             --data-urlencode "channel=$SLACK_CHANNEL" \
             --data-urlencode "limit=200" \
             "https://slack.com/api/conversations.history" \
-          | jq -r --arg id "${{ inputs.deployment_id }}" \
-              '.messages[]
-               | select((.text // "") | test("release\\/"+$id; "i"))
-               | .ts' \
+          | jq -r --arg id "${{ inputs.deployment_id }}" '
+              # 1. Safely check if the API call was successful before proceeding
+              if .ok then .messages[] else empty end |
+              # 2. Filter messages by looking inside the attachment's title link
+              select(.attachments[].title_link? | test("release/" + $id + "$"; "i")) |
+              # 3. Extract the timestamp
+              .ts
+            ' \
           | head -n1)
 
           if [ -n "$THREAD_TS" ]; then
