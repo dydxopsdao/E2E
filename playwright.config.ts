@@ -74,13 +74,55 @@ export default defineConfig({
         ignoreHTTPSErrors: true,
       },
     },
+
+    // Deposit tests that will run sequentially.
+    {
+      name: "deposit-tests",
+      testDir: "./tests/",
+      testMatch: ['**/deposit/**/*.spec.ts'],
+      use: {
+        browserName: "chromium",
+        launchOptions: {
+          args: [
+            "--disable-blink-features=AutomationControlled",
+            "--disable-infobars",
+            "--disable-dev-shm-usage",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+          ],
+        },
+        ignoreHTTPSErrors: true,
+      },
+    },
+
+    // Withdraw tests that will run sequentially.
+    {
+      name: "withdraw-tests",
+      testDir: "./tests/",
+      testMatch: ['**/withdraw/**/*.spec.ts'],
+      use: {
+        browserName: "chromium",
+        launchOptions: {
+          args: [
+            "--disable-blink-features=AutomationControlled",
+            "--disable-infobars",
+            "--disable-dev-shm-usage",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+          ],
+        },
+        ignoreHTTPSErrors: true,
+      },
+    },
     // Main tests that will run concurrently (using multiple workers via CLI override).
     {
       name: "main-tests",
       testDir: "./tests/",
       testIgnore: [
         '**/cancel-order/**/*.spec.ts', 
-        '**/megavault/**/*.spec.ts'
+        '**/megavault/**/*.spec.ts',
+        '**/deposit/**/*.spec.ts',
+        '**/withdraw/**/*.spec.ts'
       ],
       use: {
         browserName: "chromium",
