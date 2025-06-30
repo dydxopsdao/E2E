@@ -48,7 +48,7 @@ export async function addNetwork(
     logger.debug(`Waiting for ${networkName} network container`);
     await metaMaskPage.waitForSelector(networkSelector, {
       state: "visible",
-      timeout,
+      timeout: TEST_TIMEOUTS.ELEMENT,
     });
 
     // Find the Add button within this container and click it
