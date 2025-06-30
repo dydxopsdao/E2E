@@ -9,7 +9,6 @@ on:
         default: 'manual'
   pull_request:
 
-# Global environment
 env:
   APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
   APPLITOOLS_SERVER_URL: https://eyesapi.applitools.com
@@ -19,11 +18,11 @@ jobs:
     name: "E2E Tests (Deployment: ${{ inputs.deployment_id }})"
     runs-on: self-hosted
 
+    # choose channel: manual → #test-channel, else → #engineering
     env:
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
-      SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || '#automated-testing-results' }}
-      #APPLITOOLS_SHOW_LOGS: false 
-      #DEBUG: "eyes*,pw:worker,pw:dispatcher,pw:api"
+      SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || '#engineering' }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
       NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
       SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
@@ -33,7 +32,6 @@ jobs:
       DYDX_ADDRESS: ${{ secrets.DYDX_ADDRESS }}
       DYDX_NETWORK_TYPE: mainnet
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       DYDX_MNEMONIC_CANCEL_ORDER: ${{ secrets.DYDX_MNEMONIC_CANCEL_ORDER }}
       DYDX_ADDRESS_CANCEL_ORDER: ${{ secrets.DYDX_ADDRESS_CANCEL_ORDER }}
       SEED_PHRASE_CANCEL_ORDER: ${{ secrets.SEED_PHRASE_CANCEL_ORDER }}
@@ -52,20 +50,18 @@ jobs:
           fetch-depth: 5
 
       - name: Install Dependencies
-        run: |
-          npm install
+        run: npm install
         env:
           PLAYWRIGHT_BROWSERS_PATH: /opt/playwright
-
 
       - name: Run E2E Tests (Playwright + Applitools)
         env:
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
         run: |
-          PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
+          PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum \
+            --server-args='-screen 0 1920x1080x24' \
             npx playwright test --workers=2
 
-      
       - name: Upload Test Report
         if: always()
         uses: actions/upload-artifact@v4
@@ -73,7 +69,6 @@ jobs:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
 
-      # Only check Applitools if E2E tests passed
       - name: Check Applitools Batch By Pointer
         if: always()
         id: check-batch
@@ -84,213 +79,177 @@ jobs:
             "${APPLITOOLS_API_KEY}" \
             "${APPLITOOLS_BATCH_ID}"
 
-      # Post Slack Notification (Main Message)
+      # Only do thread lookup for non-manual runs
+      - name: Find release thread in #engineering
+        id: find-thread
+        if: ${{ inputs.deployment_id != 'manual' }}
+        run: |
+          THREAD_TS=$(curl -s -G \
+            -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+            --data-urlencode "channel=${SLACK_CHANNEL}" \
+            --data-urlencode "limit=200" \
+            "https://slack.com/api/conversations.history" \
+          | jq -r --arg id "${{ inputs.deployment_id }}" \
+              '.messages[]
+               | select((.text // "") | test("release\\/"+$id; "i"))
+               | .ts' \
+          | head -n1)
+
+          if [ -n "$THREAD_TS" ]; then
+            echo "Found thread_ts=$THREAD_TS"
+            echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
+          else
+            echo "Warning: no release thread found for release/${{ inputs.deployment_id }}"
+          fi
+
       - name: Post Slack Notification (Main Message)
         id: slack-notify
         if: always()
-        env:
-          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          JOB_STATUS: ${{ job.status }}  # success/failure for E2E tests
-          DEPLOYMENT_ID: ${{ inputs.deployment_id }}
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          # Use global Slack channel
-          SLACK_CHANNEL: ${{ env.SLACK_CHANNEL }}
-          NEEDS_REVIEW: ${{ steps.check-batch.outputs.needsReview || 'false' }}
-          FOUND_BATCH_ID: ${{ steps.check-batch.outputs.foundBatchID || '' }}
         run: |
-          if [ "${JOB_STATUS}" = "success" ]; then
-            # E2E tests passed
-            if [ "${NEEDS_REVIEW}" = "true" ]; then
-              # Applitools found differences
-              MESSAGE="✅ E2E Tests Passed!\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n🔍 *Visual differences detected – manual review needed.*\n[Review in Applitools](https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/)"
+          # 1) build the message
+          if [ "${{ job.status }}" = "success" ]; then
+            if [ "${{ steps.check-batch.outputs.needsReview }}" = "true" ]; then
+              ICON="🔍 *Visual differences detected – manual review needed.*"
             else
-              # Applitools is all good (or check-batch didn't run)
-              MESSAGE="✅ E2E Tests Passed!\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n🎉 *All visual checks passed. Rollout can proceed.*"
+              ICON="🎉 *All visual checks passed. Rollout can proceed.*"
             fi
+            TEXT="✅ E2E Tests Passed!\n\n**Deployment ID:** ${{ inputs.deployment_id }}\n${ICON}"
           else
-            # E2E tests failed
-            if [ -n "${FOUND_BATCH_ID}" ]; then
-              MESSAGE="❌ E2E Tests Failed!\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n*Playwright tests did not pass, but you can still view Applitools results for comparison.*\n[Visual Tests in Applitools](https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/)\n[Details & Logs](${RUN_URL})"
-            else
-              MESSAGE="❌ E2E Tests Failed!\n\n**Deployment ID:** ${DEPLOYMENT_ID}\n[Details & Logs](${RUN_URL})"
+            TEXT="❌ E2E Tests Failed!\n\n**Deployment ID:** ${{ inputs.deployment_id }}\n[Details & Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          fi
+
+          # 2) if in engineering, de-dup in-thread
+          THREAD_TS="${{ steps.find-thread.outputs.thread_ts }}"
+          if [ -n "$THREAD_TS" ]; then
+            DUP=$(curl -s -G \
+              -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+              --data-urlencode "channel=${SLACK_CHANNEL}" \
+              --data-urlencode "ts=$THREAD_TS" \
+              "https://slack.com/api/conversations.replies" \
+            | jq -r --arg txt "$TEXT" \
+                '.messages[] | select(.text == $txt) | .ts')
+            if [ -n "$DUP" ]; then
+              echo "Already posted in thread $THREAD_TS; skipping."
+              exit 0
             fi
           fi
 
+          # 3) build payload (thread_ts only if set)
+          PAYLOAD="{\"channel\":\"${SLACK_CHANNEL}\","
+          if [ -n "$THREAD_TS" ]; then
+            PAYLOAD+="\"thread_ts\":\"${THREAD_TS}\","
+          fi
+          PAYLOAD+="\"text\":\"${TEXT}\"}"
+
+          # 4) post
           RESPONSE=$(curl -s -X POST \
             -H "Content-type: application/json" \
             -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
-            --data "{
-              \"channel\": \"${SLACK_CHANNEL}\",
-              \"text\": \"${MESSAGE}\"
-            }" \
+            --data "$PAYLOAD" \
             https://slack.com/api/chat.postMessage)
 
-          # Capture the Slack message timestamp so we can post a thread if needed
+          # record ts
           TS=$(echo "$RESPONSE" | jq -r '.ts')
           echo "slack_ts=${TS}" >> $GITHUB_OUTPUT
 
-  # If Applitools is all good, auto-complete the batch & optionally post a thread with links
   applitools-auto-complete:
     name: "Applitools Auto-Completion"
     if: needs.e2e-test.outputs.needs_review == 'false'
     needs: e2e-test
     runs-on: ubuntu-latest
     env:
-      SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || '#automated-testing-results' }}
+      SLACK_CHANNEL: ${{ needs.e2e-test.outputs.slack_channel }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
     steps:
       - name: Mark Applitools Batch as Complete
         run: |
-          echo "No review needed, auto-completing the batch."
           curl -X POST -d '' -H "accept:*/*" \
             "${{ env.APPLITOOLS_SERVER_URL }}/api/externals/github/servers/github.com/commit/${{ needs.e2e-test.outputs.found_batch_id }}/complete?apiKey=${{ env.APPLITOOLS_API_KEY }}"
 
       - name: Post Slack Thread (All Passed)
-        env:
-          THREAD_TS: ${{ needs.e2e-test.outputs.slack_ts }}
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: ${{ needs.e2e-test.outputs.slack_channel }}
-          FOUND_BATCH_ID: ${{ needs.e2e-test.outputs.found_batch_id }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          # Provide direct links to GitHub Actions and Applitools in a Slack thread
-          APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/"
-          GITHUB_RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          THREAD_TS=${{ needs.e2e-test.outputs.slack_ts }}
+          APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/"
+          GITHUB_RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           THREAD_MESSAGE="Additional details:\n- GitHub Action: ${GITHUB_RUN_URL}\n- Applitools: ${APPLITOOLS_LINK}"
-          
           curl -s -X POST \
             -H "Content-type: application/json" \
             -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
-            --data "{
-              \"channel\": \"${SLACK_CHANNEL}\",
-              \"text\": \"${THREAD_MESSAGE}\",
-              \"thread_ts\": \"${THREAD_TS}\"
-            }" \
+            --data "{\"channel\":\"${SLACK_CHANNEL}\",\"thread_ts\":\"${THREAD_TS}\",\"text\":\"${THREAD_MESSAGE}\"}" \
             https://slack.com/api/chat.postMessage
 
-  # If Applitools has differences, poll for status resolution
   batch-status-polling:
     name: "Applitools Batch Status Polling"
     if: needs.e2e-test.outputs.needs_review == 'true'
     needs: e2e-test
     runs-on: ubuntu-latest
     env:
-      SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || '#automated-testing-results' }}
-    
+      SLACK_CHANNEL: ${{ needs.e2e-test.outputs.slack_channel }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      FOUND_BATCH_ID: ${{ needs.e2e-test.outputs.found_batch_id }}
+      APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
+      APPLITOOLS_SERVER_URL: ${{ env.APPLITOOLS_SERVER_URL }}
+      THREAD_TS: ${{ needs.e2e-test.outputs.slack_ts }}
+
     steps:
       - name: Checkout repository 
         uses: actions/checkout@v4
-      
+
       - name: Poll Applitools Batch Status
         id: poll-status
-        env:
-          THREAD_TS: ${{ needs.e2e-test.outputs.slack_ts }}
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          FOUND_BATCH_ID: ${{ needs.e2e-test.outputs.found_batch_id }}
-          APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
-          APPLITOOLS_SERVER_URL: ${{ env.APPLITOOLS_SERVER_URL }}
         run: |
           send_slack_message() {
-            local message="$1"
-            local ts="${THREAD_TS}"
-            
-            # Escape special characters in the message
-            escaped_message=$(echo "$message" | sed 's/"/\\"/g' | sed "s/'/\\\'/g")
-            
+            local msg="$1"; local ts="$THREAD_TS"
+            esc=$(echo "$msg" | sed 's/"/\\"/g' | sed "s/'/\\\'/g")
             curl -s -X POST \
               -H "Content-type: application/json" \
               -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
-              --data "{
-                \"channel\": \"${SLACK_CHANNEL}\",
-                \"text\": \"${escaped_message}\",
-                \"thread_ts\": \"${ts}\"
-              }" \
+              --data "{\"channel\":\"${SLACK_CHANNEL}\",\"thread_ts\":\"${ts}\",\"text\":\"${esc}\"}" \
               https://slack.com/api/chat.postMessage
           }
-          
-          # Post initial message
+
+          # initial “waiting for review”
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/"
           GITHUB_RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          INITIAL_MESSAGE="⚠️ **Visual differences detected**\n\n🔍 *Waiting for manual review...*\n[Review in Applitools](${APPLITOOLS_LINK})\n⏳ This job will monitor for **up to 1 hour**."
-          send_slack_message "${INITIAL_MESSAGE}"
-          
-          # Poll status for up to 1 hour (120 attempts × 30 seconds = 3600 seconds)
-          MAX_ATTEMPTS=120
-          ATTEMPT=0
-          POLL_INTERVAL=30
-          FINAL_STATUS=""
-          
-          while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
-            ATTEMPT=$((ATTEMPT + 1))
-            echo "Polling attempt $ATTEMPT of $MAX_ATTEMPTS..."
-            
-            # Get batch status using the same endpoint as checkApplitoolsBatchByPointer.sh
-            START_DATE_POLL="$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"
-            END_DATE_POLL="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          send_slack_message "⚠️ **Visual differences detected**\n\n🔍 *Waiting for manual review...*\n[Review in Applitools](${APPLITOOLS_LINK})\n⏳ Monitoring up to 1h."
 
-            RESPONSE=$(curl -s -X GET \
+          MAX=120; I=0; INTERVAL=30; STATUS=""
+          while [ "$I" -lt "$MAX" ]; do
+            I=$((I+1))
+            START=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)
+            END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            RESP=$(curl -s -X GET \
               -H "X-Eyes-Api-Key: ${APPLITOOLS_API_KEY}" \
-              "${APPLITOOLS_SERVER_URL}/api/v1/batches?start=${START_DATE_POLL}&end=${END_DATE_POLL}&pageSize=100") # Increased page size just in case
-            
-            # Extract batch info using jq
-            BATCH_INFO=$(echo "$RESPONSE" | jq --arg bid "${FOUND_BATCH_ID}" '.batches[] | select(.id == $bid)')
-            
-            if [ -z "$BATCH_INFO" ] || [ "$BATCH_INFO" == "null" ]; then 
-              echo "Warning: Batch ${FOUND_BATCH_ID} not found in response for the polling window."
+              "${APPLITOOLS_SERVER_URL}/api/v1/batches?start=${START}&end=${END}&pageSize=100")
+            B=$(echo "$RESP" | jq --arg bid "${FOUND_BATCH_ID}" '.batches[]|select(.id==$bid)')
+            if [ -z "$B" ] || [ "$B" = "null" ]; then sleep "$INTERVAL"; continue; fi
 
-              sleep "$POLL_INTERVAL"
-              continue
-            fi
-            
-            # Extract status information
-            FAILED=$(echo "$BATCH_INFO" | jq -r '.runningSummary.failedTests // .statusSummary.Failed // 0')
-            UNRESOLVED=$(echo "$BATCH_INFO" | jq -r '.runningSummary.unresolvedTests // .statusSummary.Unresolved // 0')
-            NEW=$(echo "$BATCH_INFO" | jq -r '.runningSummary.newTests // .statusSummary.New // 0')
-            
-            echo "Current batch counters - Failed: $FAILED, Unresolved: $UNRESOLVED, New: $NEW"
-            
-            # Check if there are any failed tests
-            if [ "$FAILED" -gt 0 ]; then
-              FINAL_STATUS="FAILED"
-              break
-            fi
-            
-            # Check if all relevant counters are 0 (indicating success or resolved)
-            if [ "$FAILED" -eq 0 ] && [ "$UNRESOLVED" -eq 0 ] && [ "$NEW" -eq 0 ]; then
-              FINAL_STATUS="PASSED"
-              break
-            fi
-            
-            # Status still unresolved, wait and try again
-            sleep "$POLL_INTERVAL"
+            F=$(echo "$B" | jq -r '.runningSummary.failedTests // .statusSummary.Failed // 0')
+            U=$(echo "$B" | jq -r '.runningSummary.unresolvedTests // .statusSummary.Unresolved // 0')
+            N=$(echo "$B" | jq -r '.runningSummary.newTests // .statusSummary.New // 0')
+            if [ "$F" -gt 0 ]; then STATUS="FAILED"; break; fi
+            if [ "$F" -eq 0 ] && [ "$U" -eq 0 ] && [ "$N" -eq 0 ]; then STATUS="PASSED"; break; fi
+            sleep "$INTERVAL"
           done
-          
-          # Handle final status
-          if [ "$FINAL_STATUS" = "PASSED" ]; then
-            FINAL_MESSAGE="✅ **Visual Review Approved**\n\n🎉 *All differences approved – rollout can proceed.*\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
-            send_slack_message "${FINAL_MESSAGE}"
+
+          if [ "$STATUS" = "PASSED" ]; then
+            send_slack_message "✅ **Visual Review Approved**\n\n🎉 Rollout can proceed.\n\n🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             echo "status=approved" >> "$GITHUB_OUTPUT"
-          elif [ "$FINAL_STATUS" = "FAILED" ]; then
-            FINAL_MESSAGE="❌ **Visual Review Rejected**\n\n🚨 *Differences were not approved – rollout stopped.*\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
-            send_slack_message "${FINAL_MESSAGE}"
+          elif [ "$STATUS" = "FAILED" ]; then
+            send_slack_message "❌ **Visual Review Rejected**\n\n🚨 Rollout stopped.\n\n🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             echo "status=rejected" >> "$GITHUB_OUTPUT"
           else
-            # Timeout reached or still has issues
-            FINAL_MESSAGE="⚠️ **Batch Review Timed Out or Has Issues**\n\n⏳ *Review was not completed within 1 hour or has unresolved issues.*\n🔍 Please check manually and re-run if needed.\n\n🔗 [GitHub Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
-            send_slack_message "${FINAL_MESSAGE}"
+            send_slack_message "⚠️ **Review timed out/has issues**\n\n⏳ Please check manually.\n\n🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             echo "status=timeout" >> "$GITHUB_OUTPUT"
           fi
-      
+
       - name: Mark Applitools Batch as Complete
         if: steps.poll-status.outputs.status == 'approved'
         run: |
-          echo "Completing the batch after approval."
           curl -X POST -d '' -H "accept:*/*" \
             "${{ env.APPLITOOLS_SERVER_URL }}/api/externals/github/servers/github.com/commit/${{ needs.e2e-test.outputs.found_batch_id }}/complete?apiKey=${{ env.APPLITOOLS_API_KEY }}"
-      
+
       - name: Fail Workflow if Review Rejected
         if: steps.poll-status.outputs.status == 'rejected'
-        run: |
-          echo "Visual tests were rejected. Failing the workflow."
-          exit 1
+        run: exit 1
