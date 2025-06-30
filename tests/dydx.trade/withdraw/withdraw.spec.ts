@@ -53,12 +53,12 @@ test.describe("Withdraw flow tests", () => {
       page,
       walletAddress,
       'button:has(div:has-text("Avalanche"))',
-      "11"
+      "12"
     );
-    await checkWithdrawCompleted(page, -11);
+    await checkWithdrawCompleted(page, -12);
 
     // Check for both withdrawal notifications in sequence
     //await checkWithdrawalNotifications(page, "$12.00");
-    await checkFinalPortfolioValue(page, initialPortfolioValue, -11);
+    await checkFinalPortfolioValue(page, initialPortfolioValue, -12);
   });
 });

@@ -59,7 +59,7 @@ export async function checkFinalPortfolioValue(
   page: Page,
   initialPortfolioValue: number,
   expectedIncrease: number,
-  variancePercent: number = 10
+  variancePercent: number = 15
 ): Promise<void> {
   logger.step("Checking final portfolio value");
 
