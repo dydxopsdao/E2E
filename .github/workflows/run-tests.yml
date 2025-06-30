@@ -67,9 +67,10 @@ jobs:
 
           if [ "${{ inputs.deployment_id }}" != "manual" ]; then
             # Define the jq filter in a variable to prevent shell parsing issues.
+            # The regex now searches for the release ID anywhere in the link, without the '$' anchor.
             JQ_FILTER='
               if .ok then .messages[] else empty end |
-              select(.attachments[].title_link? | test("release/" + $id + "$"; "i")) |
+              select(.attachments[].title_link? | test("release/" + $id; "i")) |
               .ts
             '
             THREAD_TS=$(curl -s -G \
@@ -124,9 +125,10 @@ jobs:
         if: ${{ inputs.deployment_id != 'manual' }}
         run: |
           # Define the jq filter in a variable to prevent shell parsing issues.
+          # The regex now searches for the release ID anywhere in the link, without the '$' anchor.
           JQ_FILTER='
             if .ok then .messages[] else empty end |
-            select(.attachments[].title_link? | test("release/" + $id + "$"; "i")) |
+            select(.attachments[].title_link? | test("release/" + $id; "i")) |
             .ts
           '
           THREAD_TS=$(curl -s -G \
