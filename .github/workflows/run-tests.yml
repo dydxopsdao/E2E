@@ -60,39 +60,45 @@ jobs:
       # 1) “Tests started” ping, threaded for non-manual IDs
       - name: Post “Tests started” to Slack
         id: slack-started
+        if: ${{ inputs.deployment_id != 'manual' }}
         run: |
           TEXT="🏁 E2E tests started for **Deployment ID:** ${{ inputs.deployment_id }}"
           CHANNEL="$SLACK_CHANNEL"
-          THREAD_ARG=""
 
-          if [ "${{ inputs.deployment_id }}" != "manual" ]; then
-            # This robust filter checks multiple fields in the attachment, which is necessary for GitHub app messages.
-            JQ_FILTER='
-              if .ok then .messages[] else empty end |
-              select(
-                (.attachments[].title? | test("release/" + $id; "i")) or
-                (.attachments[].fallback? | test("release/" + $id; "i")) or
-                (.attachments[].text? | test("release/" + $id; "i"))
-              ) | .ts
-            '
-            THREAD_TS=$(curl -s -G \
-              -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-              --data-urlencode "channel=$CHANNEL" \
-              --data-urlencode "limit=200" \
-              "https://slack.com/api/conversations.history" \
-            | jq -r --arg id "${{ inputs.deployment_id }}" "$JQ_FILTER" \
-            | head -n1)
-
-            if [ -n "$THREAD_TS" ]; then
-              THREAD_ARG=",\"thread_ts\":\"$THREAD_TS\""
-            fi
-          fi
-
-          curl -s -X POST \
-            -H "Content-type: application/json" \
+          # Fetch the channel history
+          HISTORY_RESPONSE=$(curl -s -G \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-            --data "{\"channel\":\"${CHANNEL}\",\"text\":\"${TEXT}\"${THREAD_ARG}}" \
-            https://slack.com/api/chat.postMessage
+            --data-urlencode "channel=$CHANNEL" \
+            --data-urlencode "limit=50" \
+            "https://slack.com/api/conversations.history")
+
+          # Define the filter to find the message timestamp based on the attachment's "fallback" or "title" text
+          JQ_FILTER='
+            if .ok then .messages[] else empty end |
+            select(
+              (.attachments[].fallback? | test("release/" + $id; "i")) or
+              (.attachments[].title? | test("release/" + $id; "i"))
+            ) | .ts
+          '
+          # Attempt to extract the timestamp
+          THREAD_TS=$(echo "$HISTORY_RESPONSE" | jq -r --arg id "${{ inputs.deployment_id }}" "$JQ_FILTER" | head -n1)
+
+          # --- SAFTY CHECK ---
+          # Only post if a thread timestamp was actually found.
+          if [ -n "$THREAD_TS" ]; then
+            echo "Found thread TS: ${THREAD_TS}. Posting threaded reply."
+            curl -s -X POST \
+              -H "Content-type: application/json" \
+              -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+              --data "{\"channel\":\"${CHANNEL}\",\"thread_ts\":\"${THREAD_TS}\",\"text\":\"${TEXT}\"}" \
+              https://slack.com/api/chat.postMessage
+          else
+            echo "--- WARNING: Thread not found for release/${{ inputs.deployment_id }}. Skipping 'tests started' message. ---"
+            echo "--- The API response did not contain a matching message. This might be a timing issue (run the workflow again) or a problem with the jq filter. ---"
+            echo "--- Raw Slack API Response for debugging: ---"
+            echo "$HISTORY_RESPONSE" | jq .
+            echo "-------------------------------------------"
+          fi
 
       # ─────────────────────────────────────────────────────────
       - name: Run E2E Tests (Playwright + Applitools)
@@ -126,27 +132,28 @@ jobs:
         id: find-thread
         if: ${{ inputs.deployment_id != 'manual' }}
         run: |
-          # This robust filter checks multiple fields in the attachment, which is necessary for GitHub app messages.
-          JQ_FILTER='
-            if .ok then .messages[] else empty end |
-            select(
-              (.attachments[].title? | test("release/" + $id; "i")) or
-              (.attachments[].fallback? | test("release/" + $id; "i")) or
-              (.attachments[].text? | test("release/" + $id; "i"))
-            ) | .ts
-          '
-          THREAD_TS=$(curl -s -G \
+          # Fetch the channel history
+          HISTORY_RESPONSE=$(curl -s -G \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             --data-urlencode "channel=$SLACK_CHANNEL" \
             --data-urlencode "limit=200" \
-            "https://slack.com/api/conversations.history" \
-          | jq -r --arg id "${{ inputs.deployment_id }}" "$JQ_FILTER" \
-          | head -n1)
+            "https://slack.com/api/conversations.history")
+
+          # Define the filter to find the message timestamp based on the attachment's "fallback" or "title" text
+          JQ_FILTER='
+            if .ok then .messages[] else empty end |
+            select(
+              (.attachments[].fallback? | test("release/" + $id; "i")) or
+              (.attachments[].title? | test("release/" + $id; "i"))
+            ) | .ts
+          '
+          # Attempt to extract the timestamp
+          THREAD_TS=$(echo "$HISTORY_RESPONSE" | jq -r --arg id "${{ inputs.deployment_id }}" "$JQ_FILTER" | head -n1)
 
           if [ -n "$THREAD_TS" ]; then
             echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
           else
-            echo "Warning: no release thread for release/${{ inputs.deployment_id }}"
+            echo "Warning: no release thread found for release/${{ inputs.deployment_id }} during the 'Find release thread' step."
           fi
 
       # ─────────────────────────────────────────────────────────
