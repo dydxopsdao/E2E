@@ -19,6 +19,7 @@ jobs:
     runs-on: self-hosted
 
     env:
+      # Applitools
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
       SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -35,10 +36,14 @@ jobs:
       DYDX_ADDRESS_CANCEL_ORDER: ${{ secrets.DYDX_ADDRESS_CANCEL_ORDER }}
       SEED_PHRASE_CANCEL_ORDER: ${{ secrets.SEED_PHRASE_CANCEL_ORDER }}
       SEED_PHRASE_MEGAVAULT: ${{ secrets.SEED_PHRASE_MEGAVAULT }}
+      AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION:    ${{ secrets.AWS_DEFAULT_REGION }} 
+      S3_TRACE_BUCKET:       ${{ secrets.S3_TRACE_BUCKET }}  
 
     outputs:
       root_thread_ts: ${{ steps.find-thread-diagnostic.outputs.thread_ts }}
-      slack_ts:       ${{ steps.slack-started.outputs.ts }}
+      slack_ts:       ${{ steps.slack-notify.outputs.slack_ts }}
       needs_review:   ${{ steps.check-batch.outputs.needsReview }}
       found_batch_id: ${{ steps.check-batch.outputs.foundBatchID }}
       slack_channel:  ${{ env.SLACK_CHANNEL }}
@@ -47,8 +52,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 5
           token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
+          fetch-depth: 5
 
       - name: Install dependencies
         run: npm install
@@ -83,10 +88,9 @@ jobs:
               )
             | .ts
           ' | head -1)
- 
+
           if [ -n "$THREAD_TS" ]; then
             echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
-            # export for all subsequent steps in this job
             echo "THREAD_TS=$THREAD_TS" >> $GITHUB_ENV
           else
             echo "::warning::no matching release message in last 100"
@@ -115,12 +119,30 @@ jobs:
             --server-args='-screen 0 1920x1080x24' \
             npx playwright test --workers=2
 
-      - name: Upload Test Report
+      - name: Upload Test Report artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
+
+      - name: Sync HTML report to S3
+        if: always()
+        run: |
+          aws s3 sync playwright-report/ \
+            s3://${S3_TRACE_BUCKET}/runs/${GITHUB_RUN_ID}/report/ \
+            --acl public-read \
+            --delete
+          echo "REPORT_URL=https://${S3_TRACE_BUCKET}.s3-website.${AWS_DEFAULT_REGION}.amazonaws.com/runs/${GITHUB_RUN_ID}/report/index.html" >> $GITHUB_ENV
+
+      - name: Sync Playwright traces to S3
+        if: always()
+        run: |
+          aws s3 sync playwright-report/traces/ \
+            s3://${S3_TRACE_BUCKET}/runs/${GITHUB_RUN_ID}/traces/ \
+            --acl public-read \
+            --delete
+          echo "TRACE_BASE_URL=https://${S3_TRACE_BUCKET}.s3-website.${AWS_DEFAULT_REGION}.amazonaws.com/runs/${GITHUB_RUN_ID}/traces" >> $GITHUB_ENV
 
       - name: Check Applitools Batch By Pointer
         id: check-batch
@@ -136,10 +158,9 @@ jobs:
         id: slack-notify
         if: always()
         run: |
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          OUTCOME="${{ steps.run-tests.outcome }}"       # success|failure|cancelled
-          APPLITOOLS_ID="${{ steps.check-batch.outputs.foundBatchID }}"
-          APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${APPLITOOLS_ID}/"
+          RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          OUTCOME="${{ steps.run-tests.outcome }}"
+          APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${{ steps.check-batch.outputs.foundBatchID }}/"
 
           if [ "$OUTCOME" != "success" ]; then
             TEXT="❌ E2E tests ${OUTCOME}! (**Deployment ID:** ${{ inputs.deployment_id }})\n🔗 [View logs]($RUN_URL)"
@@ -151,35 +172,41 @@ jobs:
             fi
           fi
 
-          curl -s -X POST \
+          # append report & traces links
+          if [ -n "$REPORT_URL" ]; then
+            TEXT="${TEXT}\n📑 [View HTML report]($REPORT_URL)"
+          fi
+          if [ -n "$TRACE_BASE_URL" ]; then
+            TEXT="${TEXT}\n🔍 [Browse traces]($TRACE_BASE_URL/)"
+          fi
+
+          RESPONSE=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"$THREAD_TS\",\"text\":\"$TEXT\"}" \
-            https://slack.com/api/chat.postMessage
+            https://slack.com/api/chat.postMessage)
+          echo "slack_ts=$(echo \"$RESPONSE\" | jq -r .ts)" >> $GITHUB_OUTPUT
 
   applitools-auto-complete:
     name: "Applitools Auto-Completion"
     if: needs.e2e-test.outputs.needs_review == 'false'
     needs: e2e-test
     runs-on: ubuntu-latest
-
     env:
-      SLACK_CHANNEL:      ${{ needs.e2e-test.outputs.slack_channel }}
-      ROOT_THREAD_TS:     ${{ needs.e2e-test.outputs.root_thread_ts }}
-      SLACK_BOT_TOKEN:    ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL:    ${{ needs.e2e-test.outputs.slack_channel }}
+      ROOT_THREAD_TS:   ${{ needs.e2e-test.outputs.root_thread_ts }}
+      SLACK_BOT_TOKEN:  ${{ secrets.SLACK_BOT_TOKEN }}
       APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
-
     steps:
       - name: Mark Applitools Batch as Complete
         run: |
           curl -X POST -d '' -H 'accept:*/*' \
             "$APPLITOOLS_SERVER_URL/api/externals/github/servers/github.com/commit/${{ needs.e2e-test.outputs.found_batch_id }}/complete?apiKey=$APPLITOOLS_API_KEY"
-
       - name: Post Slack Thread (All Passed)
         run: |
           THREAD_TS="$ROOT_THREAD_TS"
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/"
-          GITHUB_RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          GITHUB_RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           MSG="Additional details:\n- GitHub Action: ${GITHUB_RUN_URL}\n- Applitools: ${APPLITOOLS_LINK}"
           curl -s -X POST \
             -H "Content-Type: application/json" \
@@ -192,16 +219,13 @@ jobs:
     if: needs.e2e-test.outputs.needs_review == 'true'
     needs: e2e-test
     runs-on: ubuntu-latest
-
     env:
-      SLACK_CHANNEL:      ${{ needs.e2e-test.outputs.slack_channel }}
-      ROOT_THREAD_TS:     ${{ needs.e2e-test.outputs.root_thread_ts }}
-      SLACK_BOT_TOKEN:    ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL:    ${{ needs.e2e-test.outputs.slack_channel }}
+      ROOT_THREAD_TS:   ${{ needs.e2e-test.outputs.root_thread_ts }}
+      SLACK_BOT_TOKEN:  ${{ secrets.SLACK_BOT_TOKEN }}
       APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Poll Applitools Batch Status
         id: poll-status
         run: |
@@ -216,7 +240,7 @@ jobs:
           }
 
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/"
-          GITHUB_RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          GITHUB_RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
           send_slack_message "⚠️ **Visual differences detected**\n\n🔍 *Waiting for manual review...*\n[Review in Applitools](${APPLITOOLS_LINK})\n⏳ Monitoring up to 1h."
 
@@ -228,7 +252,7 @@ jobs:
             RESP=$(curl -s -X GET \
               -H "X-Eyes-Api-Key: $APPLITOOLS_API_KEY" \
               "$APPLITOOLS_SERVER_URL/api/v1/batches?start=$START&end=$END&pageSize=100")
-            B=$(echo "$RESP" | jq --arg bid "${{ needs.e2e-test.outputs.found_batch_id }}" \
+            B=$(echo "$RESP" | jq --arg bid="${{ needs.e2e-test.outputs.found_batch_id }}" \
                   '.batches[]|select(.id==$bid)')
             if [ -z "$B" ] || [ "$B" = "null" ]; then sleep "$INTERVAL"; continue; fi
 
