@@ -62,24 +62,27 @@ jobs:
           echo "::group::Slack history diagnostic for ID=${{ inputs.deployment_id }}"
           HISTORY=$(curl --fail -s \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-            -G --data-urlencode "channel=$SLACK_CHANNEL" --data-urlencode "limit=100" \
+            -G --data-urlencode "channel=$SLACK_CHANNEL" \
+               --data-urlencode "limit=100" \
             https://slack.com/api/conversations.history)
           echo "::endgroup::"
 
           THREAD_TS=$(echo "$HISTORY" | jq -r --arg id "${{ inputs.deployment_id }}" '
             .messages[]
             | select(
-                .attachments? and
-                (
+                .attachments? and (
                   [ .attachments[]
-                      | ( .fallback // "" ), ( .title // "" ), ( .pretext // "" ), ( .text // "" )
+                      | ( .fallback // "" ),
+                        ( .title    // "" ),
+                        ( .pretext  // "" ),
+                        ( .text     // "" )
                   ]
                   | map(test($id; "i"))
                   | any
                 )
               )
             | .ts
-          ' | head -n1)
+          ' | head -1)
 
           if [ -n "$THREAD_TS" ]; then
             echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
@@ -91,16 +94,19 @@ jobs:
         id: slack-started
         if: ${{ inputs.deployment_id != 'manual' && steps.find-thread-diagnostic.outputs.thread_ts }}
         run: |
-          THREAD_TS=${{ steps.find-thread-diagnostic.outputs.thread_ts }}
+          THREAD_TS="${{ steps.find-thread-diagnostic.outputs.thread_ts }}"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           TEXT="🏁 E2E tests started for **Deployment ID:** ${{ inputs.deployment_id }}\n🔗 [View run logs]($RUN_URL)"
-          curl -s -X POST \
+          RESPONSE=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-            --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"$THREAD_TS\",\"text\":\"$TEXT\"}" \
-            https://slack.com/api/chat.postMessage
+            --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"${THREAD_TS}\",\"text\":\"${TEXT}\"}" \
+            https://slack.com/api/chat.postMessage)
+          echo "ts=$(echo \"$RESPONSE\" | jq -r .ts)" >> $GITHUB_OUTPUT
 
       - name: Run E2E Tests (Playwright + Applitools)
+        id: run-tests
+        continue-on-error: true
         env:
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
         run: |
@@ -138,17 +144,19 @@ jobs:
           THREAD_TS=$(echo "$HISTORY" | jq -r --arg id "${{ inputs.deployment_id }}" '
             .messages[]
             | select(
-                .attachments? and
-                (
+                .attachments? and (
                   [ .attachments[]
-                      | ( .fallback // "" ), ( .title // "" ), ( .pretext // "" ), ( .text // "" )
+                      | ( .fallback // "" ),
+                        ( .title    // "" ),
+                        ( .pretext  // "" ),
+                        ( .text     // "" )
                   ]
                   | map(test($id; "i"))
                   | any
                 )
               )
             | .ts
-          ' | head -n1)
+          ' | head -1)
 
           if [ -n "$THREAD_TS" ]; then
             echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
@@ -160,67 +168,48 @@ jobs:
         id: slack-notify
         if: always()
         run: |
-          # skip if non-manual & no thread
-          if [ "${{ inputs.deployment_id }}" != "manual" ] && [ -z "${{ steps.find-thread.outputs.thread_ts }}" ]; then
-            exit 0
+          # pick the correct thread
+          THREAD_TS="${{ steps.find-thread.outputs.thread_ts }}"
+          if [ -z "$THREAD_TS" ]; then
+            THREAD_TS="${{ steps.slack-started.outputs.ts }}"
           fi
 
-          # build the Applitools review link if needed
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          TEST_OUTCOME="${{ steps.run-tests.outcome }}"
           APPLITOOLS_ID="${{ steps.check-batch.outputs.foundBatchID }}"
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${APPLITOOLS_ID}/"
 
-          if [ "${{ job.status }}" = "success" ]; then
-            if [ "${{ steps.check-batch.outputs.needsReview }}" = "true" ]; then
-              ICON="🔍 *Visual diffs detected – manual review needed.*"
-              REVIEW_LINK="🔗 [Review in Applitools]($APPLITOOLS_LINK)"
-            else
-              ICON="🎉 *All visual checks passed. Rollout can proceed.*"
-            fi
-            TEXT="✅ E2E Tests Passed!\n\n**Deployment ID:** ${{ inputs.deployment_id }}\n${ICON}"
-            if [ -n "$REVIEW_LINK" ]; then
-              TEXT="${TEXT}\n\n${REVIEW_LINK}"
-            fi
+          if [ "$TEST_OUTCOME" != "success" ]; then
+            TEXT="❌ E2E tests *${TEST_OUTCOME}*! (**Deployment ID:** ${{ inputs.deployment_id }})\n🔗 [View logs]($RUN_URL)"
           else
-            RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            TEXT="❌ E2E Tests Failed!\n\n**Deployment ID:** ${{ inputs.deployment_id }}\n🔗 [Details & Logs]($RUN_URL)"
+            if [ "${{ steps.check-batch.outputs.needsReview }}" = "true" ]; then
+              TEXT="✅ E2E tests passed!  but 🔍 *Visual diffs detected – manual review needed.*\n🔗 [Review in Applitools]($APPLITOOLS_LINK)\n🔗 [Run details]($RUN_URL)"
+            else
+              TEXT="✅ E2E tests passed! (**Deployment ID:** ${{ inputs.deployment_id }})\n🎉 Rollout can proceed.\n🔗 [Run details]($RUN_URL)"
+            fi
           fi
 
-          THREAD_TS=${{ steps.find-thread.outputs.thread_ts }}
-          # avoid duplicates
-          DUP=$(curl -s -G \
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-            --data-urlencode "channel=$SLACK_CHANNEL" \
-            --data-urlencode "ts=$THREAD_TS" \
-            https://slack.com/api/conversations.replies \
-          | jq -r --arg txt "$TEXT" '.messages[]|select(.text==$txt)|.ts')
-
-          if [ -z "$DUP" ]; then
-            RESPONSE=$(curl -s -X POST \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-              --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"$THREAD_TS\",\"text\":\"$TEXT\"}" \
-              https://slack.com/api/chat.postMessage)
-            echo "slack_ts=$(echo \"$RESPONSE\" | jq -r .ts)" >> $GITHUB_OUTPUT
-          fi
+            --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"$THREAD_TS\",\"text\":\"$TEXT\"}" \
+            https://slack.com/api/chat.postMessage
 
   applitools-auto-complete:
     name: "Applitools Auto-Completion"
     if: needs.e2e-test.outputs.needs_review == 'false'
     needs: e2e-test
     runs-on: ubuntu-latest
-
     env:
-      SLACK_CHANNEL:      ${{ needs.e2e-test.outputs.slack_channel }}
-      ROOT_THREAD_TS:     ${{ needs.e2e-test.outputs.root_thread_ts }}
-      SLACK_BOT_TOKEN:    ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL:     ${{ needs.e2e-test.outputs.slack_channel }}
+      ROOT_THREAD_TS:    ${{ needs.e2e-test.outputs.root_thread_ts }}
+      SLACK_BOT_TOKEN:   ${{ secrets.SLACK_BOT_TOKEN }}
       APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
-
     steps:
       - name: Mark Applitools Batch as Complete
         run: |
           curl -X POST -d '' -H 'accept:*/*' \
             "$APPLITOOLS_SERVER_URL/api/externals/github/servers/github.com/commit/${{ needs.e2e-test.outputs.found_batch_id }}/complete?apiKey=$APPLITOOLS_API_KEY"
-
       - name: Post Slack Thread (All Passed)
         run: |
           THREAD_TS="$ROOT_THREAD_TS"
@@ -238,22 +227,18 @@ jobs:
     if: needs.e2e-test.outputs.needs_review == 'true'
     needs: e2e-test
     runs-on: ubuntu-latest
-
     env:
-      SLACK_CHANNEL:      ${{ needs.e2e-test.outputs.slack_channel }}
-      ROOT_THREAD_TS:     ${{ needs.e2e-test.outputs.root_thread_ts }}
-      SLACK_BOT_TOKEN:    ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL:   ${{ needs.e2e-test.outputs.slack_channel }}
+      ROOT_THREAD_TS:  ${{ needs.e2e-test.outputs.root_thread_ts }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Poll Applitools Batch Status
         id: poll-status
         run: |
           send_slack_message() {
-            local msg="$1"
-            local ts="$ROOT_THREAD_TS"
+            local msg="$1"; local ts="$ROOT_THREAD_TS"
             esc=$(echo "$msg" | sed 's/"/\\"/g' | sed "s/'/\\'/g")
             curl -s -X POST \
               -H "Content-Type: application/json" \
@@ -264,8 +249,6 @@ jobs:
 
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/"
           GITHUB_RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
-          # initial “waiting for manual review”
           send_slack_message "⚠️ **Visual differences detected**\n\n🔍 *Waiting for manual review...*\n[Review in Applitools](${APPLITOOLS_LINK})\n⏳ Monitoring up to 1h."
 
           MAX=120; I=0; INTERVAL=30; STATUS=""
@@ -290,7 +273,7 @@ jobs:
             sleep "$INTERVAL"
           done
 
-          if   [ "$STATUS" = "PASSED" ]; then
+          if [ "$STATUS" = "PASSED" ]; then
             send_slack_message "✅ **Visual Review Approved**\n\n🎉 Rollout can proceed.\n\n🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             echo "status=approved" >> $GITHUB_OUTPUT
           elif [ "$STATUS" = "FAILED" ]; then
