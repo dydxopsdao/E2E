@@ -21,34 +21,25 @@ jobs:
     env:
       # Applitools
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
-      APPLITOOLS_SERVER_URL: ${{ env.APPLITOOLS_SERVER_URL }}
-      APPLITOOLS_API_KEY: ${{ env.APPLITOOLS_API_KEY }}
-
-      # Slack
-      SLACK_CHANNEL:   ${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}
+      SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-
-      # dYdX / MetaMask creds
-      NORDLAYER_EMAIL:                  ${{ secrets.NORDLAYER_EMAIL }}
-      NORDLAYER_PASSWORD:               ${{ secrets.NORDLAYER_PASSWORD }}
-      METAMASK_VERSION:                 12.18.3
-      METAMASK_PASSWORD:                ${{ secrets.METAMASK_PASSWORD }}
-      SEED_PHRASE:                      ${{ secrets.SEED_PHRASE }}
-      SEED_PHRASE_MEGAVAULT:            ${{ secrets.SEED_PHRASE_MEGAVAULT }}
-      SEED_PHRASE_CANCEL_ORDER:         ${{ secrets.SEED_PHRASE_CANCEL_ORDER }}
-      SEED_PHRASE_EMPTY:                ${{ secrets.SEED_PHRASE_EMPTY }}
-      DYDX_MNEMONIC:                    ${{ secrets.DYDX_MNEMONIC }}
-      DYDX_ADDRESS:                     ${{ secrets.DYDX_ADDRESS }}
-      DYDX_NETWORK_TYPE:                mainnet
-      DYDX_MNEMONIC_CANCEL_ORDER:       ${{ secrets.DYDX_MNEMONIC_CANCEL_ORDER }}
-      DYDX_ADDRESS_CANCEL_ORDER:        ${{ secrets.DYDX_ADDRESS_CANCEL_ORDER }}
-      DEPLOYMENT_ID:                    ${{ inputs.deployment_id }}
-
-      # AWS / S3 for hosting
+      NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
+      NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
+      SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
+      METAMASK_PASSWORD: ${{ secrets.METAMASK_PASSWORD }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      DYDX_MNEMONIC: ${{ secrets.DYDX_MNEMONIC }}
+      DYDX_ADDRESS: ${{ secrets.DYDX_ADDRESS }}
+      DYDX_NETWORK_TYPE: mainnet
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      DYDX_MNEMONIC_CANCEL_ORDER: ${{ secrets.DYDX_MNEMONIC_CANCEL_ORDER }}
+      DYDX_ADDRESS_CANCEL_ORDER: ${{ secrets.DYDX_ADDRESS_CANCEL_ORDER }}
+      SEED_PHRASE_CANCEL_ORDER: ${{ secrets.SEED_PHRASE_CANCEL_ORDER }}
+      SEED_PHRASE_MEGAVAULT: ${{ secrets.SEED_PHRASE_MEGAVAULT }}
       AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION:    ${{ secrets.AWS_DEFAULT_REGION }}    # e.g. ap-northeast-1
-      S3_TRACE_BUCKET:       ${{ secrets.S3_TRACE_BUCKET }}      # e.g. dos-playwright-traces
+      AWS_DEFAULT_REGION:    ${{ secrets.AWS_DEFAULT_REGION }} 
+      S3_TRACE_BUCKET:       ${{ secrets.S3_TRACE_BUCKET }}  
 
     outputs:
       root_thread_ts: ${{ steps.find-thread-diagnostic.outputs.thread_ts }}
