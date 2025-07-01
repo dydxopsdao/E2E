@@ -126,9 +126,9 @@ jobs:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
 
-      - name: Configure AWS credentials
+       - name: Configure AWS credentials
         if: always()
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -136,21 +136,21 @@ jobs:
 
       - name: Sync HTML report to S3
         if: always()
-        uses: jakejarvis/s3-sync-action@v0.5.1
-        with:
-          source_dir: playwright-report/
-          bucket:     ${{ secrets.S3_TRACE_BUCKET }}
-          dest_dir:   runs/${{ github.run_id }}/report
-          args:       --acl public-read --delete
+        run: |
+          aws s3 sync playwright-report/ \
+            s3://${{ secrets.S3_TRACE_BUCKET }}/runs/${{ github.run_id }}/report/ \
+            --acl public-read --delete
+          echo "REPORT_URL=https://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/index.html" \
+            >> $GITHUB_ENV
 
       - name: Sync Playwright traces to S3
         if: always()
-        uses: jakejarvis/s3-sync-action@v0.5.1
-        with:
-          source_dir: playwright-report/traces/
-          bucket:     ${{ secrets.S3_TRACE_BUCKET }}
-          dest_dir:   runs/${{ github.run_id }}/traces
-          args:       --acl public-read --delete
+        run: |
+          aws s3 sync playwright-report/traces/ \
+            s3://${{ secrets.S3_TRACE_BUCKET }}/runs/${{ github.run_id }}/traces/ \
+            --acl public-read --delete
+          echo "TRACE_BASE_URL=https://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/traces" \
+            >> $GITHUB_ENV
 
       - name: Export URLs
         if: always()
