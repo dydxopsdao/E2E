@@ -248,9 +248,9 @@ jobs:
 
           # initial pending notification
           send_slack_message "⚠️ **Visual differences detected**  
-🔍 *Waiting for manual review…*  
-[Review in Applitools](${APPLITOOLS_LINK})  
-⏳ Monitoring up to 1 h."
+            🔍 *Waiting for manual review…*  
+            [Review in Applitools](${APPLITOOLS_LINK})  
+            ⏳ Monitoring up to 1 h."
 
           MAX=120
           INTERVAL=30
@@ -287,18 +287,18 @@ jobs:
 
           if [[ "$STATUS" == "PASSED" ]]; then
             send_slack_message "✅ **Visual Review Approved**  
-🎉 Rollout can proceed.  
-🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
+            🎉 Rollout can proceed.  
+            🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             echo "status=approved" >> $GITHUB_OUTPUT
           elif [[ "$STATUS" == "FAILED" ]]; then
             send_slack_message "❌ **Visual Review Rejected**  
-🚨 Rollout stopped.  
-🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
+            🚨 Rollout stopped.  
+            🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             echo "status=rejected" >> $GITHUB_OUTPUT
           else
             send_slack_message "⚠️ **Review timed out**  
-⏳ Still unresolved after 1 h—please check manually.  
-🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
+            ⏳ Still unresolved after 1 h—please check manually.  
+            🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             echo "status=timeout" >> $GITHUB_OUTPUT
           fi
 
