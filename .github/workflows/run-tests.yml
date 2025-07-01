@@ -20,9 +20,7 @@ jobs:
     runs-on: self-hosted
 
     env:
-      # batch id for Applitools
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
-      # manual → #test-channel; else → engineering channel ID
       SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
@@ -37,7 +35,7 @@ jobs:
       DYDX_MNEMONIC_CANCEL_ORDER: ${{ secrets.DYDX_MNEMONIC_CANCEL_ORDER }}
       DYDX_ADDRESS_CANCEL_ORDER: ${{ secrets.DYDX_ADDRESS_CANCEL_ORDER }}
       SEED_PHRASE_CANCEL_ORDER: ${{ secrets.SEED_PHRASE_CANCEL_ORDER }}
-      SEED_PHRASE_MEGAVAULT: ${{ secrets.SEED_PHRASE_MEGAVAULT }}engio
+      SEED_PHRASE_MEGAVAULT: ${{ secrets.SEED_PHRASE_MEGAVAULT }}
     outputs:
       slack_ts: ${{ steps.slack-notify.outputs.slack_ts }}
       needs_review: ${{ steps.check-batch.outputs.needsReview }}
@@ -60,16 +58,11 @@ jobs:
         id: find-thread-diagnostic
         if: ${{ inputs.deployment_id != 'manual' }}
         run: |
-          echo "::group::Running Slack History Diagnostic"
-          echo "Attempting to fetch history for channel: $SLACK_CHANNEL"
-
-          # Use -f (--fail) to make curl exit with an error on HTTP failures (like 4xx/5xx).
-          # Use -v (--verbose) to see detailed connection info in the logs.
+          echo "::group::Running Slack History Diagnostic for ID = ${{ inputs.deployment_id }}"
           HISTORY_RESPONSE=$(curl --fail -s \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             -G --data-urlencode "channel=$SLACK_CHANNEL" --data-urlencode "limit=100" \
             "https://slack.com/api/conversations.history")
-          
           CURL_EXIT_CODE=$?
           echo "::endgroup::"
 
@@ -88,10 +81,20 @@ jobs:
           echo "$HISTORY_RESPONSE"
           echo "------------------------------------------------------------------------"
 
-          # Now, try the jq filter on the known-good response.
-          JQ_FILTER='if .ok then .messages[] else empty end | select(any(.attachments[]; .fallback? | test("release/" + $id; "i"))) | .ts'
-          THREAD_TS=$(echo "$HISTORY_RESPONSE" | jq -r --arg id "${{ inputs.deployment_id }}" "$JQ_FILTER" | head -n1)
-          
+          THREAD_TS=$(echo "$HISTORY_RESPONSE" | jq -r --arg id "${{ inputs.deployment_id }}" '
+            .messages[]
+            | select(
+                .attachments? and
+                ( [ .attachments[]
+                    | ( .fallback // "" ), ( .title // "" ), ( .pretext // "" ), ( .text // "" )
+                  ]
+                  | map(test($id; "i"))
+                  | any
+                )
+              )
+            | .ts
+          ' | head -n1)
+
           if [ -n "$THREAD_TS" ]; then
             echo "Success! Found thread TS: ${THREAD_TS}"
             echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
@@ -99,22 +102,18 @@ jobs:
             echo "::warning::Successfully fetched and parsed Slack history, but no message matching the release ID was found in the first 100 messages."
           fi
 
-      # ─────────────────────────────────────────────────────────
-      # 1) “Tests started” ping, threaded for non-manual IDs
       - name: Post “Tests started” to Slack
         id: slack-started
         if: ${{ inputs.deployment_id != 'manual' && steps.find-thread-diagnostic.outputs.thread_ts }}
         run: |
           TEXT="🏁 E2E tests started for **Deployment ID:** ${{ inputs.deployment_id }}"
           THREAD_TS="${{ steps.find-thread-diagnostic.outputs.thread_ts }}"
-
           curl -s -X POST \
             -H "Content-type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"${THREAD_TS}\",\"text\":\"${TEXT}\"}" \
             https://slack.com/api/chat.postMessage
 
-      # ─────────────────────────────────────────────────────────
       - name: Run E2E Tests (Playwright + Applitools)
         env:
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
@@ -140,8 +139,6 @@ jobs:
             "$APPLITOOLS_API_KEY" \
             "$APPLITOOLS_BATCH_ID"
 
-      # ─────────────────────────────────────────────────────────
-      # 2) Find the release thread (only for non-manual runs)
       - name: Find release thread in engineering
         id: find-thread
         if: ${{ inputs.deployment_id != 'manual' }}
@@ -153,36 +150,34 @@ jobs:
             "https://slack.com/api/conversations.history")
 
           THREAD_TS=$(echo "$HISTORY_RESPONSE" | jq -r --arg id "${{ inputs.deployment_id }}" '
-            if .ok then .messages[] else empty end |
-            select(
-              any(.attachments[];
-                (.fallback? | test("release/" + $id; "i")) or
-                (.title? | test("release/" + $id; "i")) or
-                (.text? | test("release/" + $id; "i")) or
-                (.pretext? | test("release/" + $id; "i"))
+            .messages[]
+            | select(
+                .attachments? and
+                ( [ .attachments[]
+                    | ( .fallback // "" ), ( .title // "" ), ( .pretext // "" ), ( .text // "" )
+                  ]
+                  | map(test($id; "i"))
+                  | any
+                )
               )
-            ) | .ts
+            | .ts
           ' | head -n1)
 
           if [ -n "$THREAD_TS" ]; then
             echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
           else
-            echo "Warning: no release thread found for release/${{ inputs.deployment_id }}."
+            echo "::warning::No release thread found for ID \"${{ inputs.deployment_id }}\" in the last 200 messages."
           fi
 
-      # ─────────────────────────────────────────────────────────
-      # 3) Post final ✅/❌, de-dupe, and thread if possible
       - name: Post Slack Notification (Main Message)
         id: slack-notify
         if: always()
         run: |
-          # Safety check: For non-manual runs, if no thread was found, exit to avoid spamming the channel.
           if [ "${{ inputs.deployment_id }}" != "manual" ] && [ -z "${{ steps.find-thread.outputs.thread_ts }}" ]; then
             echo "Warning: Not a manual run and release thread was not found. Skipping final Slack notification."
             exit 0
           fi
-          
-          # build the message text
+
           if [ "${{ job.status }}" = "success" ]; then
             if [ "${{ steps.check-batch.outputs.needsReview }}" = "true" ]; then
               ICON="🔍 *Visual diffs detected – manual review needed.*"
@@ -194,7 +189,6 @@ jobs:
             TEXT="❌ E2E Tests Failed!\n\n**Deployment ID:** ${{ inputs.deployment_id }}\n[Details & Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
           fi
 
-          # if we found a thread, check for duplicates
           THREAD_TS="${{ steps.find-thread.outputs.thread_ts }}"
           if [ -n "$THREAD_TS" ]; then
             DUP=$(curl -s -G \
@@ -210,24 +204,20 @@ jobs:
             fi
           fi
 
-          # assemble payload (+thread_ts if set)
           PAYLOAD="{\"channel\":\"$SLACK_CHANNEL\","
           if [ -n "$THREAD_TS" ]; then
             PAYLOAD+="\"thread_ts\":\"$THREAD_TS\","
           fi
           PAYLOAD+="\"text\":\"$TEXT\"}"
 
-          # post it
           RESPONSE=$(curl -s -X POST \
             -H "Content-type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             --data "$PAYLOAD" \
             https://slack.com/api/chat.postMessage)
 
-          # capture the ts
           echo "slack_ts=$(echo \"$RESPONSE\" | jq -r .ts)" >> $GITHUB_OUTPUT
 
-  # ─────────────────────────────────────────────────────────
   applitools-auto-complete:
     name: "Applitools Auto-Completion"
     if: needs.e2e-test.outputs.needs_review == 'false'
@@ -257,7 +247,6 @@ jobs:
             --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"$THREAD_TS\",\"text\":\"$MSG\"}" \
             https://slack.com/api/chat.postMessage
 
-  # ─────────────────────────────────────────────────────────
   batch-status-polling:
     name: "Applitools Batch Status Polling"
     if: needs.e2e-test.outputs.needs_review == 'true'
