@@ -126,7 +126,7 @@ jobs:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
 
-       - name: Configure AWS credentials
+      - name: Configure AWS credentials
         if: always()
         uses: aws-actions/configure-aws-credentials@v1
         with:
