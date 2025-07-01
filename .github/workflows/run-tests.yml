@@ -140,7 +140,7 @@ jobs:
         run: |
           aws s3 sync playwright-report/ \
             s3://${{ secrets.S3_TRACE_BUCKET }}/runs/${{ github.run_id }}/report/ \
-            --acl public-read --delete
+             --delete
           echo "REPORT_URL=https://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/index.html" \
             >> $GITHUB_ENV
 
@@ -157,7 +157,7 @@ jobs:
         if: always()
         run: |
           echo "REPORT_URL=https://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/index.html" >> $GITHUB_ENV
-          echo "TRACE_BASE_URL=https://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/traces" >> $GITHUB_ENV
+          echo "TRACE_BASE_URL=https://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/trace" >> $GITHUB_ENV
 
       - name: Check Applitools Batch By Pointer
         id: check-batch
