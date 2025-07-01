@@ -21,25 +21,34 @@ jobs:
     env:
       # Applitools
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
-      SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}
+      APPLITOOLS_SERVER_URL: ${{ env.APPLITOOLS_SERVER_URL }}
+      APPLITOOLS_API_KEY: ${{ env.APPLITOOLS_API_KEY }}
+
+      # Slack
+      SLACK_CHANNEL:   ${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
-      NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
-      SEED_PHRASE: ${{ secrets.SEED_PHRASE }}
-      METAMASK_PASSWORD: ${{ secrets.METAMASK_PASSWORD }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      DYDX_MNEMONIC: ${{ secrets.DYDX_MNEMONIC }}
-      DYDX_ADDRESS: ${{ secrets.DYDX_ADDRESS }}
-      DYDX_NETWORK_TYPE: mainnet
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      DYDX_MNEMONIC_CANCEL_ORDER: ${{ secrets.DYDX_MNEMONIC_CANCEL_ORDER }}
-      DYDX_ADDRESS_CANCEL_ORDER: ${{ secrets.DYDX_ADDRESS_CANCEL_ORDER }}
-      SEED_PHRASE_CANCEL_ORDER: ${{ secrets.SEED_PHRASE_CANCEL_ORDER }}
-      SEED_PHRASE_MEGAVAULT: ${{ secrets.SEED_PHRASE_MEGAVAULT }}
+
+      # dYdX / MetaMask creds
+      NORDLAYER_EMAIL:                  ${{ secrets.NORDLAYER_EMAIL }}
+      NORDLAYER_PASSWORD:               ${{ secrets.NORDLAYER_PASSWORD }}
+      METAMASK_VERSION:                 12.18.3
+      METAMASK_PASSWORD:                ${{ secrets.METAMASK_PASSWORD }}
+      SEED_PHRASE:                      ${{ secrets.SEED_PHRASE }}
+      SEED_PHRASE_MEGAVAULT:            ${{ secrets.SEED_PHRASE_MEGAVAULT }}
+      SEED_PHRASE_CANCEL_ORDER:         ${{ secrets.SEED_PHRASE_CANCEL_ORDER }}
+      SEED_PHRASE_EMPTY:                ${{ secrets.SEED_PHRASE_EMPTY }}
+      DYDX_MNEMONIC:                    ${{ secrets.DYDX_MNEMONIC }}
+      DYDX_ADDRESS:                     ${{ secrets.DYDX_ADDRESS }}
+      DYDX_NETWORK_TYPE:                mainnet
+      DYDX_MNEMONIC_CANCEL_ORDER:       ${{ secrets.DYDX_MNEMONIC_CANCEL_ORDER }}
+      DYDX_ADDRESS_CANCEL_ORDER:        ${{ secrets.DYDX_ADDRESS_CANCEL_ORDER }}
+      DEPLOYMENT_ID:                    ${{ inputs.deployment_id }}
+
+      # AWS / S3 for hosting
       AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION:    ${{ secrets.AWS_DEFAULT_REGION }} 
-      S3_TRACE_BUCKET:       ${{ secrets.S3_TRACE_BUCKET }}  
+      AWS_DEFAULT_REGION:    ${{ secrets.AWS_DEFAULT_REGION }}    # e.g. ap-northeast-1
+      S3_TRACE_BUCKET:       ${{ secrets.S3_TRACE_BUCKET }}      # e.g. dos-playwright-traces
 
     outputs:
       root_thread_ts: ${{ steps.find-thread-diagnostic.outputs.thread_ts }}
@@ -117,7 +126,7 @@ jobs:
         run: |
           PLAYWRIGHT_JUNIT_OUTPUT=results.xml xvfb-run --auto-servernum \
             --server-args='-screen 0 1920x1080x24' \
-            npx playwright test --workers=2
+            npx playwright test --workers=2 --trace on
 
       - name: Upload Test Report artifact
         if: always()
@@ -126,23 +135,43 @@ jobs:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
 
+      - name: Configure AWS credentials
+        if: always()
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ secrets.AWS_DEFAULT_REGION }}
+
       - name: Sync HTML report to S3
         if: always()
         run: |
-          aws s3 sync playwright-report/ \
-            s3://${S3_TRACE_BUCKET}/runs/${GITHUB_RUN_ID}/report/ \
-            --acl public-read \
-            --delete
-          echo "REPORT_URL=https://${S3_TRACE_BUCKET}.s3-website.${AWS_DEFAULT_REGION}.amazonaws.com/runs/${GITHUB_RUN_ID}/report/index.html" >> $GITHUB_ENV
+          if [ -d playwright-report ]; then
+            echo "→ Uploading HTML report to S3"
+            aws s3 sync playwright-report/ \
+              s3://$S3_TRACE_BUCKET/runs/$GITHUB_RUN_ID/report/ \
+              --acl public-read \
+              --delete
+            echo "REPORT_URL=https://$S3_TRACE_BUCKET.s3-website.$AWS_DEFAULT_REGION.amazonaws.com/runs/$GITHUB_RUN_ID/report/index.html" \
+              >> $GITHUB_ENV
+          else
+            echo "ℹ️ No playwright-report directory, skipping HTML sync"
+          fi
 
       - name: Sync Playwright traces to S3
         if: always()
         run: |
-          aws s3 sync playwright-report/traces/ \
-            s3://${S3_TRACE_BUCKET}/runs/${GITHUB_RUN_ID}/traces/ \
-            --acl public-read \
-            --delete
-          echo "TRACE_BASE_URL=https://${S3_TRACE_BUCKET}.s3-website.${AWS_DEFAULT_REGION}.amazonaws.com/runs/${GITHUB_RUN_ID}/traces" >> $GITHUB_ENV
+          if [ -d playwright-report/traces ]; then
+            echo "→ Uploading Playwright traces to S3"
+            aws s3 sync playwright-report/traces/ \
+              s3://$S3_TRACE_BUCKET/runs/$GITHUB_RUN_ID/traces/ \
+              --acl public-read \
+              --delete
+            echo "TRACE_BASE_URL=https://$S3_TRACE_BUCKET.s3-website.$AWS_DEFAULT_REGION.amazonaws.com/runs/$GITHUB_RUN_ID/traces" \
+              >> $GITHUB_ENV
+          else
+            echo "ℹ️ No traces directory found, skipping traces sync"
+          fi
 
       - name: Check Applitools Batch By Pointer
         id: check-batch
@@ -172,7 +201,6 @@ jobs:
             fi
           fi
 
-          # append report & traces links
           if [ -n "$REPORT_URL" ]; then
             TEXT="${TEXT}\n📑 [View HTML report]($REPORT_URL)"
           fi
@@ -193,10 +221,10 @@ jobs:
     needs: e2e-test
     runs-on: ubuntu-latest
     env:
-      SLACK_CHANNEL:    ${{ needs.e2e-test.outputs.slack_channel }}
-      ROOT_THREAD_TS:   ${{ needs.e2e-test.outputs.root_thread_ts }}
-      SLACK_BOT_TOKEN:  ${{ secrets.SLACK_BOT_TOKEN }}
-      APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
+      SLACK_CHANNEL:       ${{ needs.e2e-test.outputs.slack_channel }}
+      ROOT_THREAD_TS:      ${{ needs.e2e-test.outputs.root_thread_ts }}
+      SLACK_BOT_TOKEN:     ${{ secrets.SLACK_BOT_TOKEN }}
+      APPLITOOLS_API_KEY:  ${{ secrets.APPLITOOLS_API_KEY }}
     steps:
       - name: Mark Applitools Batch as Complete
         run: |
@@ -220,10 +248,10 @@ jobs:
     needs: e2e-test
     runs-on: ubuntu-latest
     env:
-      SLACK_CHANNEL:    ${{ needs.e2e-test.outputs.slack_channel }}
-      ROOT_THREAD_TS:   ${{ needs.e2e-test.outputs.root_thread_ts }}
-      SLACK_BOT_TOKEN:  ${{ secrets.SLACK_BOT_TOKEN }}
-      APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
+      SLACK_CHANNEL:       ${{ needs.e2e-test.outputs.slack_channel }}
+      ROOT_THREAD_TS:      ${{ needs.e2e-test.outputs.root_thread_ts }}
+      SLACK_BOT_TOKEN:     ${{ secrets.SLACK_BOT_TOKEN }}
+      APPLITOOLS_API_KEY:  ${{ secrets.APPLITOOLS_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - name: Poll Applitools Batch Status
@@ -261,8 +289,7 @@ jobs:
             N=$(echo "$B" | jq -r '.runningSummary.newTests // .statusSummary.New // 0')
 
             if   [ "$F" -gt 0 ]; then STATUS="FAILED"; break
-            elif [ "$F" -eq 0 ] && [ "$U" -eq 0 ] && [ "$N" -eq 0 ]; then STATUS="PASSED"; break
-            fi
+            elif [ "$F" -eq 0 ] && [ "$U" -eq 0 ] && [ "$N" -eq 0 ]; then STATUS="PASSED"; break; fi
             sleep "$INTERVAL"
           done
 
