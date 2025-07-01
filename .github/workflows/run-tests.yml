@@ -168,23 +168,19 @@ jobs:
         id: slack-notify
         if: always()
         run: |
-          #──────────────────────────────────────────────────────────────
-          # Always thread into the “Tests started” reply (non-manual only)
-          if [ "${{ inputs.deployment_id }}" != "manual" ]; then
-            THREAD_TS="${{ steps.slack-started.outputs.ts }}"
-          else
-            THREAD_TS=""
-          fi
+          #──────────────────────────────────────────────────────────
+          # Always thread into the “Tests started” reply
+          THREAD_TS="${{ steps.slack-started.outputs.ts }}"
 
-          #──────────────────────────────────────────────────────────────
-          # Prep URLs & outcomes
+          #──────────────────────────────────────────────────────────
+          # Prep URLs & outcome
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           TEST_OUTCOME="${{ steps.run-tests.outcome }}"       # success│failure│cancelled
           APPLITOOLS_ID="${{ steps.check-batch.outputs.foundBatchID }}"
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${APPLITOOLS_ID}/"
 
-          #──────────────────────────────────────────────────────────────
-          # Build the text payload
+          #──────────────────────────────────────────────────────────
+          # Build the message text
           if [ "$TEST_OUTCOME" != "success" ]; then
             TEXT="❌ E2E tests ${TEST_OUTCOME}! (**Deployment ID:** ${{ inputs.deployment_id }})\n🔗 [View logs]($RUN_URL)"
           else
@@ -195,20 +191,14 @@ jobs:
             fi
           fi
 
-          #──────────────────────────────────────────────────────────────
-          # Assemble JSON, only adding thread_ts if we have one
-          PAYLOAD="{\"channel\":\"$SLACK_CHANNEL\",\"text\":\"$TEXT\""
-          if [ -n "$THREAD_TS" ]; then
-            PAYLOAD+=",\"thread_ts\":\"$THREAD_TS\""
-          fi
-          PAYLOAD+="}"
-
-          # Post it
+          #──────────────────────────────────────────────────────────
+          # Post into the thread
           curl -s -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-            --data "$PAYLOAD" \
+            --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"$THREAD_TS\",\"text\":\"$TEXT\"}" \
             https://slack.com/api/chat.postMessage
+
 
 
   applitools-auto-complete:
