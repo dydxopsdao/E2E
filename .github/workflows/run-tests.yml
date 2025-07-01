@@ -195,13 +195,6 @@ jobs:
             TEXT="${TEXT}\n🔍 [Browse raw traces]($TRACE_BASE_URL/)"
           fi
 
-          if [ -n "$REPORT_URL" ]; then
-            TEXT="${TEXT}\n📑 [View HTML report]($REPORT_URL)"
-          fi
-          if [ -n "$TRACE_BASE_URL" ]; then
-            TEXT="${TEXT}\n🔍 [Browse traces]($TRACE_BASE_URL/)"
-          fi
-
           RESPONSE=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
@@ -278,12 +271,14 @@ jobs:
                   '.batches[]|select(.id==$bid)')
             if [ -z "$B" ] || [ "$B" = "null" ]; then sleep "$INTERVAL"; continue; fi
 
-            F=$(echo "$B" | jq -r '.runningSummary.failedTests // .statusSummary.Failed // 0')
-            U=$(echo "$B" | jq -r '.runningSummary.unresolvedTests // .statusSummary.Unresolved // 0')
-            N=$(echo "$B" | jq -r '.runningSummary.newTests // .statusSummary.New // 0')
-
-            if   [ "$F" -gt 0 ]; then STATUS="FAILED"; break
-            elif [ "$F" -eq 0 ] && [ "$U" -eq 0 ] && [ "$N" -eq 0 ]; then STATUS="PASSED"; break; fi
+            STATUS_RAW=$(echo "$B" | jq -r '.status')
+            if [ "$STATUS_RAW" = "Failed" ]; then
+              STATUS="FAILED"
+              break
+            elif [ "$STATUS_RAW" = "Passed" ]; then
+              STATUS="PASSED"
+              break
+           fi
             sleep "$INTERVAL"
           done
 
