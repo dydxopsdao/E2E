@@ -19,7 +19,6 @@ jobs:
     runs-on: self-hosted
 
     env:
-      # Applitools
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
       SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -38,8 +37,8 @@ jobs:
       SEED_PHRASE_MEGAVAULT: ${{ secrets.SEED_PHRASE_MEGAVAULT }}
       AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION:    ${{ secrets.AWS_DEFAULT_REGION }} 
-      S3_TRACE_BUCKET:       ${{ secrets.S3_TRACE_BUCKET }}  
+      AWS_DEFAULT_REGION:    ${{ secrets.AWS_DEFAULT_REGION }}
+      S3_TRACE_BUCKET:       ${{ secrets.S3_TRACE_BUCKET }}
 
     outputs:
       root_thread_ts: ${{ steps.find-thread-diagnostic.outputs.thread_ts }}
@@ -49,8 +48,8 @@ jobs:
       slack_channel:  ${{ env.SLACK_CHANNEL }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        name: Checkout repository
         with:
           token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
           fetch-depth: 5
@@ -76,14 +75,9 @@ jobs:
             .messages[]
             | select(
                 .attachments? and (
-                  [ .attachments[]
-                      | ( .fallback // "" ),
-                        ( .title    // "" ),
-                        ( .pretext  // "" ),
-                        ( .text     // "" )
-                  ]
-                  | map(test($id; "i"))
-                  | any
+                  [ .attachments[] 
+                      | (.fallback // ""), (.title // ""), (.pretext // ""), (.text // "")
+                  ] | map(test($id; "i")) | any
                 )
               )
             | .ts
@@ -147,7 +141,6 @@ jobs:
       - name: Sync Playwright traces to S3
         if: always()
         run: |
-          # note: html-reporter writes into `playwright-report/trace/` (singular)
           aws s3 sync playwright-report/trace/ \
             s3://${{ secrets.S3_TRACE_BUCKET }}/runs/${{ github.run_id }}/trace/ \
             --delete
@@ -188,19 +181,14 @@ jobs:
             fi
           fi
 
-          if [ -n "$REPORT_URL" ]; then
-            TEXT="${TEXT}\n📑 [View HTML report]($REPORT_URL)"
-          fi
-          if [ -n "$TRACE_BASE_URL" ]; then
-            TEXT="${TEXT}\n🔍 [Browse raw traces]($TRACE_BASE_URL/)"
-          fi
+          [ -n "$REPORT_URL"   ] && TEXT="${TEXT}\n📑 [View HTML report]($REPORT_URL)"
+          [ -n "$TRACE_BASE_URL" ] && TEXT="${TEXT}\n🔍 [Browse raw traces]($TRACE_BASE_URL/)"
 
-          RESPONSE=$(curl -s -X POST \
+          curl -s -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"$THREAD_TS\",\"text\":\"$TEXT\"}" \
-            https://slack.com/api/chat.postMessage)
-          echo "slack_ts=$(echo \"$RESPONSE\" | jq -r .ts)" >> $GITHUB_OUTPUT
+            https://slack.com/api/chat.postMessage
 
   applitools-auto-complete:
     name: "Applitools Auto-Completion"
@@ -208,10 +196,10 @@ jobs:
     needs: e2e-test
     runs-on: ubuntu-latest
     env:
-      SLACK_CHANNEL:       ${{ needs.e2e-test.outputs.slack_channel }}
-      ROOT_THREAD_TS:      ${{ needs.e2e-test.outputs.root_thread_ts }}
-      SLACK_BOT_TOKEN:     ${{ secrets.SLACK_BOT_TOKEN }}
-      APPLITOOLS_API_KEY:  ${{ secrets.APPLITOOLS_API_KEY }}
+      SLACK_CHANNEL:      ${{ needs.e2e-test.outputs.slack_channel }}
+      ROOT_THREAD_TS:     ${{ needs.e2e-test.outputs.root_thread_ts }}
+      SLACK_BOT_TOKEN:    ${{ secrets.SLACK_BOT_TOKEN }}
+      APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
     steps:
       - name: Mark Applitools Batch as Complete
         run: |
@@ -235,61 +223,82 @@ jobs:
     needs: e2e-test
     runs-on: ubuntu-latest
     env:
-      SLACK_CHANNEL:       ${{ needs.e2e-test.outputs.slack_channel }}
-      ROOT_THREAD_TS:      ${{ needs.e2e-test.outputs.root_thread_ts }}
-      SLACK_BOT_TOKEN:     ${{ secrets.SLACK_BOT_TOKEN }}
-      APPLITOOLS_API_KEY:  ${{ secrets.APPLITOOLS_API_KEY }}
+      SLACK_CHANNEL:      ${{ needs.e2e-test.outputs.slack_channel }}
+      ROOT_THREAD_TS:     ${{ needs.e2e-test.outputs.root_thread_ts }}
+      SLACK_BOT_TOKEN:    ${{ secrets.SLACK_BOT_TOKEN }}
+      APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
     steps:
       - uses: actions/checkout@v4
+
       - name: Poll Applitools Batch Status
         id: poll-status
         run: |
           send_slack_message() {
-            local msg="$1"; local ts="$ROOT_THREAD_TS"
-            esc=$(echo "$msg" | sed 's/"/\\"/g' | sed "s/'/\\'/g")
+            local msg="$1"
+            esc=$(echo "$msg" | sed 's/"/\\"/g')
             curl -s -X POST \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-              --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"$ts\",\"text\":\"$esc\"}" \
+              --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"$ROOT_THREAD_TS\",\"text\":\"$esc\"}" \
               https://slack.com/api/chat.postMessage
           }
 
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/"
           GITHUB_RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
-          send_slack_message "⚠️ **Visual differences detected**\n\n🔍 *Waiting for manual review...*\n[Review in Applitools](${APPLITOOLS_LINK})\n⏳ Monitoring up to 1h."
+          # initial pending notification
+          send_slack_message "⚠️ **Visual differences detected**  
+🔍 *Waiting for manual review…*  
+[Review in Applitools](${APPLITOOLS_LINK})  
+⏳ Monitoring up to 1 h."
 
-          MAX=120; I=0; INTERVAL=30; STATUS=""
-          while [ "$I" -lt "$MAX" ]; do
-            I=$((I+1))
+          MAX=120
+          INTERVAL=30
+          i=0
+          STATUS=""
+
+          while (( i < MAX )); do
+            ((i++))
             START=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)
             END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-            RESP=$(curl -s -X GET \
-              -H "X-Eyes-Api-Key: $APPLITOOLS_API_KEY" \
-              "$APPLITOOLS_SERVER_URL/api/v1/batches?start=$START&end=$END&pageSize=100")
-            B=$(echo "$RESP" | jq --arg bid="${{ needs.e2e-test.outputs.found_batch_id }}" \
-                  '.batches[]|select(.id==$bid)')
-            if [ -z "$B" ] || [ "$B" = "null" ]; then sleep "$INTERVAL"; continue; fi
+            resp=$(curl -s -H "X-Eyes-Api-Key: $APPLITOOLS_API_KEY" \
+              "${APPLITOOLS_SERVER_URL}/api/v1/batches?start=${START}&end=${END}&pageSize=100")
+            B=$(echo "$resp" | jq --arg bid "${{ needs.e2e-test.outputs.found_batch_id }}" \
+                  '.batches[] | select(.id==$bid)')
+            if [[ -z "$B" || "$B" == "null" ]]; then
+              sleep "$INTERVAL"
+              continue
+            fi
 
-            STATUS_RAW=$(echo "$B" | jq -r '.status')
-            if [ "$STATUS_RAW" = "Failed" ]; then
+            F=$(echo "$B" | jq -r '.runningSummary.failedTests // 0')
+            U=$(echo "$B" | jq -r '.runningSummary.unresolvedTests // 0')
+            N=$(echo "$B" | jq -r '.runningSummary.newTests      // 0')
+
+            if (( F > 0 )); then
               STATUS="FAILED"
               break
-            elif [ "$STATUS_RAW" = "Passed" ]; then
+            elif (( F==0 && U==0 && N==0 )); then
               STATUS="PASSED"
               break
-           fi
-            sleep "$INTERVAL"
+            else
+              sleep "$INTERVAL"
+            fi
           done
 
-          if [ "$STATUS" = "PASSED" ]; then
-            send_slack_message "✅ **Visual Review Approved**\n\n🎉 Rollout can proceed.\n\n🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
+          if [[ "$STATUS" == "PASSED" ]]; then
+            send_slack_message "✅ **Visual Review Approved**  
+🎉 Rollout can proceed.  
+🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             echo "status=approved" >> $GITHUB_OUTPUT
-          elif [ "$STATUS" = "FAILED" ]; then
-            send_slack_message "❌ **Visual Review Rejected**\n\n🚨 Rollout stopped.\n\n🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
+          elif [[ "$STATUS" == "FAILED" ]]; then
+            send_slack_message "❌ **Visual Review Rejected**  
+🚨 Rollout stopped.  
+🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             echo "status=rejected" >> $GITHUB_OUTPUT
           else
-            send_slack_message "⚠️ **Review timed out/has issues**\n\n⏳ Please check manually.\n\n🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
+            send_slack_message "⚠️ **Review timed out**  
+⏳ Still unresolved after 1 h—please check manually.  
+🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
             echo "status=timeout" >> $GITHUB_OUTPUT
           fi
 
