@@ -164,10 +164,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      SLACK_CHANNEL:    ${{ needs.e2e-test.outputs.slack_channel }}
-      ROOT_THREAD_TS:   ${{ needs.e2e-test.outputs.root_thread_ts }}
-      SLACK_BOT_TOKEN:  ${{ secrets.SLACK_BOT_TOKEN }}
-      APPLITOOLS_API_KEY:${{ secrets.APPLITOOLS_API_KEY }}
+      SLACK_CHANNEL:      ${{ needs.e2e-test.outputs.slack_channel }}
+      ROOT_THREAD_TS:     ${{ needs.e2e-test.outputs.root_thread_ts }}
+      SLACK_BOT_TOKEN:    ${{ secrets.SLACK_BOT_TOKEN }}
+      APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
 
     steps:
       - name: Mark Applitools Batch as Complete
@@ -194,10 +194,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      SLACK_CHANNEL:    ${{ needs.e2e-test.outputs.slack_channel }}
-      ROOT_THREAD_TS:   ${{ needs.e2e-test.outputs.root_thread_ts }}
-      SLACK_BOT_TOKEN:  ${{ secrets.SLACK_BOT_TOKEN }}
-      APPLITOOLS_API_KEY:${{ secrets.APPLITOOLS_API_KEY }}
+      SLACK_CHANNEL:      ${{ needs.e2e-test.outputs.slack_channel }}
+      ROOT_THREAD_TS:     ${{ needs.e2e-test.outputs.root_thread_ts }}
+      SLACK_BOT_TOKEN:    ${{ secrets.SLACK_BOT_TOKEN }}
+      APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
 
     steps:
       - uses: actions/checkout@v4
