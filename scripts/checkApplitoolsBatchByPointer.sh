@@ -5,8 +5,8 @@
 #
 # 1) Fetches Applitools batches from the last day.
 # 2) Filters to find those whose pointerId == <pointer_id>.
-# 3) Takes the first item (assuming it's the newest).
-# 4) If "failed", "unresolved", or "new" > 0 => needsReview=true, else needsReview=false.
+# 3) Sorts by .startedAt, takes the last (newest) item.
+# 4) Emits foundBatchID and needsReview based on failed/unresolved counts.
 
 set -e
 
@@ -27,17 +27,26 @@ response=$(curl -s -X GET \
   -H "X-Eyes-Api-Key: $APPLITOOLS_API_KEY" \
   "${APPLITOOLS_SERVER_URL}/api/v1/batches?start=${START_DATE}&end=${END_DATE}&pageSize=100")
 
-# Filter to only the batches whose pointerId matches $POINTER_ID
-filtered=$(echo "$response" | jq --arg p "$POINTER_ID" '[.batches[] | select(.pointerId == $p)]')
-count=$(echo "$filtered" | jq 'length')
+# 1) Collect only batches with matching pointerId
+# 2) Sort them by .startedAt ascending
+# 3) Then pick the last entry (the newest batch)
+filtered_and_sorted=$(
+  echo "$response" \
+    | jq --arg p "$POINTER_ID" \
+        '[.batches[]                       # array of all batches
+           | select(.pointerId == $p)      # filter on your pointer
+         ]
+         | sort_by(.startedAt)'           # oldest → newest
+)
 
+count=$(echo "$filtered_and_sorted" | jq 'length')
 if [ "$count" -eq 0 ]; then
   echo "No batch found with pointerId=$POINTER_ID in the last day."
   exit 1
 fi
 
-# Assume the first item is the newest
-latest=$(echo "$filtered" | jq '.[0]')
+# Grab the newest batch (last element)
+latest=$(echo "$filtered_and_sorted" | jq '.[-1]')
 batch_id=$(echo "$latest" | jq -r '.id')
 passed=$(echo "$latest" | jq -r '.passed')
 failed=$(echo "$latest" | jq -r '.failed')
