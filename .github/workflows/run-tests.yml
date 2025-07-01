@@ -168,32 +168,48 @@ jobs:
         id: slack-notify
         if: always()
         run: |
-          # pick the correct thread
-          THREAD_TS="${{ steps.find-thread.outputs.thread_ts }}"
-          if [ -z "$THREAD_TS" ]; then
+          #──────────────────────────────────────────────────────────────
+          # Always thread into the “Tests started” reply (non-manual only)
+          if [ "${{ inputs.deployment_id }}" != "manual" ]; then
             THREAD_TS="${{ steps.slack-started.outputs.ts }}"
+          else
+            THREAD_TS=""
           fi
 
+          #──────────────────────────────────────────────────────────────
+          # Prep URLs & outcomes
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          TEST_OUTCOME="${{ steps.run-tests.outcome }}"
+          TEST_OUTCOME="${{ steps.run-tests.outcome }}"       # success│failure│cancelled
           APPLITOOLS_ID="${{ steps.check-batch.outputs.foundBatchID }}"
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${APPLITOOLS_ID}/"
 
+          #──────────────────────────────────────────────────────────────
+          # Build the text payload
           if [ "$TEST_OUTCOME" != "success" ]; then
-            TEXT="❌ E2E tests *${TEST_OUTCOME}*! (**Deployment ID:** ${{ inputs.deployment_id }})\n🔗 [View logs]($RUN_URL)"
+            TEXT="❌ E2E tests ${TEST_OUTCOME}! (**Deployment ID:** ${{ inputs.deployment_id }})\n🔗 [View logs]($RUN_URL)"
           else
             if [ "${{ steps.check-batch.outputs.needsReview }}" = "true" ]; then
-              TEXT="✅ E2E tests passed!  but 🔍 *Visual diffs detected – manual review needed.*\n🔗 [Review in Applitools]($APPLITOOLS_LINK)\n🔗 [Run details]($RUN_URL)"
+              TEXT="✅ E2E tests passed! 🔍 *Visual diffs detected – manual review needed.*\n🔗 [Review in Applitools]($APPLITOOLS_LINK)\n🔗 [Run details]($RUN_URL)"
             else
               TEXT="✅ E2E tests passed! (**Deployment ID:** ${{ inputs.deployment_id }})\n🎉 Rollout can proceed.\n🔗 [Run details]($RUN_URL)"
             fi
           fi
 
+          #──────────────────────────────────────────────────────────────
+          # Assemble JSON, only adding thread_ts if we have one
+          PAYLOAD="{\"channel\":\"$SLACK_CHANNEL\",\"text\":\"$TEXT\""
+          if [ -n "$THREAD_TS" ]; then
+            PAYLOAD+=",\"thread_ts\":\"$THREAD_TS\""
+          fi
+          PAYLOAD+="}"
+
+          # Post it
           curl -s -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-            --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"$THREAD_TS\",\"text\":\"$TEXT\"}" \
+            --data "$PAYLOAD" \
             https://slack.com/api/chat.postMessage
+
 
   applitools-auto-complete:
     name: "Applitools Auto-Completion"
