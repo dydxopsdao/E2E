@@ -120,6 +120,34 @@ jobs:
           name: playwright-report-${{ github.run_id }}
           path: playwright-report/
 
+      - name: 'Debug: Inspect OIDC Token'
+        id: oidc_debug
+        run: |
+          echo "Requesting and decoding OIDC Token..."
+          # The ACTIONS_ID_TOKEN_REQUEST_TOKEN is the JWT token
+          # It consists of 3 parts separated by dots: header.payload.signature
+          # We need to decode the payload (the middle part), which is Base64 encoded.
+          
+          # Check if the token variable is set
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" ]; then
+            echo "::error:: The OIDC token variable (ACTIONS_ID_TOKEN_REQUEST_TOKEN) is not available. This is unexpected on a v2.298.2+ runner."
+            exit 1
+          fi
+
+          OIDC_TOKEN_PAYLOAD=$(echo "${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" | cut -d '.' -f 2 | base64 --decode)
+          
+          echo "TOKEN PAYLOAD:"
+          echo "${OIDC_TOKEN_PAYLOAD}" | jq .
+          
+          TOKEN_SUB=$(echo "${OIDC_TOKEN_PAYLOAD}" | jq -r .sub)
+          echo "=========================================================="
+          echo "The 'sub' (subject) claim in the token is:"
+          echo "  '${TOKEN_SUB}'"
+          echo " "
+          echo "Your IAM trust policy expects the 'sub' to match:"
+          echo "  'repo:dydxopsdao/E2E:*'"
+          echo "=========================================================="
+
       - name: Configure AWS via OIDC
         uses: aws-actions/configure-aws-credentials@v2
         with:
