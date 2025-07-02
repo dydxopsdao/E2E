@@ -192,19 +192,6 @@ jobs:
           APPLITOOLS_URL:  https://eyes.applitools.com/app/test-results/${{ steps.check-batch.outputs.foundBatchID }}/
         run: |
           set -e
-          
-          # Debug all variables
-          echo "=== DEBUG: All variables ==="
-          echo "OUTCOME: '${{ steps.run-tests.outcome }}'"
-          echo "needsReview: '${{ steps.check-batch.outputs.needsReview }}'"
-          echo "foundBatchID: '${{ steps.check-batch.outputs.foundBatchID }}'"
-          echo "SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:0:10}..."
-          echo "SLACK_CHANNEL: '$SLACK_CHANNEL'"
-          echo "MESSAGE_TS: '$MESSAGE_TS'"
-          echo "RUN_URL: '$RUN_URL'"
-          echo "APPLITOOLS_URL: '$APPLITOOLS_URL'"
-          echo "================================"
-          
           OUTCOME="${{ steps.run-tests.outcome }}"
           if [ "$OUTCOME" != "success" ]; then
             HEADER="❌ E2E Tests Failed"
@@ -217,17 +204,13 @@ jobs:
             BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• *Status:* All visual tests passed\n• <${APPLITOOLS_URL}|View in Applitools>\n• <${RUN_URL}|View GitHub Run>"
           fi
 
-          read -r -d '' MESSAGE_TEXT <<EOF
-          ${HEADER}
-          ${BODY}
-          EOF
+          MESSAGE_TEXT="${HEADER}
+          ${BODY}"
 
           echo ">> DEBUG: MESSAGE_TEXT is: <$MESSAGE_TEXT>"
 
           export MESSAGE_TEXT
-          echo "Calling update-slack-progress.sh..."
-          scripts/update-slack-progress.sh
-          echo "update-slack-progress.sh completed successfully"
+          scripts/update-slack-progress.sh || true
 
       - name: Upload Test Report artifact
         if: always()
