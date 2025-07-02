@@ -188,7 +188,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:      ${{ env.MESSAGE_TS }}
-          RUN_URL:         ${{ env.RUN_URL }}
+          RUN_URL:         https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           APPLITOOLS_URL:  https://eyes.applitools.com/app/test-results/${{ steps.check-batch.outputs.foundBatchID }}/
         run: |
           set -e
@@ -204,6 +204,7 @@ jobs:
             BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• *Status:* All visual tests passed\n• <${APPLITOOLS_URL}|View in Applitools>\n• <${RUN_URL}|View GitHub Run>"
           fi
 
+          # strip-tab heredoc — leading TABs will be stripped
           read -r -d '' MESSAGE_TEXT <<-EOF
           	${HEADER}
           	${BODY}
@@ -211,6 +212,7 @@ jobs:
 
           export MESSAGE_TEXT
           scripts/update-slack-progress.sh
+
 
 
       - name: Upload Test Report artifact
