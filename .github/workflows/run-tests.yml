@@ -94,7 +94,7 @@ jobs:
         if: ${{ inputs.deployment_id != 'manual' && env.THREAD_TS }}
         run: |
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          TEXT="🏁 E2E tests started for **Deployment ID:** ${{ inputs.deployment_id }}\n🔗 [View run logs]($RUN_URL)"
+          TEXT="🏁 E2E tests started for *Deployment ID:* ${{ inputs.deployment_id }}\n<${RUN_URL}|View Run Logs>"
           RESPONSE=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
@@ -173,26 +173,42 @@ jobs:
           RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           OUTCOME="${{ steps.run-tests.outcome }}"
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${{ steps.check-batch.outputs.foundBatchID }}/"
-
+          
+          # Set the header and emoji based on the outcome
           if [ "$OUTCOME" != "success" ]; then
-            TEXT="❌ E2E tests ${OUTCOME}! (**Deployment ID:** ${{ inputs.deployment_id }})\n🔗 [View logs]($RUN_URL)"
+            HEADER="❌ E2E Tests Failed"
+          elif [ "${{ steps.check-batch.outputs.needsReview }}" = "true" ]; then
+            HEADER="⚠️ E2E Tests Passed with Visual Diffs"
           else
-            if [ "${{ steps.check-batch.outputs.needsReview }}" = "true" ]; then
-              TEXT="✅ E2E tests passed! 🔍 *Visual diffs detected – manual review needed.*\n🔗 [Review in Applitools]($APPLITOOLS_LINK)\n🔗 [Run details]($RUN_URL)"
-            else
-              TEXT="✅ E2E tests passed! (**Deployment ID:** ${{ inputs.deployment_id }})\n🎉 Rollout can proceed.\n🔗 [Run details]($RUN_URL)"
-            fi
+            HEADER="✅ E2E Tests Passed"
+          fi
+          
+          # Start building the message body
+          BODY="*Deployment ID:* ${{ inputs.deployment_id }}"
+          
+          # Add contextual links based on the outcome
+          if [ "${{ steps.check-batch.outputs.needsReview }}" = "true" ]; then
+            BODY="${BODY}\n*Status:* Needs manual review\n<${APPLITOOLS_LINK}|🔍 Review Diffs in Applitools>"
+          elif [ "$OUTCOME" = "success" ]; then
+            BODY="${BODY}\n*Status:* All visual tests passed\n<${APPLITOOLS_LINK}|👁️ View in Applitools>"
+          fi
+          
+          # Always add the run and report links
+          BODY="${BODY}\n<${RUN_URL}|View GitHub Run>"
+          if [ -n "$REPORT_URL" ]; then
+            BODY="${BODY}\n<${REPORT_URL}|View Full HTML Report>"
           fi
 
-          [ -n "$REPORT_URL"   ] && TEXT="${TEXT}\n📑 [View HTML report]($REPORT_URL)"
-
+          TEXT="${HEADER}\n${BODY}"
+          # --- End of new message logic ---
+          
+          # The curl command remains the same, but it's now sending the nicely formatted TEXT
           RESPONSE=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"$THREAD_TS\",\"text\":\"$TEXT\"}" \
             https://slack.com/api/chat.postMessage)
           
-          # Extract the timestamp (ts) and set it as an output
           echo "ts=$(echo \"$RESPONSE\" | jq -r .ts)" >> $GITHUB_OUTPUT
 
 
@@ -300,19 +316,13 @@ jobs:
           done
 
           if [[ "$STATUS" == "PASSED" ]]; then
-            send_slack_message "✅ **Visual Review Approved**  
-            🎉 Rollout can proceed.  
-            🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
+            send_slack_message "✅ *Visual Review Approved*\n🎉 Rollout can proceed.\n<${GITHUB_RUN_URL}|View Action> | <${APPLITOOLS_LINK}|View Applitools>"
             echo "status=approved" >> $GITHUB_OUTPUT
           elif [[ "$STATUS" == "FAILED" ]]; then
-            send_slack_message "❌ **Visual Review Rejected**  
-            🚨 Rollout stopped.  
-            🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
+            send_slack_message "❌ *Visual Review Rejected*\n🚨 Rollout stopped.\n<${GITHUB_RUN_URL}|View Action> | <${APPLITOOLS_LINK}|View Applitools>"
             echo "status=rejected" >> $GITHUB_OUTPUT
           else
-            send_slack_message "⚠️ **Review timed out**  
-            ⏳ Still unresolved after 1 h—please check manually.  
-            🔗 [Action](${GITHUB_RUN_URL}) | [Applitools](${APPLITOOLS_LINK})"
+            send_slack_message "⚠️ *Review Timed Out*\n⏳ Still unresolved after 1 hour. Please check manually.\n<${GITHUB_RUN_URL}|View Action> | <${APPLITOOLS_LINK}|View Applitools>"
             echo "status=timeout" >> $GITHUB_OUTPUT
           fi
 
