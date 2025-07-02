@@ -91,13 +91,16 @@ jobs:
             PAYLOAD=$(echo "$PAYLOAD" | jq --arg thread_ts "$PARENT_THREAD_TS" '. + {thread_ts: $thread_ts}')
           fi
           RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $SLACK_BOT_TOKEN" --data "$PAYLOAD" https://slack.com/api/chat.postMessage)
-          echo "message_ts=$(echo \"$RESPONSE\" | jq -r .ts)" >> $GITHUB_OUTPUT
+
+          TS=$(echo "$RESPONSE" | jq -r .ts)
+          echo "message_ts=$TS" >> $GITHUB_OUTPUT
+          echo "MESSAGE_TS=$TS" >> $GITHUB_ENV
 
       - name: Install dependencies
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   "${{ env.SLACK_CHANNEL }}"
-          MESSAGE_TS:      ${{ steps.slack_progress_message.outputs.message_ts }}
+          MESSAGE_TS:      ${{ env.MESSAGE_TS }}
           MESSAGE_TEXT:    "…"
           PLAYWRIGHT_BROWSERS_PATH: /opt/playwright
         run: |
@@ -112,7 +115,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
+          MESSAGE_TS:   ${{ env.MESSAGE_TS }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██░░░░] 30% | Running Cancel-Order tests..."
         run: |
           scripts/update-slack-progress.sh
@@ -123,7 +126,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
+          MESSAGE_TS:   ${{ env.MESSAGE_TS }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[███░░░] 45% | Running Megavault tests..."
         run: |
           scripts/update-slack-progress.sh
@@ -134,7 +137,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
+          MESSAGE_TS:   ${{ env.MESSAGE_TS }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[████░░] 60% | Running Deposit/Withdraw tests..."
         run: |
           scripts/update-slack-progress.sh
@@ -146,7 +149,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
+          MESSAGE_TS:   ${{ env.MESSAGE_TS }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[█████░] 75% | Running remaining main tests..."
         run: |
           scripts/update-slack-progress.sh
@@ -157,7 +160,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
+          MESSAGE_TS:   ${{ env.MESSAGE_TS }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██████] 90% | Uploading HTML report to S3..."
         run: |
           scripts/update-slack-progress.sh
@@ -171,7 +174,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
+          MESSAGE_TS:   ${{ env.MESSAGE_TS }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██████] 95% | Checking Applitools for visual diffs..."
         run: |
           scripts/update-slack-progress.sh
@@ -182,7 +185,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS: ${{ steps.slack_progress_message.outputs.message_ts }}
+          MESSAGE_TS: ${{ env.MESSAGE_TS }}
         run: |
           RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           OUTCOME="${{ steps.run-tests.outcome }}"
