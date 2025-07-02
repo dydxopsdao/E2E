@@ -53,6 +53,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -65,12 +68,33 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
-      
+
+      - name: Find Release Thread (if applicable)
+        id: find-thread
+        if: ${{ inputs.deployment_id != 'manual' }}
+        run: |
+          HISTORY=$(curl -sf -H "Authorization: Bearer ${{ env.SLACK_BOT_TOKEN }}" -G --data-urlencode "channel=${{ env.SLACK_CHANNEL }}" --data-urlencode "limit=100" https://slack.com/api/conversations.history)
+          THREAD_TS=$(echo "$HISTORY" | jq -r --arg id "${{ inputs.deployment_id }}" '.messages[] | select(.attachments? and ([ .attachments[] | (.fallback // ""), (.title // ""), (.pretext // ""), (.text // "") ] | map(test($id; "i")) | any)) | .ts' | head -1)
+          if [ -n "$THREAD_TS" ]; then
+            echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
+            echo "Found parent thread: $THREAD_TS"
+          fi
+
       - name: 🏁 Post Initial Progress to Slack
         id: slack_progress_message
         run: |
+          THREAD_TS="${{ steps.find-thread.outputs.thread_ts }}"
           TEXT="*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[░░░░░░] 0% | Initializing job..."
-          RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer ${{ env.SLACK_BOT_TOKEN }}" --data "{\"channel\":\"${{ env.SLACK_CHANNEL }}\",\"text\":\"$TEXT\"}" https://slack.com/api/chat.postMessage)
+          
+          # Use jq to build the base payload safely
+          PAYLOAD=$(jq -n --arg channel "${{ env.SLACK_CHANNEL }}" --arg text "$TEXT" '{channel: $channel, text: $text}')
+
+          # If we found a parent thread, add it to the payload
+          if [ -n "$THREAD_TS" ]; then
+            PAYLOAD=$(echo "$PAYLOAD" | jq --arg thread_ts "$THREAD_TS" '. + {thread_ts: $thread_ts}')
+          fi
+          
+          RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer ${{ env.SLACK_BOT_TOKEN }}" --data "$PAYLOAD" https://slack.com/api/chat.postMessage)
           echo "message_ts=$(echo \"$RESPONSE\" | jq -r .ts)" >> $GITHUB_OUTPUT
 
       - name: Install dependencies
