@@ -26,7 +26,7 @@ jobs:
 
     env:
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
-      RUN_URL: "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+      RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
       SLACK_CHANNEL: "${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}"
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
