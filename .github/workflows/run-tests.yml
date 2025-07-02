@@ -187,24 +187,31 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS: ${{ env.MESSAGE_TS }}
+          MESSAGE_TS:      ${{ env.MESSAGE_TS }}
+          RUN_URL:         https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          APPLITOOLS_URL:  https://eyes.applitools.com/app/test-results/${{ steps.check-batch.outputs.foundBatchID }}/
         run: |
-          RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          set -e
           OUTCOME="${{ steps.run-tests.outcome }}"
-          APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${{ steps.check-batch.outputs.foundBatchID }}/"
           if [ "$OUTCOME" != "success" ]; then
             HEADER="❌ E2E Tests Failed"
-            BODY="*Deployment ID:* ${{ inputs.deployment_id }}\n<${RUN_URL}|View GitHub Run>"
+            BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• <${RUN_URL}|View GitHub Run>"
           elif [ "${{ steps.check-batch.outputs.needsReview }}" = "true" ]; then
             HEADER="⚠️ E2E Tests Passed with Visual Diffs"
-            BODY="*Deployment ID:* ${{ inputs.deployment_id }}\n*Status:* Needs manual review\n<${APPLITOOLS_LINK}|🔍 Review Diffs in Applitools>\n<${RUN_URL}|View GitHub Run>"
+            BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• *Status:* Needs manual review\n• <${APPLITOOLS_URL}|Review Diffs in Applitools>\n• <${RUN_URL}|View GitHub Run>"
           else
             HEADER="✅ E2E Tests Passed"
-            BODY="*Deployment ID:* ${{ inputs.deployment_id }}\n*Status:* All visual tests passed\n<${APPLITOOLS_LINK}|👁️ View in Applitools>\n<${RUN_URL}|View GitHub Run>"
+            BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• *Status:* All visual tests passed\n• <${APPLITOOLS_URL}|View in Applitools>\n• <${RUN_URL}|View GitHub Run>"
           fi
-          if [ -n "$REPORT_URL" ]; then BODY="${BODY}\n<${REPORT_URL}|View Full HTML Report>"; fi
-          export MESSAGE_TEXT=$(printf "%s\n%s" "$HEADER" "$BODY")
+
+          # Compose a true multiline MESSAGE_TEXT
+          read -r -d '' MESSAGE_TEXT <<EOF
+          ${HEADER}
+          ${BODY}
+          EOF
+
           scripts/update-slack-progress.sh
+
 
       - name: Upload Test Report artifact
         if: always()
@@ -243,7 +250,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SLACK_CHANNEL:      ${{ needs.e2e-test.outputs.slack_channel }}
-      ROOT_THREAD_TS:     ${{ needs.e2e-test.outputs.slack_ts }} # Correctly threaded
+      ROOT_THREAD_TS:     ${{ needs.e2e-test.outputs.slack_ts }}
       SLACK_BOT_TOKEN:    ${{ secrets.SLACK_BOT_TOKEN }}
       APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
     steps:
@@ -259,7 +266,6 @@ jobs:
 
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/"
           GITHUB_RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          send_slack_message "⚠️ *Visual differences detected*\n🔍 Waiting for manual review in Applitools...\n⏳ Monitoring for up to 1 hour."
           
           MAX=120; INTERVAL=30; i=0; STATUS=""
           while (( i < MAX )); do
@@ -278,13 +284,13 @@ jobs:
           done
           
           if [[ "$STATUS" == "PASSED" ]]; then
-            send_slack_message "✅ *Visual Review Approved*\n🎉 Rollout can proceed.\n<${GITHUB_RUN_URL}|View Action> | <${APPLITOOLS_LINK}|View Applitools>"
+            send_slack_message "✅ *Visual Review Approved*\n🎉 Rollout can proceed.\n<${GITHUB_RUN_URL}|View Action> | <${APPLITOOLS_LINK}|View Applitools>" || true
             echo "status=approved" >> $GITHUB_OUTPUT
           elif [[ "$STATUS" == "FAILED" ]]; then
-            send_slack_message "❌ *Visual Review Rejected*\n🚨 Rollout stopped.\n<${GITHUB_RUN_URL}|View Action> | <${APPLITOOLS_LINK}|View Applitools>"
+            send_slack_message "❌ *Visual Review Rejected*\n🚨 Rollout stopped.\n<${GITHUB_RUN_URL}|View Action> | <${APPLITOOLS_LINK}|View Applitools>" || true
             echo "status=rejected" >> $GITHUB_OUTPUT
           else
-            send_slack_message "⚠️ *Review Timed Out*\n⏳ Still unresolved after 1 hour. Please check manually.\n<${GITHUB_RUN_URL}|View Action> | <${APPLITOOLS_LINK}|View Applitools>"
+            send_slack_message "⚠️ *Review Timed Out*\n⏳ Still unresolved after 1 hour. Please check manually.\n<${GITHUB_RUN_URL}|View Action> | <${APPLITOOLS_LINK}|View Applitools>" || true
             echo "status=timeout" >> $GITHUB_OUTPUT
           fi
       - name: Mark Applitools Batch as Complete
