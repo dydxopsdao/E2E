@@ -119,6 +119,26 @@ jobs:
           name: playwright-report-${{ github.run_id }}
           path: playwright-report/
 
+      - name: 'Debug: Check for local AWS config files'
+        if: always()
+        run: |
+          echo "Checking for AWS credentials file in home directory: $HOME"
+          if [ -d "$HOME/.aws" ]; then
+            echo "::error:: Found a .aws directory. This will override the EC2 Instance Role and is the likely cause of the 'InvalidAccessKeyId' error."
+            echo "Listing contents of $HOME/.aws:"
+            ls -la $HOME/.aws
+            
+            if [ -f "$HOME/.aws/credentials" ]; then
+              echo "--- Contents of credentials file (keys redacted) ---"
+              cat $HOME/.aws/credentials | sed 's/aws_access_key_id.*/aws_access_key_id = [REDACTED]/g' | sed 's/aws_secret_access_key.*/aws_secret_access_key = [REDACTED]/g'
+              echo "----------------------------------------------------"
+            fi
+            
+            echo "To fix this, log into the runner machine and run 'mv ~/.aws ~/.aws_backup' to disable this file."
+          else
+            echo "OK: No .aws directory found in $HOME. This is the correct configuration."
+          fi
+
 
       - name: Sync full HTML report (with embedded trace) to S3
         if: always()
