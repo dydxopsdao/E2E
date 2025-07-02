@@ -95,6 +95,8 @@ jobs:
 
       - name: Install dependencies
         env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[█░░░░░] 15% | Installing dependencies..."
         run: scripts/update-slack-progress.sh
@@ -102,6 +104,8 @@ jobs:
       - name: ► Run Cancel-Order Tests
         continue-on-error: true
         env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██░░░░] 30% | Running Cancel-Order tests..."
         run: |
@@ -111,6 +115,8 @@ jobs:
       - name: ► Run Megavault Tests
         continue-on-error: true
         env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[███░░░] 45% | Running Megavault tests..."
         run: |
@@ -120,6 +126,8 @@ jobs:
       - name: ► Run Deposit/Withdraw Tests
         continue-on-error: true
         env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[████░░] 60% | Running Deposit/Withdraw tests..."
         run: |
@@ -130,6 +138,8 @@ jobs:
         id: run-tests
         continue-on-error: true
         env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[█████░] 75% | Running remaining main tests..."
         run: |
@@ -139,6 +149,8 @@ jobs:
       - name: Sync full HTML report to S3
         if: always()
         env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██████] 90% | Uploading HTML report to S3..."
         run: |
@@ -151,6 +163,8 @@ jobs:
         id: check-batch
         if: always()
         env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██████] 95% | Checking Applitools for visual diffs..."
         run: |
@@ -160,6 +174,8 @@ jobs:
       - name: ✅ Post Final Result to Slack
         if: always()
         env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS: ${{ steps.slack_progress_message.outputs.message_ts }}
         run: |
           RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
