@@ -26,8 +26,8 @@ jobs:
 
     env:
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
-      RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-      SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '\#test-channel' || 'C07VDF07WLU' }}
+      RUN_URL: "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+      SLACK_CHANNEL: "${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}"
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
       NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
@@ -86,7 +86,8 @@ jobs:
         env:
           PARENT_THREAD_TS: ${{ steps.find-thread.outputs.thread_ts }}
         run: |
-          TEXT=$(printf "*E2E Pipeline for Deployment:* %s\n>[░░░░░░] 0%% | Initializing job..." "${{ inputs.deployment_id }}\n<${{ env.RUN_URL }}|View full logs>")
+          TEXT=$(printf "*E2E Pipeline for Deployment:* %s\n>[░░░░░░] 0%% | Initializing job...\n<%s|View full logs>" \
+          "${{ inputs.deployment_id }}" "$RUN_URL")
           PAYLOAD=$(jq -n --arg channel "$SLACK_CHANNEL" --arg text "$TEXT" '{channel: $channel, text: $text}')
           if [ -n "$PARENT_THREAD_TS" ]; then
             PAYLOAD=$(echo "$PAYLOAD" | jq --arg thread_ts "$PARENT_THREAD_TS" '. + {thread_ts: $thread_ts}')
@@ -128,7 +129,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:   ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██░░░░] 30% | Running Megavault tests...\n<${{ env.RUN_URL }}|View full logs>"
+          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[█░░░░] 20% | Running Megavault tests...\n<${{ env.RUN_URL }}|View full logs>"
         run: |
           scripts/update-slack-progress.sh
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --project=megavault-tests
@@ -139,7 +140,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:   ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[███░░░] 50% | Running Deposit/Withdraw tests...\n<${{ env.RUN_URL }}|View full logs>"
+          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██░░░░] 30% | Running Deposit/Withdraw tests...\n<${{ env.RUN_URL }}|View full logs>"
         run: |
           scripts/update-slack-progress.sh
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --project=deposit-withdraw-tests
