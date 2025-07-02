@@ -188,7 +188,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:      ${{ env.MESSAGE_TS }}
-          RUN_URL:         https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_URL:         ${{ env.RUN_URL }}
           APPLITOOLS_URL:  https://eyes.applitools.com/app/test-results/${{ steps.check-batch.outputs.foundBatchID }}/
         run: |
           set -e
@@ -204,12 +204,12 @@ jobs:
             BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• *Status:* All visual tests passed\n• <${APPLITOOLS_URL}|View in Applitools>\n• <${RUN_URL}|View GitHub Run>"
           fi
 
-          # Compose a true multiline MESSAGE_TEXT
-          read -r -d '' MESSAGE_TEXT <<EOF
-          ${HEADER}
-          ${BODY}
+          read -r -d '' MESSAGE_TEXT <<-EOF
+          	${HEADER}
+          	${BODY}
           EOF
 
+          export MESSAGE_TEXT
           scripts/update-slack-progress.sh
 
 
