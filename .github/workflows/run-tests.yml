@@ -120,14 +120,11 @@ jobs:
           name: playwright-test-report-${{ github.run_id }}
           path: playwright-report/
 
-      - name: Configure AWS credentials
-        if: always()
-        uses: aws-actions/configure-aws-credentials@v1
+      - name: Configure AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token:     ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region:            ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::221082214510:role/GitHubActionsS3Publisher
+          aws-region:    ${{ secrets.AWS_DEFAULT_REGION }}
 
       - name: Sync HTML report to S3
         if: always()
@@ -135,7 +132,7 @@ jobs:
           aws s3 sync playwright-report/ \
             s3://${{ secrets.S3_TRACE_BUCKET }}/runs/${{ github.run_id }}/report/ \
             --delete
-          echo "REPORT_URL=https://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/index.html" \
+          echo "REPORT_URL=http://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/index.html" \
             >> $GITHUB_ENV
 
       - name: Sync Playwright traces to S3
@@ -144,14 +141,14 @@ jobs:
           aws s3 sync playwright-report/trace/ \
             s3://${{ secrets.S3_TRACE_BUCKET }}/runs/${{ github.run_id }}/trace/ \
             --delete
-          echo "TRACE_BASE_URL=https://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/trace" \
+          echo "TRACE_BASE_URL=http://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/trace" \
             >> $GITHUB_ENV
 
       - name: Export URLs
         if: always()
         run: |
-          echo "REPORT_URL=https://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/index.html" >> $GITHUB_ENV
-          echo "TRACE_BASE_URL=https://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/trace" >> $GITHUB_ENV
+          echo "REPORT_URL=http://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/index.html" >> $GITHUB_ENV
+          echo "TRACE_BASE_URL=http://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/trace" >> $GITHUB_ENV
 
       - name: Check Applitools Batch By Pointer
         id: check-batch
