@@ -12,7 +12,6 @@ on:
 # grant this job permission to mint an OIDC token for AWS
 permissions:
   contents: read
-  id-token: write
 
 env:
   APPLITOOLS_API_KEY:    ${{ secrets.APPLITOOLS_API_KEY }}
@@ -124,17 +123,18 @@ jobs:
       - name: Sync full HTML report (with embedded trace) to S3
         if: always()
         run: |
+          # Unset any stale credentials to ensure the EC2 Instance Role is used
+          unset AWS_ACCESS_KEY_ID
+          unset AWS_SECRET_ACCESS_KEY
+          unset AWS_SESSION_TOKEN
+          
+          # Now, sync the report
           aws s3 sync playwright-report/ \
             s3://${{ env.S3_TRACE_BUCKET }}/runs/${{ github.run_id }}/report/ \
              --delete
           echo "REPORT_URL=http://${{ env.S3_TRACE_BUCKET }}.s3-website.${{ env.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/index.html" \
             >> $GITHUB_ENV
 
-
-      - name: Export URLs
-        if: always()
-        run: |
-          echo "REPORT_URL=http://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/index.html" >> $GITHUB_ENV
 
       - name: Check Applitools Batch By Pointer
         id: check-batch
