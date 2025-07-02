@@ -204,16 +204,15 @@ jobs:
             BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• *Status:* All visual tests passed\n• <${APPLITOOLS_URL}|View in Applitools>\n• <${RUN_URL}|View GitHub Run>"
           fi
 
-          # strip-tab heredoc — leading TABs will be stripped
-          read -r -d '' MESSAGE_TEXT <<-EOF
-          	${HEADER}
-          	${BODY}
-          EOF
+          read -r -d '' MESSAGE_TEXT <<EOF
+${HEADER}
+${BODY}
+EOF
 
-          export MESSAGE_TEXT
-          scripts/update-slack-progress.sh
+echo ">> DEBUG: MESSAGE_TEXT is: <$MESSAGE_TEXT>"
 
-
+export MESSAGE_TEXT
+scripts/update-slack-progress.sh || true
 
       - name: Upload Test Report artifact
         if: always()
