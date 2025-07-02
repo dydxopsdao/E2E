@@ -186,11 +186,15 @@ jobs:
 
           [ -n "$REPORT_URL"   ] && TEXT="${TEXT}\n📑 [View HTML report]($REPORT_URL)"
 
-          curl -s -X POST \
+          RESPONSE=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"$THREAD_TS\",\"text\":\"$TEXT\"}" \
-            https://slack.com/api/chat.postMessage
+            https://slack.com/api/chat.postMessage)
+          
+          # Extract the timestamp (ts) and set it as an output
+          echo "ts=$(echo \"$RESPONSE\" | jq -r .ts)" >> $GITHUB_OUTPUT
+
 
   applitools-auto-complete:
     name: "Applitools Auto-Completion"
@@ -199,7 +203,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SLACK_CHANNEL:      ${{ needs.e2e-test.outputs.slack_channel }}
-      ROOT_THREAD_TS:     ${{ needs.e2e-test.outputs.root_thread_ts }}
+      ROOT_THREAD_TS:     ${{ needs.e2e-test.outputs.slack_ts }}
       SLACK_BOT_TOKEN:    ${{ secrets.SLACK_BOT_TOKEN }}
       APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
     steps:
@@ -237,11 +241,18 @@ jobs:
         run: |
           send_slack_message() {
             local msg="$1"
-            esc=$(echo "$msg" | sed 's/"/\\"/g')
+            # Use jq to safely construct the JSON payload
+            JSON_PAYLOAD=$(jq -n \
+                              --arg channel "$SLACK_CHANNEL" \
+                              --arg ts "$ROOT_THREAD_TS" \
+                              --arg text "$msg" \
+                              '{channel: $channel, thread_ts: $ts, text: $text}')
+
+            # Make the API call with the safely-built JSON
             curl -s -X POST \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-              --data "{\"channel\":\"$SLACK_CHANNEL\",\"thread_ts\":\"$ROOT_THREAD_TS\",\"text\":\"$esc\"}" \
+              --data "$JSON_PAYLOAD" \
               https://slack.com/api/chat.postMessage
           }
 
