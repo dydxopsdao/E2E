@@ -23,6 +23,7 @@ jobs:
   e2e-test:
     name: "E2E Tests (Deployment: ${{ inputs.deployment_id }})"
     runs-on: self-hosted
+
     env:
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
       SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}
@@ -73,7 +74,7 @@ jobs:
         id: find-thread
         if: ${{ inputs.deployment_id != 'manual' }}
         run: |
-          HISTORY=$(curl -sf -H "Authorization: Bearer ${{ env.SLACK_BOT_TOKEN }}" -G --data-urlencode "channel=${{ env.SLACK_CHANNEL }}" --data-urlencode "limit=100" https://slack.com/api/conversations.history)
+          HISTORY=$(curl -sf -H "Authorization: Bearer $SLACK_BOT_TOKEN" -G --data-urlencode "channel=$SLACK_CHANNEL" --data-urlencode "limit=100" https://slack.com/api/conversations.history)
           THREAD_TS=$(echo "$HISTORY" | jq -r --arg id "${{ inputs.deployment_id }}" '.messages[] | select(.attachments? and ([ .attachments[] | (.fallback // ""), (.title // ""), (.pretext // ""), (.text // "") ] | map(test($id; "i")) | any)) | .ts' | head -1)
           if [ -n "$THREAD_TS" ]; then
             echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
@@ -81,21 +82,20 @@ jobs:
 
       - name: 🏁 Post Initial Progress to Slack
         id: slack_progress_message
+        env:
+          PARENT_THREAD_TS: ${{ steps.find-thread.outputs.thread_ts }}
         run: |
-          THREAD_TS="${{ steps.find-thread.outputs.thread_ts }}"
           TEXT=$(printf "*E2E Pipeline for Deployment:* %s\n>[░░░░░░] 0%% | Initializing job..." "${{ inputs.deployment_id }}")
-          
-          PAYLOAD=$(jq -n --arg channel "${{ env.SLACK_CHANNEL }}" --arg text "$TEXT" '{channel: $channel, text: $text}')
-          if [ -n "$THREAD_TS" ]; then
-            PAYLOAD=$(echo "$PAYLOAD" | jq --arg thread_ts "$THREAD_TS" '. + {thread_ts: $thread_ts}')
+          PAYLOAD=$(jq -n --arg channel "$SLACK_CHANNEL" --arg text "$TEXT" '{channel: $channel, text: $text}')
+          if [ -n "$PARENT_THREAD_TS" ]; then
+            PAYLOAD=$(echo "$PAYLOAD" | jq --arg thread_ts "$PARENT_THREAD_TS" '. + {thread_ts: $thread_ts}')
           fi
-          
-          RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer ${{ env.SLACK_BOT_TOKEN }}" --data "$PAYLOAD" https://slack.com/api/chat.postMessage)
+          RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $SLACK_BOT_TOKEN" --data "$PAYLOAD" https://slack.com/api/chat.postMessage)
           echo "message_ts=$(echo \"$RESPONSE\" | jq -r .ts)" >> $GITHUB_OUTPUT
 
       - name: Install dependencies
-        env:
-          MESSAGE_TS: ${{ steps.slack_progress_message.outputs.message_ts }}
+        env: # This step-level env adds to the job-level env
+          MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[█░░░░░] 15% | Installing dependencies..."
         run: |
           scripts/update-slack-progress.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL" "$MESSAGE_TS" "$MESSAGE_TEXT"
@@ -104,7 +104,7 @@ jobs:
       - name: ► Run Cancel-Order Tests
         continue-on-error: true
         env:
-          MESSAGE_TS: ${{ steps.slack_progress_message.outputs.message_ts }}
+          MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██░░░░] 30% | Running Cancel-Order tests..."
         run: |
           scripts/update-slack-progress.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL" "$MESSAGE_TS" "$MESSAGE_TEXT"
@@ -113,7 +113,7 @@ jobs:
       - name: ► Run Megavault Tests
         continue-on-error: true
         env:
-          MESSAGE_TS: ${{ steps.slack_progress_message.outputs.message_ts }}
+          MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[███░░░] 45% | Running Megavault tests..."
         run: |
           scripts/update-slack-progress.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL" "$MESSAGE_TS" "$MESSAGE_TEXT"
@@ -122,17 +122,17 @@ jobs:
       - name: ► Run Deposit/Withdraw Tests
         continue-on-error: true
         env:
-          MESSAGE_TS: ${{ steps.slack_progress_message.outputs.message_ts }}
+          MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[████░░] 60% | Running Deposit/Withdraw tests..."
         run: |
           scripts/update-slack-progress.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL" "$MESSAGE_TS" "$MESSAGE_TEXT"
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --project=deposit-withdraw-tests
 
       - name: ► Run Main Tests
-        id: run-tests # Keep ID on last test step
+        id: run-tests
         continue-on-error: true
         env:
-          MESSAGE_TS: ${{ steps.slack_progress_message.outputs.message_ts }}
+          MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[█████░] 75% | Running remaining main tests..."
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
         run: |
@@ -142,7 +142,7 @@ jobs:
       - name: Sync full HTML report to S3
         if: always()
         env:
-          MESSAGE_TS: ${{ steps.slack_progress_message.outputs.message_ts }}
+          MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██████] 90% | Uploading HTML report to S3..."
         run: |
           scripts/update-slack-progress.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL" "$MESSAGE_TS" "$MESSAGE_TEXT"
@@ -154,12 +154,11 @@ jobs:
         id: check-batch
         if: always()
         env:
-          MESSAGE_TS: ${{ steps.slack_progress_message.outputs.message_ts }}
+          MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
           MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██████] 95% | Checking Applitools for visual diffs..."
-          APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           scripts/update-slack-progress.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL" "$MESSAGE_TS" "$MESSAGE_TEXT"
-          ./scripts/checkApplitoolsBatchByPointer.sh "${{ env.APPLITOOLS_SERVER_URL }}" "${{ env.APPLITOOLS_API_KEY }}" "$APPLITOOLS_BATCH_ID"
+          ./scripts/checkApplitoolsBatchByPointer.sh "$APPLITOOLS_SERVER_URL" "$APPLITOOLS_API_KEY" "$APPLITOOLS_BATCH_ID"
 
       - name: ✅ Post Final Result to Slack
         if: always()
@@ -181,10 +180,7 @@ jobs:
             BODY="*Deployment ID:* ${{ inputs.deployment_id }}\n*Status:* All visual tests passed\n<${APPLITOOLS_LINK}|👁️ View in Applitools>\n<${RUN_URL}|View GitHub Run>"
           fi
           
-          if [ -n "$REPORT_URL" ]; then
-            BODY="${BODY}\n<${REPORT_URL}|View Full HTML Report>"
-          fi
-
+          if [ -n "$REPORT_URL" ]; then BODY="${BODY}\n<${REPORT_URL}|View Full HTML Report>"; fi
           FINAL_TEXT=$(printf "%s\n%s" "$HEADER" "$BODY")
           scripts/update-slack-progress.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL" "$MESSAGE_TS" "$FINAL_TEXT"
 
