@@ -279,6 +279,7 @@ jobs:
             B=$(echo "$resp" | jq --arg bid "${{ needs.e2e-test.outputs.found_batch_id }}" \
                   '.batches[] | select(.id==$bid)')
             if [[ -z "$B" || "$B" == "null" ]]; then
+              echo "Batch ${{ needs.e2e-test.outputs.found_batch_id }} not found in API response yet. Retrying in ${INTERVAL}s..."
               sleep "$INTERVAL"
               continue
             fi
