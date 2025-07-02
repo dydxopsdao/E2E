@@ -152,8 +152,8 @@ jobs:
           aws s3 sync playwright-report/ \
             s3://${{ env.S3_TRACE_BUCKET }}/runs/${{ github.run_id }}/report/ \
              --delete
-          echo "REPORT_URL=http://${{ env.S3_TRACE_BUCKET }}.s3-website.${{ env.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/index.html" \
-            >> $GITHUB_ENV
+          echo "REPORT_URL=https://${{ env.S3_TRACE_BUCKET }}.s3.${{ env.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/index.html" \
+          >> $GITHUB_ENV
 
 
       - name: Check Applitools Batch By Pointer
@@ -216,7 +216,7 @@ jobs:
           THREAD_TS="$ROOT_THREAD_TS"
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/"
           GITHUB_RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          MSG="Additional details:\n- GitHub Action: ${GITHUB_RUN_URL}\n- Applitools: ${APPLITOOLS_LINK}"
+          MSG="Additional details:\n- Applitools: ${APPLITOOLS_LINK}"
           curl -s -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
