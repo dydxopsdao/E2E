@@ -26,6 +26,7 @@ jobs:
 
     env:
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
+      RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
       SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '\#test-channel' || 'C07VDF07WLU' }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
@@ -85,7 +86,7 @@ jobs:
         env:
           PARENT_THREAD_TS: ${{ steps.find-thread.outputs.thread_ts }}
         run: |
-          TEXT=$(printf "*E2E Pipeline for Deployment:* %s\n>[░░░░░░] 0%% | Initializing job..." "${{ inputs.deployment_id }}")
+          TEXT=$(printf "*E2E Pipeline for Deployment:* %s\n>[░░░░░░] 0%% | Initializing job..." "${{ inputs.deployment_id }}\n<${{ env.RUN_URL }}|View full logs>")
           PAYLOAD=$(jq -n --arg channel "$SLACK_CHANNEL" --arg text "$TEXT" '{channel: $channel, text: $text}')
           if [ -n "$PARENT_THREAD_TS" ]; then
             PAYLOAD=$(echo "$PAYLOAD" | jq --arg thread_ts "$PARENT_THREAD_TS" '. + {thread_ts: $thread_ts}')
@@ -116,7 +117,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:   ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██░░░░] 30% | Running Cancel-Order tests..."
+          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[█░░░░░] 10% | Running Cancel-Order tests...\n<${{ env.RUN_URL }}|View full logs>"
         run: |
           scripts/update-slack-progress.sh
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --project=cancel-order-tests
@@ -127,7 +128,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:   ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[███░░░] 45% | Running Megavault tests..."
+          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██░░░░] 30% | Running Megavault tests...\n<${{ env.RUN_URL }}|View full logs>"
         run: |
           scripts/update-slack-progress.sh
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --project=megavault-tests
@@ -138,7 +139,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:   ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[████░░] 60% | Running Deposit/Withdraw tests..."
+          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[███░░░] 50% | Running Deposit/Withdraw tests...\n<${{ env.RUN_URL }}|View full logs>"
         run: |
           scripts/update-slack-progress.sh
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --project=deposit-withdraw-tests
@@ -150,7 +151,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:   ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[█████░] 75% | Running remaining main tests..."
+          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[████░░] 75% | Running remaining main tests...\n<${{ env.RUN_URL }}|View full logs>"
         run: |
           scripts/update-slack-progress.sh
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --project=main-tests --workers=2
@@ -161,7 +162,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:   ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██████] 90% | Uploading HTML report to S3..."
+          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██████] 90% | Uploading HTML report to S3...\n<${{ env.RUN_URL }}|View full logs>"
         run: |
           scripts/update-slack-progress.sh
           unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
@@ -175,7 +176,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:   ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██████] 95% | Checking Applitools for visual diffs..."
+          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██████] 95% | Checking Applitools for visual diffs...\n<${{ env.RUN_URL }}|View full logs>"
         run: |
           scripts/update-slack-progress.sh
           ./scripts/checkApplitoolsBatchByPointer.sh "$APPLITOOLS_SERVER_URL" "$APPLITOOLS_API_KEY" "$APPLITOOLS_BATCH_ID"
