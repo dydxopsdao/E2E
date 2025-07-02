@@ -142,9 +142,9 @@ jobs:
         if: always()
         run: |
           aws s3 sync playwright-report/trace/ \
-            s3://${{ secrets.S3_TRACE_BUCKET }}/runs/${{ github.run_id }}/trace/ \
+            s3://${{ secrets.S3_TRACE_BUCKET }}/runs/${{ github.run_id }}/report/trace/ \
             --delete
-          echo "TRACE_BASE_URL=http://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/trace" \
+          echo "TRACE_BASE_URL=https://${{ secrets.S3_TRACE_BUCKET }}.s3.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/trace" \
             >> $GITHUB_ENV
 
       - name: Export URLs
@@ -182,7 +182,7 @@ jobs:
           fi
 
           [ -n "$REPORT_URL"   ] && TEXT="${TEXT}\n📑 [View HTML report]($REPORT_URL)"
-          [ -n "$TRACE_BASE_URL" ] && TEXT="${TEXT}\n🔍 [Browse raw traces]($TRACE_BASE_URL/index.html)"
+          [ -n "$TRACE_BASE_URL" ] && TEXT="${TEXT}\n🔍 [Browse traces]($TRACE_BASE_URL)"
 
           curl -s -X POST \
             -H "Content-Type: application/json" \
