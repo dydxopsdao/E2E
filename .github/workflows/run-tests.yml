@@ -9,20 +9,21 @@ on:
         default: 'manual'
   pull_request:
 
-
+# grant this job permission to mint an OIDC token for AWS
 permissions:
-  contents: read         
-  id-token: write 
+  contents: read
+  id-token: write
 
 env:
-  APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
+  APPLITOOLS_API_KEY:    ${{ secrets.APPLITOOLS_API_KEY }}
   APPLITOOLS_SERVER_URL: https://eyesapi.applitools.com
+  S3_TRACE_BUCKET:       ${{ secrets.S3_TRACE_BUCKET }}
+  AWS_DEFAULT_REGION:    ${{ secrets.AWS_DEFAULT_REGION }}
 
 jobs:
   e2e-test:
     name: "E2E Tests (Deployment: ${{ inputs.deployment_id }})"
     runs-on: self-hosted
-
     env:
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
       SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}
@@ -52,10 +53,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        name: Checkout repository
-        with:
-          token: ${{ secrets.GH_PAT_FOR_CHECKOUT }}
-          fetch-depth: 5
 
       - name: Install dependencies
         run: npm install
@@ -120,38 +117,29 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-test-report-${{ github.run_id }}
+          name: playwright-report-${{ github.run_id }}
           path: playwright-report/
 
       - name: Configure AWS via OIDC
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::221082214510:role/GitHubActionsS3Publisher
-          aws-region:    ${{ secrets.AWS_DEFAULT_REGION }}
+          aws-region:    ${{ env.AWS_DEFAULT_REGION }}
 
-      - name: Sync HTML report to S3
+      - name: Sync full HTML report (with embedded trace) to S3
         if: always()
         run: |
           aws s3 sync playwright-report/ \
-            s3://${{ secrets.S3_TRACE_BUCKET }}/runs/${{ github.run_id }}/report/ \
-            --delete
-          echo "REPORT_URL=http://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/index.html" \
+            s3://${{ env.S3_TRACE_BUCKET }}/runs/${{ github.run_id }}/report/ \
+             --delete
+          echo "REPORT_URL=http://${{ env.S3_TRACE_BUCKET }}.s3-website.${{ env.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/index.html" \
             >> $GITHUB_ENV
 
-      - name: Sync Playwright traces to S3
-        if: always()
-        run: |
-          aws s3 sync playwright-report/trace/ \
-            s3://${{ secrets.S3_TRACE_BUCKET }}/runs/${{ github.run_id }}/report/trace/ \
-            --delete
-          echo "TRACE_BASE_URL=https://${{ secrets.S3_TRACE_BUCKET }}.s3.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/trace" \
-            >> $GITHUB_ENV
 
       - name: Export URLs
         if: always()
         run: |
           echo "REPORT_URL=http://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/index.html" >> $GITHUB_ENV
-          echo "TRACE_BASE_URL=http://${{ secrets.S3_TRACE_BUCKET }}.s3-website.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/trace" >> $GITHUB_ENV
 
       - name: Check Applitools Batch By Pointer
         id: check-batch
@@ -182,7 +170,6 @@ jobs:
           fi
 
           [ -n "$REPORT_URL"   ] && TEXT="${TEXT}\n📑 [View HTML report]($REPORT_URL)"
-          [ -n "$TRACE_BASE_URL" ] && TEXT="${TEXT}\n🔍 [Browse traces]($TRACE_BASE_URL)"
 
           curl -s -X POST \
             -H "Content-Type: application/json" \
