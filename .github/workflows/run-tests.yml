@@ -26,7 +26,7 @@ jobs:
 
     env:
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
-      SLACK_CHANNEL: ${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}
+      SLACK_CHANNEL: "${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}"
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
       NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
@@ -93,13 +93,19 @@ jobs:
           RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $SLACK_BOT_TOKEN" --data "$PAYLOAD" https://slack.com/api/chat.postMessage)
           echo "message_ts=$(echo \"$RESPONSE\" | jq -r .ts)" >> $GITHUB_OUTPUT
 
-      - name: Install dependencies
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:   ${{ steps.slack_progress_message.outputs.message_ts }}
-          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[█░░░░░] 15% | Installing dependencies..."
-        run: scripts/update-slack-progress.sh
+       - name: Install dependencies
+          env:
+            SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+            SLACK_CHANNEL:   "${{ env.SLACK_CHANNEL }}"
+            MESSAGE_TS:      ${{ steps.slack_progress_message.outputs.message_ts }}
+            MESSAGE_TEXT:    "…"
+            PLAYWRIGHT_BROWSERS_PATH: /opt/playwright
+          run: |
+            echo ">> SLACK_CHANNEL is <$SLACK_CHANNEL>"
+            echo ">> MESSAGE_TS is <$MESSAGE_TS>"
+            echo ">> MESSAGE_TEXT is <$MESSAGE_TEXT>"
+            scripts/update-slack-progress.sh
+            npm install
 
       - name: ► Run Cancel-Order Tests
         continue-on-error: true
