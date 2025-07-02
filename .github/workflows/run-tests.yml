@@ -182,7 +182,7 @@ jobs:
           fi
 
           [ -n "$REPORT_URL"   ] && TEXT="${TEXT}\n📑 [View HTML report]($REPORT_URL)"
-          [ -n "$TRACE_BASE_URL" ] && TEXT="${TEXT}\n🔍 [Browse raw traces]($TRACE_BASE_URL/)"
+          [ -n "$TRACE_BASE_URL" ] && TEXT="${TEXT}\n🔍 [Browse raw traces]($TRACE_BASE_URL/index.html)"
 
           curl -s -X POST \
             -H "Content-Type: application/json" \
