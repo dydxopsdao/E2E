@@ -27,7 +27,7 @@ jobs:
     env:
       APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
       RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      SLACK_CHANNEL: "${{ inputs.deployment_id == 'manual' && '#test-channel' || 'C07VDF07WLU' }}"
+      SLACK_CHANNEL: "${{ inputs.deployment_id == 'manual' && 'C08GBVA4JKT' || 'C07VDF07WLU' }}"
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       NORDLAYER_EMAIL: ${{ secrets.NORDLAYER_EMAIL }}
       NORDLAYER_PASSWORD: ${{ secrets.NORDLAYER_PASSWORD }}
@@ -60,6 +60,7 @@ jobs:
 
       # 2) Also checkout v4-web so we can inspect its tags
       - name: Checkout v4-web repository
+        if: ${{ inputs.deployment_id != 'manual' }}
         uses: actions/checkout@v4
         with:
           repository: 'dydxprotocol/v4-web'
@@ -68,6 +69,7 @@ jobs:
 
       # 3) Identify latest production tag on main in v4-web
       - name: Identify latest production tag on main
+        if: ${{ inputs.deployment_id != 'manual' }}
         id: prod-tag
         working-directory: v4-web
         run: |
@@ -103,8 +105,8 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Find Release Thread (if applicable)
-        id: find-thread
         if: ${{ inputs.deployment_id != 'manual' }}
+        id: find-thread
         run: |
           # instead of the raw deployment ID, use the production tag
           KEY="${{ steps.prod-tag.outputs.production-tag }}"
@@ -140,12 +142,20 @@ jobs:
         env:
           PARENT_THREAD_TS: ${{ steps.find-thread.outputs.thread_ts }}
         run: |
-          TEXT=$(printf "*E2E Pipeline for Production Tag:* %s\n>[░░░░░░] 0%% | Initializing job...\n<%s|View full logs>" \
-          "${{ steps.prod-tag.outputs.production-tag }}" "$RUN_URL")
+          if [ "${{ inputs.deployment_id }}" = "manual" ]; then
+            DISPLAY="manual"
+          else
+            DISPLAY="${{ steps.prod-tag.outputs.production-tag }}"
+          fi
+
+          TEXT=$(printf "*E2E Pipeline for:* %s\n>[░░░░░░] 0%% | Initializing job...\n<%s|View full logs>" \
+            "$DISPLAY" "$RUN_URL")
+
           PAYLOAD=$(jq -n --arg channel "$SLACK_CHANNEL" --arg text "$TEXT" '{channel: $channel, text: $text}')
           if [ -n "$PARENT_THREAD_TS" ]; then
             PAYLOAD=$(echo "$PAYLOAD" | jq --arg thread_ts "$PARENT_THREAD_TS" '. + {thread_ts: $thread_ts}')
           fi
+
           RESPONSE=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
