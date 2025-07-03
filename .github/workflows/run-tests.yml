@@ -289,6 +289,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
+          MESSAGE_TS:      ${{ steps.slack_progress_message.outputs.message_ts }}
           RUN_URL:         https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REPORT_URL:      ${{ env.REPORT_URL }}
           DISPLAY:         ${{ inputs.deployment_id == 'manual' && 'manual' || steps.prod-tag.outputs.production-tag }}
@@ -357,23 +358,17 @@ jobs:
     if: needs.e2e-test.outputs.needs_review == 'true'
     needs: e2e-test
     runs-on: ubuntu-latest
+    env:
+      SLACK_CHANNEL:      ${{ needs.e2e-test.outputs.slack_channel }}
+      ROOT_THREAD_TS:     ${{ needs.e2e-test.outputs.slack_ts }}
+      SLACK_BOT_TOKEN:    ${{ secrets.SLACK_BOT_TOKEN }}
+      APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - name: Poll Applitools Batch Status
         id: poll-status
         run: |
-          send_slack_message() {
-            local msg="$1"
-            jq -n --arg channel "${{ needs.e2e-test.outputs.slack_channel }}" \
-                  --arg ts "${{ needs.e2e-test.outputs.slack_ts }}" \
-                  --arg text "$msg" \
-              '{channel: $channel, thread_ts: $ts, text: $text}' \
-            | curl -s -X POST \
-                -H "Content-Type: application/json" \
-                -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-                --data @- \
-                https://slack.com/api/chat.postMessage
-          }
+          send_slack_message() { … }
 
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/"
           GITHUB_RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
@@ -384,20 +379,26 @@ jobs:
             START=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)
             END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
             resp=$(curl -s -H "X-Eyes-Api-Key: $APPLITOOLS_API_KEY" \
-                   "${APPLITOOLS_SERVER_URL}/api/v1/batches?start=${START}&end=${END}&pageSize=100")
+                  "${APPLITOOLS_SERVER_URL}/api/v1/batches?start=${START}&end=${END}&pageSize=100")
+
             B=$(jq --arg bid "${{ needs.e2e-test.outputs.found_batch_id }}" \
-                   '.batches[] | select(.id==$bid)' \
-                 <<<"$resp")
+                  '.batches[] | select(.id==$bid)' \
+                <<<"$resp")
+
+            # If batch not yet found, retry:
             if [[ -z "$B" || "$B" == "null" ]]; then
               sleep $INTERVAL
               continue
             fi
-            F=$(jq -r '.runningSummary.failedTests // 0' <<<"$B")
-            U=$(jq -r '.runningSummary.unresolvedTests // 0' <<<"$B")
-            N=$(jq -r '.runningSummary.newTests // 0' <<<"$B")
-            if (( F > 0 )); then 
+
+            # Now we know B is non-empty real JSON
+            F=$(echo "$B" | jq -r '.runningSummary.failedTests // 0')
+            U=$(echo "$B" | jq -r '.runningSummary.unresolvedTests // 0')
+            N=$(echo "$B" | jq -r '.runningSummary.newTests // 0')
+
+            if (( F > 0 )); then
               STATUS="FAILED"; break
-            elif (( F==0 && U==0 && N==0 )); then 
+            elif (( F==0 && U==0 && N==0 )); then
               STATUS="PASSED"; break
             else
               sleep $INTERVAL
