@@ -47,7 +47,7 @@ filtered_and_sorted=$(
         '[.batches[]                       # array of all batches
            | select(.pointerId == $p)      # filter on your pointer
          ]
-         | sort_by(.startedAt)'           # oldest → newest
+         | sort_by(.startedAt)'           
 )
 
 count=$(echo "$filtered_and_sorted" | jq 'length')
