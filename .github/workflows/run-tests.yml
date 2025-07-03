@@ -54,6 +54,26 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0             # 👈 fetch all history & tags
+
+      - name: Identify latest production tag on main
+        id: prod-tag
+        run: |
+          echo "🔍 Finding latest 'release/vX.Y.Z' tag on main..."
+          git fetch origin main --tags
+          PRODUCTION_TAG=$(git tag --merged origin/main \
+            | grep -E '^release/v[0-9]+\.[0-9]+\.[0-9]+$' \
+            | sort -V \
+            | tail -n1)
+
+          if [ -z "$PRODUCTION_TAG" ]; then
+            echo "❌ No production tags found on main branch!"
+            exit 1
+          fi
+
+          echo "✔️  Latest production tag is $PRODUCTION_TAG"
+          echo "production-tag=$PRODUCTION_TAG" >> $GITHUB_OUTPUT
 
       - name: Make scripts executable
         run: chmod +x scripts/*.sh
@@ -75,10 +95,33 @@ jobs:
         id: find-thread
         if: ${{ inputs.deployment_id != 'manual' }}
         run: |
-          HISTORY=$(curl -sf -H "Authorization: Bearer $SLACK_BOT_TOKEN" -G --data-urlencode "channel=$SLACK_CHANNEL" --data-urlencode "limit=100" https://slack.com/api/conversations.history)
-          THREAD_TS=$(echo "$HISTORY" | jq -r --arg id "${{ inputs.deployment_id }}" '.messages[] | select(.attachments? and ([ .attachments[] | (.fallback // ""), (.title // ""), (.pretext // ""), (.text // "") ] | map(test($id; "i")) | any)) | .ts' | head -1)
+          # instead of the raw deployment ID, use the production tag
+          KEY="${{ steps.prod-tag.outputs.production-tag }}"
+          echo "🔎 Searching Slack for release key: $KEY"
+          HISTORY=$(curl -sf \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+            -G --data-urlencode "channel=$SLACK_CHANNEL" \
+               --data-urlencode "limit=100" \
+            https://slack.com/api/conversations.history)
+
+          THREAD_TS=$(echo "$HISTORY" \
+            | jq -r --arg key "$KEY" '
+                .messages[]
+                | select(
+                    .attachments? and
+                    ([ .attachments[] | (.fallback // ""), (.title // ""), (.pretext // ""), (.text // "") ]
+                      | map(test($key; "i")) | any
+                    )
+                  )
+                | .ts
+              ' \
+            | head -1)
+
           if [ -n "$THREAD_TS" ]; then
+            echo "💬 Found existing thread: $THREAD_TS"
             echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
+          else
+            echo "💬 No thread found for $KEY; will post as new thread."
           fi
 
       - name: 🏁 Post Initial Progress to Slack
@@ -86,13 +129,17 @@ jobs:
         env:
           PARENT_THREAD_TS: ${{ steps.find-thread.outputs.thread_ts }}
         run: |
-          TEXT=$(printf "*E2E Pipeline for Deployment:* %s\n>[░░░░░░] 0%% | Initializing job...\n<%s|View full logs>" \
-          "${{ inputs.deployment_id }}" "$RUN_URL")
+          TEXT=$(printf "*E2E Pipeline for Production Tag:* %s\n>[░░░░░░] 0%% | Initializing job...\n<%s|View full logs>" \
+          "${{ steps.prod-tag.outputs.production-tag }}" "$RUN_URL")
           PAYLOAD=$(jq -n --arg channel "$SLACK_CHANNEL" --arg text "$TEXT" '{channel: $channel, text: $text}')
           if [ -n "$PARENT_THREAD_TS" ]; then
             PAYLOAD=$(echo "$PAYLOAD" | jq --arg thread_ts "$PARENT_THREAD_TS" '. + {thread_ts: $thread_ts}')
           fi
-          RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $SLACK_BOT_TOKEN" --data "$PAYLOAD" https://slack.com/api/chat.postMessage)
+          RESPONSE=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+            --data "$PAYLOAD" \
+            https://slack.com/api/chat.postMessage)
 
           TS=$(echo "$RESPONSE" | jq -r .ts)
           echo "message_ts=$TS" >> $GITHUB_OUTPUT
@@ -106,9 +153,6 @@ jobs:
           MESSAGE_TEXT:    "…"
           PLAYWRIGHT_BROWSERS_PATH: /opt/playwright
         run: |
-          echo ">> SLACK_CHANNEL is <$SLACK_CHANNEL>"
-          echo ">> MESSAGE_TS is <$MESSAGE_TS>"
-          echo ">> MESSAGE_TEXT is <$MESSAGE_TEXT>"
           scripts/update-slack-progress.sh
           npm install
 
@@ -117,8 +161,8 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:   ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[█░░░░░] 10% | Running Cancel-Order tests...\n<${{ env.RUN_URL }}|View full logs>"
+          MESSAGE_TS:      ${{ env.MESSAGE_TS }}
+          MESSAGE_TEXT: "*E2E Pipeline (Tag: ${{ steps.prod-tag.outputs.production-tag }})*\n>[█░░░░░] 10% | Running Cancel-Order tests...\n<${{ env.RUN_URL }}|View full logs>"
         run: |
           scripts/update-slack-progress.sh
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --project=cancel-order-tests
@@ -190,7 +234,7 @@ jobs:
           MESSAGE_TS:      ${{ env.MESSAGE_TS }}
           RUN_URL:         https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           APPLITOOLS_URL:  https://eyes.applitools.com/app/test-results/${{ steps.check-batch.outputs.foundBatchID }}/
-          REPORT_URL:     ${{ env.REPORT_URL }}
+          REPORT_URL:      ${{ env.REPORT_URL }}
         run: |
           set -e
           OUTCOME="${{ steps.run-tests.outcome }}"
