@@ -52,15 +52,26 @@ jobs:
       slack_channel:  ${{ env.SLACK_CHANNEL }}
 
     steps:
-      - name: Checkout repository
+      # 1) Checkout this E2E repo (for your scripts & test code)
+      - name: Checkout E2E repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0             # 👈 fetch all history & tags
+          fetch-depth: 5
 
+      # 2) Also checkout v4-web so we can inspect its tags
+      - name: Checkout v4-web repository
+        uses: actions/checkout@v4
+        with:
+          repository: 'dydxopsdao/v4-web'
+          path: v4-web
+          fetch-depth: 0
+
+      # 3) Identify latest production tag on main in v4-web
       - name: Identify latest production tag on main
         id: prod-tag
+        working-directory: v4-web
         run: |
-          echo "🔍 Finding latest 'release/vX.Y.Z' tag on main..."
+          echo "🔍 Finding latest 'release/vX.Y.Z' tag on main in v4-web..."
           git fetch origin main --tags
           PRODUCTION_TAG=$(git tag --merged origin/main \
             | grep -E '^release/v[0-9]+\.[0-9]+\.[0-9]+$' \
@@ -68,7 +79,7 @@ jobs:
             | tail -n1)
 
           if [ -z "$PRODUCTION_TAG" ]; then
-            echo "❌ No production tags found on main branch!"
+            echo "❌ No production tags found on main branch of v4-web!"
             exit 1
           fi
 
