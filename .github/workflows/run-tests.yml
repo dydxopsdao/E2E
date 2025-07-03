@@ -190,22 +190,27 @@ jobs:
           MESSAGE_TS:      ${{ env.MESSAGE_TS }}
           RUN_URL:         https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           APPLITOOLS_URL:  https://eyes.applitools.com/app/test-results/${{ steps.check-batch.outputs.foundBatchID }}/
+          REPORT_URL:     ${{ env.REPORT_URL }}
         run: |
           set -e
           OUTCOME="${{ steps.run-tests.outcome }}"
           if [ "$OUTCOME" != "success" ]; then
             HEADER="❌ E2E Tests Failed"
-            BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• <${RUN_URL}|View GitHub Run>"
+            BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• <${RUN_URL}|View GitHub Run>\n• <${REPORT_URL}|View Full HTML Report>"
           elif [ "${{ steps.check-batch.outputs.needsReview }}" = "true" ]; then
             HEADER="⚠️ E2E Tests Passed with Visual Diffs"
-            BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• *Status:* Needs manual review\n• <${APPLITOOLS_URL}|Review Diffs in Applitools>\n• <${RUN_URL}|View GitHub Run>"
+            BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• *Status:* Needs manual review\n• <${APPLITOOLS_URL}|Review Diffs in Applitools>\n• <${RUN_URL}|View GitHub Run\n• <${REPORT_URL}|View Full HTML Report>"
           else
             HEADER="✅ E2E Tests Passed"
-            BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• *Status:* All visual tests passed\n• <${APPLITOOLS_URL}|View in Applitools>\n• <${RUN_URL}|View GitHub Run>"
+            BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• *Status:* All visual tests passed\n• <${APPLITOOLS_URL}|View in Applitools>\n• <${RUN_URL}|View GitHub Run>\n• <${REPORT_URL}|View Full HTML Report>"
           fi
 
-          MESSAGE_TEXT="${HEADER}
-          ${BODY}"
+          read -r -d '' MESSAGE_TEXT <<-EOF
+          	${HEADER}
+          	• Deployment ID: ${{ inputs.deployment_id }}
+          	• <${RUN_URL}|View GitHub Run>
+          	• <${REPORT_URL}|View Full HTML Report>
+          EOF
 
           echo ">> DEBUG: MESSAGE_TEXT is: <$MESSAGE_TEXT>"
 
