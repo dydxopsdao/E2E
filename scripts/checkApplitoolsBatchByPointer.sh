@@ -41,12 +41,9 @@ if ! echo "$response" | jq empty 2>/dev/null; then
 fi
 
 # Collect only batches with matching pointerId and sort them by startedAt
-filtered_and_sorted=$(
-  echo "$response" \
-    | jq --arg p "$POINTER_ID" \
-        '[.batches[] | select(.pointerId == $p)]
-         | sort_by(.startedAt)'
-)
+JQ_FILTER='[.batches[] | select(.pointerId == $p)] | sort_by(.startedAt)'
+filtered_and_sorted=$(echo "$response" | jq --arg p "$POINTER_ID" "$JQ_FILTER")
+
 
 count=$(echo "$filtered_and_sorted" | jq 'length')
 echo "Found $count batches with pointerId=$POINTER_ID"

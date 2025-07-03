@@ -22,7 +22,6 @@ test("Connect MetaMask Wallet", async ({ metamaskContext, page, eyes }) => {
       waitUntil: "domcontentloaded",
     });
     logger.info("Navigated to portfolio overview page");
-
     // Act
     logger.step("Initiating wallet connection flow");
     await triggerWalletConnectionModal(page);
@@ -50,8 +49,20 @@ test("Connect MetaMask Wallet", async ({ metamaskContext, page, eyes }) => {
         name: "Sign Message Modal"
         });
     }
-    await sendRequest(page);
-    logger.success("Signature request sent");
+
+    if (await page.getByText("Switch network").isVisible()) {
+      await page.getByText("Switch network").click();
+      logger.success("Switch network button found, skipping signature request");
+    }
+    else {
+      await sendRequest(page);
+      logger.success("Signature request sent");
+    }
+
+
+
+
+    
 
     logger.step("Confirming additional MetaMask actions");
     const confirmSelectors = [

@@ -194,6 +194,15 @@ export async function importWallet(
     } catch (error) {
       logger.error("Not now button not found", error as Error);
     }
+
+    try {
+      if (await page.isVisible(".spinner.loading-overlay__spinner")) {
+        await page.getByText("Switch networks").click();
+        await page.getByTestId("Linea").click();
+      }
+    } catch (error) {
+      logger.error("Failed to switch networks", error as Error);
+    }
     //await page.close();
   } catch (error) {
     logger.error("Wallet import failed", error as Error, {
