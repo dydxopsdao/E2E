@@ -49,7 +49,7 @@ test("Connect MetaMask Wallet", async ({ metamaskContext, page, eyes }) => {
         name: "Sign Message Modal"
         });
     }
-
+    await page.waitForTimeout(5000);
     if (await page.getByText("Switch network").isVisible()) {
       await page.getByText("Switch network").click();
       logger.success("Switch network button found, skipping signature request");
