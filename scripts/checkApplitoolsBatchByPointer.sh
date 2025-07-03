@@ -44,10 +44,8 @@ fi
 filtered_and_sorted=$(
   echo "$response" \
     | jq --arg p "$POINTER_ID" \
-        '[.batches[]                       # array of all batches
-           | select(.pointerId == $p)      # filter on your pointer
-         ]
-         | sort_by(.startedAt)'           
+        '[.batches[] | select(.pointerId == $p)]
+         | sort_by(.startedAt)'
 )
 
 count=$(echo "$filtered_and_sorted" | jq 'length')
