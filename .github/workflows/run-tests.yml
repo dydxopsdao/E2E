@@ -52,13 +52,12 @@ jobs:
       slack_channel:  ${{ env.SLACK_CHANNEL }}
 
     steps:
-      # 1) Checkout this E2E repo (for your scripts & test code)
       - name: Checkout E2E repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 5
+          fetch-depth: 1
 
-      # 2) Also checkout v4-web so we can inspect its tags
+      # 2) If not manual, grab the upstream v4-web repo
       - name: Checkout v4-web repository
         if: ${{ inputs.deployment_id != 'manual' }}
         uses: actions/checkout@v4
@@ -67,7 +66,7 @@ jobs:
           path: v4-web
           fetch-depth: 0
 
-      # 3) Identify latest production tag on main in v4-web
+      # 3) If not manual, find latest release/vX.Y.Z tag on main
       - name: Identify latest production tag on main
         if: ${{ inputs.deployment_id != 'manual' }}
         id: prod-tag
@@ -79,12 +78,10 @@ jobs:
             | grep -E '^release/v[0-9]+\.[0-9]+\.[0-9]+$' \
             | sort -V \
             | tail -n1)
-
           if [ -z "$PRODUCTION_TAG" ]; then
             echo "❌ No production tags found on main branch of v4-web!"
             exit 1
           fi
-
           echo "✔️  Latest production tag is $PRODUCTION_TAG"
           echo "production-tag=$PRODUCTION_TAG" >> $GITHUB_OUTPUT
 
@@ -104,11 +101,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
+      # 4) If not manual, find the existing Slack thread by that tag
       - name: Find Release Thread (if applicable)
         if: ${{ inputs.deployment_id != 'manual' }}
         id: find-thread
         run: |
-          # instead of the raw deployment ID, use the production tag
           KEY="${{ steps.prod-tag.outputs.production-tag }}"
           echo "🔎 Searching Slack for release key: $KEY"
           HISTORY=$(curl -sf \
@@ -116,20 +113,17 @@ jobs:
             -G --data-urlencode "channel=$SLACK_CHANNEL" \
                --data-urlencode "limit=100" \
             https://slack.com/api/conversations.history)
-
           THREAD_TS=$(echo "$HISTORY" \
             | jq -r --arg key "$KEY" '
                 .messages[]
                 | select(
-                    .attachments? and
-                    ([ .attachments[] | (.fallback // ""), (.title // ""), (.pretext // ""), (.text // "") ]
-                      | map(test($key; "i")) | any
-                    )
+                    .attachments?
+                    and ([ .attachments[] | (.fallback // ""), (.title // ""), (.pretext // ""), (.text // "") ]
+                         | map(test($key; "i")) | any)
                   )
                 | .ts
               ' \
-            | head -1)
-
+            | head -n1)
           if [ -n "$THREAD_TS" ]; then
             echo "💬 Found existing thread: $THREAD_TS"
             echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
@@ -137,6 +131,7 @@ jobs:
             echo "💬 No thread found for $KEY; will post as new thread."
           fi
 
+      # 5) Post the very first progress message, using either 'manual' or the real tag
       - name: 🏁 Post Initial Progress to Slack
         id: slack_progress_message
         env:
@@ -147,68 +142,69 @@ jobs:
           else
             DISPLAY="${{ steps.prod-tag.outputs.production-tag }}"
           fi
-
           TEXT=$(printf "*E2E Pipeline for:* %s\n>[░░░░░░] 0%% | Initializing job...\n<%s|View full logs>" \
             "$DISPLAY" "$RUN_URL")
-
           PAYLOAD=$(jq -n --arg channel "$SLACK_CHANNEL" --arg text "$TEXT" '{channel: $channel, text: $text}')
-          if [ -n "$PARENT_THREAD_TS" ]; then
-            PAYLOAD=$(echo "$PAYLOAD" | jq --arg thread_ts "$PARENT_THREAD_TS" '. + {thread_ts: $thread_ts}')
-          fi
-
+          [ -n "$PARENT_THREAD_TS" ] && PAYLOAD=$(echo "$PAYLOAD" | jq --arg thread_ts "$PARENT_THREAD_TS" '. + {thread_ts: $thread_ts}')
           RESPONSE=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             --data "$PAYLOAD" \
             https://slack.com/api/chat.postMessage)
-
           TS=$(echo "$RESPONSE" | jq -r .ts)
           echo "message_ts=$TS" >> $GITHUB_OUTPUT
           echo "MESSAGE_TS=$TS" >> $GITHUB_ENV
 
+      # 6) Install dependencies
       - name: Install dependencies
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL:   "${{ env.SLACK_CHANNEL }}"
+          SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:      ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT:    "…"
           PLAYWRIGHT_BROWSERS_PATH: /opt/playwright
         run: |
           scripts/update-slack-progress.sh
           npm install
 
+      # 7) Run each test step
       - name: ► Run Cancel-Order Tests
         continue-on-error: true
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:      ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT: "*E2E Pipeline (Tag: ${{ steps.prod-tag.outputs.production-tag }})*\n>[█░░░░░] 10% | Running Cancel-Order tests...\n<${{ env.RUN_URL }}|View full logs>"
+          DISPLAY:         ${{ inputs.deployment_id == 'manual' && 'manual' || steps.prod-tag.outputs.production-tag }}
         run: |
+          export MESSAGE_TEXT="*E2E Pipeline for:* $DISPLAY\n>[█░░░░░] 10% | Running Cancel-Order tests...\n<$RUN_URL|View full logs>"
           scripts/update-slack-progress.sh
-          xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --project=cancel-order-tests
+          xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
+            npx playwright test --project=cancel-order-tests
 
       - name: ► Run Megavault Tests
         continue-on-error: true
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:   ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[█░░░░] 20% | Running Megavault tests...\n<${{ env.RUN_URL }}|View full logs>"
+          MESSAGE_TS:      ${{ env.MESSAGE_TS }}
+          DISPLAY:         ${{ inputs.deployment_id == 'manual' && 'manual' || steps.prod-tag.outputs.production-tag }}
         run: |
+          export MESSAGE_TEXT="*E2E Pipeline for:* $DISPLAY\n>[██░░░░] 20% | Running Megavault tests...\n<$RUN_URL|View full logs>"
           scripts/update-slack-progress.sh
-          xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --project=megavault-tests
+          xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
+            npx playwright test --project=megavault-tests
 
       - name: ► Run Deposit/Withdraw Tests
         continue-on-error: true
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:   ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██░░░░] 30% | Running Deposit/Withdraw tests...\n<${{ env.RUN_URL }}|View full logs>"
+          MESSAGE_TS:      ${{ env.MESSAGE_TS }}
+          DISPLAY:         ${{ inputs.deployment_id == 'manual' && 'manual' || steps.prod-tag.outputs.production-tag }}
         run: |
+          export MESSAGE_TEXT="*E2E Pipeline for:* $DISPLAY\n>[███░░░] 30% | Running Deposit/Withdraw tests...\n<$RUN_URL|View full logs>"
           scripts/update-slack-progress.sh
-          xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --project=deposit-withdraw-tests
+          xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
+            npx playwright test --project=deposit-withdraw-tests
 
       - name: ► Run Main Tests
         id: run-tests
@@ -216,20 +212,24 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:   ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[████░░] 75% | Running remaining main tests...\n<${{ env.RUN_URL }}|View full logs>"
+          MESSAGE_TS:      ${{ env.MESSAGE_TS }}
+          DISPLAY:         ${{ inputs.deployment_id == 'manual' && 'manual' || steps.prod-tag.outputs.production-tag }}
         run: |
+          export MESSAGE_TEXT="*E2E Pipeline for:* $DISPLAY\n>[████░░] 75% | Running remaining main tests...\n<$RUN_URL|View full logs>"
           scripts/update-slack-progress.sh
-          xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx playwright test --project=main-tests --workers=2
+          xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
+            npx playwright test --project=main-tests --workers=2
 
+      # 8) Sync report, check Applitools, final Slack post… each of those also should use $DISPLAY
       - name: Sync full HTML report to S3
         if: always()
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:   ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██████] 90% | Uploading HTML report to S3...\n<${{ env.RUN_URL }}|View full logs>"
+          MESSAGE_TS:      ${{ env.MESSAGE_TS }}
+          DISPLAY:         ${{ inputs.deployment_id == 'manual' && 'manual' || steps.prod-tag.outputs.production-tag }}
         run: |
+          export MESSAGE_TEXT="*E2E Pipeline for:* $DISPLAY\n>[██████] 90% | Uploading HTML report to S3...\n<$RUN_URL|View full logs>"
           scripts/update-slack-progress.sh
           unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
           aws s3 sync playwright-report/ s3://${{ env.S3_TRACE_BUCKET }}/runs/${{ github.run_id }}/report/ --delete
@@ -241,9 +241,10 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:   ${{ env.MESSAGE_TS }}
-          MESSAGE_TEXT: "*E2E Pipeline for Deployment:* ${{ inputs.deployment_id }}\n>[██████] 95% | Checking Applitools for visual diffs...\n<${{ env.RUN_URL }}|View full logs>"
+          MESSAGE_TS:      ${{ env.MESSAGE_TS }}
+          DISPLAY:         ${{ inputs.deployment_id == 'manual' && 'manual' || steps.prod-tag.outputs.production-tag }}
         run: |
+          export MESSAGE_TEXT="*E2E Pipeline for:* $DISPLAY\n>[██████] 95% | Checking Applitools for visual diffs...\n<$RUN_URL|View full logs>"
           scripts/update-slack-progress.sh
           ./scripts/checkApplitoolsBatchByPointer.sh "$APPLITOOLS_SERVER_URL" "$APPLITOOLS_API_KEY" "$APPLITOOLS_BATCH_ID"
 
@@ -252,32 +253,32 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:      ${{ env.MESSAGE_TS }}
           RUN_URL:         https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          APPLITOOLS_URL:  https://eyes.applitools.com/app/test-results/${{ steps.check-batch.outputs.foundBatchID }}/
           REPORT_URL:      ${{ env.REPORT_URL }}
+          # DISPLAY will be either "manual" or the real tag
+          DISPLAY:         ${{ inputs.deployment_id == 'manual' && 'manual' || steps.prod-tag.outputs.production-tag }}
         run: |
           set -e
+
+          # pick our header
           OUTCOME="${{ steps.run-tests.outcome }}"
           if [ "$OUTCOME" != "success" ]; then
             HEADER="❌ E2E Tests Failed"
-            BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• <${RUN_URL}|View GitHub Run>\n• <${REPORT_URL}|View Full HTML Report>"
           elif [ "${{ steps.check-batch.outputs.needsReview }}" = "true" ]; then
             HEADER="⚠️ E2E Tests Passed with Visual Diffs"
-            BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• *Status:* Needs manual review\n• <${APPLITOOLS_URL}|Review Diffs in Applitools>\n• <${RUN_URL}|View GitHub Run\n• <${REPORT_URL}|View Full HTML Report>"
           else
             HEADER="✅ E2E Tests Passed"
-            BODY="• Deployment ID: ${{ inputs.deployment_id }}\n• *Status:* All visual tests passed\n• <${APPLITOOLS_URL}|View in Applitools>\n• <${RUN_URL}|View GitHub Run>\n• <${REPORT_URL}|View Full HTML Report>"
           fi
 
-          read -r -d '' MESSAGE_TEXT <<-EOF
-          	${HEADER}
-          	• Deployment ID: ${{ inputs.deployment_id }}
-          	• <${RUN_URL}|View GitHub Run>
-          	• <${REPORT_URL}|View Full HTML Report>
-          EOF
+          MESSAGE_TEXT=$(
+          printf "%s\n" \
+            "$HEADER" \
+            "• Deployment: $DISPLAY" \
+            "• <$RUN_URL|View GitHub Run>" \
+            "• <$REPORT_URL|View Full HTML Report>"
+          )
 
-          echo ">> DEBUG: MESSAGE_TEXT is: <$MESSAGE_TEXT>"
+          echo ">> DEBUG: MESSAGE_TEXT=$MESSAGE_TEXT"
 
           export MESSAGE_TEXT
           scripts/update-slack-progress.sh || true
