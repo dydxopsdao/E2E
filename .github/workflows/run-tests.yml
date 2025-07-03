@@ -188,9 +188,8 @@ jobs:
           export MESSAGE_TEXT="$TEXT"
           scripts/update-slack-progress.sh
 
-          # run every project in one invocation, with GitHub reporter
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
-            npx playwright test --reporter=github --workers=2
+            npx playwright test --workers=2 --reporter=html
 
       # 9) Sync report to S3
       - name: Sync full HTML report to S3
@@ -230,34 +229,46 @@ jobs:
           scripts/update-slack-progress.sh
           ./scripts/checkApplitoolsBatchByPointer.sh "$APPLITOOLS_SERVER_URL" "$APPLITOOLS_API_KEY" "$APPLITOOLS_BATCH_ID"
 
-      # 11) Post final result
       - name: ✅ Post Final Result to Slack
         if: always()
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:      ${{ steps.slack_progress_message.outputs.message_ts }}
           RUN_URL:         https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REPORT_URL:      ${{ env.REPORT_URL }}
           DISPLAY:         ${{ inputs.deployment_id == 'manual' && 'manual' || steps.prod-tag.outputs.production-tag }}
+          APPLITOOLS_LINK: "https://eyes.applitools.com/app/test-results/${{ steps.check-batch.outputs.foundBatchID }}/"
+          MESSAGE_TS:      ${{ steps.slack_progress_message.outputs.message_ts }}
         run: |
           set -e
-          if [ "${{ steps.run-e2e.outcome }}" != "success" ]; then
+
+          # Determine header and, for visual diffs, add the Applitools link
+          if [ "${{ steps.run-tests.outcome }}" != "success" ]; then
             HEADER="❌ E2E Tests Failed"
+            EXTRA=""
           elif [ "${{ steps.check-batch.outputs.needsReview }}" = "true" ]; then
             HEADER="⚠️ E2E Tests Passed with Visual Diffs"
+            EXTRA="• <$APPLITOOLS_LINK|View Applitools Batch>"
           else
             HEADER="✅ E2E Tests Passed"
+            EXTRA=""
           fi
+
+          # Build the message
           MESSAGE_TEXT=$(
             printf "%s\n" \
               "$HEADER" \
               "• Deployment: $DISPLAY" \
               "• <$RUN_URL|View GitHub Run>" \
-              "• <$REPORT_URL|View Full HTML Report>"
+              "• <$REPORT_URL|View Full HTML Report>" \
+              "${EXTRA}"
           )
+
           export MESSAGE_TEXT
+
+          # Update the existing thread
           scripts/update-slack-progress.sh || true
+
 
       # 12) Upload artifact
       - name: Upload Test Report artifact
