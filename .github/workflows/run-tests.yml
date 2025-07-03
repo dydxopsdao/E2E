@@ -406,13 +406,13 @@ jobs:
           done
 
           if [[ "$STATUS" == "PASSED" ]]; then
-            send_slack_message "✅ *Visual Review Approved*\n🎉 Rollout can proceed.\n<${GITHUB_RUN_URL}|View Action> | <${APPLITOOLS_LINK}|View Applitools>"
+            send_slack_message "✅ *Visual Review Approved* 🎉\nRollout can proceed.\n<${RUN_URL}|View Action> | <${APPLITOOLS_SERVER_URL}/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/|View Applitools>" || true
             echo "status=approved" >> $GITHUB_OUTPUT
           elif [[ "$STATUS" == "FAILED" ]]; then
-            send_slack_message "❌ *Visual Review Rejected*\n🚨 Rollout stopped.\n<${GITHUB_RUN_URL}|View Action> | <${APPLITOOLS_LINK}|View Applitools>"
+            send_slack_message "❌ *Visual Review Rejected* 🚨\nRollout stopped.\n<${RUN_URL}|View Action> | <${APPLITOOLS_SERVER_URL}/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/|View Applitools>" || true
             echo "status=rejected" >> $GITHUB_OUTPUT
           else
-            send_slack_message "⚠️ *Review Timed Out*\n⏳ Still unresolved after 1 hour. Please check manually.\n<${GITHUB_RUN_URL}|View Action> | <${APPLITOOLS_LINK}|View Applitools>"
+            send_slack_message "⚠️ *Review Timed Out* ⏳\nStill unresolved after 1 hour. Please check manually.\n<${RUN_URL}|View Action> | <${APPLITOOLS_SERVER_URL}/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/|View Applitools>" || true
             echo "status=timeout" >> $GITHUB_OUTPUT
           fi
 
