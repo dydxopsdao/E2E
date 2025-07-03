@@ -173,7 +173,15 @@ export async function openDydxConnectMetaMask(
 
     // Bring main page to front and send the request
     await page.bringToFront();
-    await sendRequest(page);
+    await page.waitForTimeout(3000);
+    if (await page.getByText("Switch network").isVisible()) {
+      await page.getByText("Switch network").click();
+      logger.success("Switch network button found, skipping signature request");
+    }
+    else {
+      await sendRequest(page);
+      logger.success("Signature request sent");
+    }
     await confirmMetaMaskAction(
       context,
       password,
