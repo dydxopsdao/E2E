@@ -62,7 +62,7 @@ jobs:
       - name: Checkout v4-web repository
         uses: actions/checkout@v4
         with:
-          repository: 'dydxopsdao/v4-web'
+          repository: 'dydxprotocol/v4-web'
           path: v4-web
           fetch-depth: 0
 
