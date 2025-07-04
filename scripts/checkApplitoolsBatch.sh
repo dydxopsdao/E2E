@@ -1,57 +1,93 @@
 #!/usr/bin/env bash
-#
-# Script: checkApplitoolsBatch.sh
-# Usage: ./checkApplitoolsBatch.sh <applitools_server_url> <api_key> <batch_id>
-#
-# This queries the /api/v1/batches endpoint, finds the batch with matching <batch_id>,
-# and prints "true" if manual review is needed, otherwise "false".
-#
-# Exit code 0 is success. The script always prints "true" or "false" at the end.
+# Poll Applitools for up to 1 hour, then update the Slack thread and exit with status
+set -euo pipefail
 
-set -e
+# Ensure required environment variables are set
+: "${SLACK_CHANNEL:?SLACK_CHANNEL is required}"  # e.g. C07VDF07WLU
+: "${MESSAGE_TS:?MESSAGE_TS is required}"        # Slack message timestamp to update
+: "${SLACK_BOT_TOKEN:?SLACK_BOT_TOKEN is required}"
+: "${APPLITOOLS_API_KEY:?APPLITOOLS_API_KEY is required}"
+: "${APPLITOOLS_SERVER_URL:?APPLITOOLS_SERVER_URL is required}"
+: "${FOUND_BATCH_ID:?FOUND_BATCH_ID is required}"
+: "${RUN_URL:?RUN_URL is required}"
+: "${APPLITOOLS_LINK:?APPLITOOLS_LINK is required}"
+: "${DISPLAY:?DISPLAY is required}"                # Display label for the pipeline
 
-APPLITOOLS_SERVER_URL="$1"
-APPLITOOLS_API_KEY="$2"
-APPLITOOLS_BATCH_ID="$3"
+# Helper to send (update) Slack message in the existing thread
+send_slack_update() {
+  local text_payload="$1"
+  jq -n \
+    --arg channel "$SLACK_CHANNEL" \
+    --arg ts "$MESSAGE_TS" \
+    --arg text "$text_payload" \
+    '{channel: $channel, ts: $ts, text: $text}' \
+  | curl -s -X POST \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+      --data @- \
+      https://slack.com/api/chat.update \
+    >/dev/null
+}
 
-if [ -z "$APPLITOOLS_SERVER_URL" ] || [ -z "$APPLITOOLS_API_KEY" ] || [ -z "$APPLITOOLS_BATCH_ID" ]; then
-  echo "Usage: $0 <applitools_server_url> <api_key> <batch_id>"
-  exit 1
-fi
+# Poll parameters
+MAX_ITER=120     # 120 attempts
+INTERVAL=30      # seconds between attempts
+count=0
+status="timeout"
 
-# We'll search from 1 day ago to now. Adjust as needed.
-START_DATE="$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ)"
-END_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+while (( count < MAX_ITER )); do
+  (( count++ ))
+  start_time="$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"
+  end_time="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  
+  # Fetch batches in time window
+  response=$(curl -s -H "X-Eyes-Api-Key: $APPLITOOLS_API_KEY" \
+    "$APPLITOOLS_SERVER_URL/api/v1/batches?start=${start_time}&end=${end_time}&pageSize=100")
+  
+  # Extract our batch entry
+  batch_json=$(jq --arg id "$FOUND_BATCH_ID" '.batches[] | select(.id==$id)' <<<"$response")
+  
+  # If not found, wait and retry
+  if [[ -z "$batch_json" || "$batch_json" == "null" ]]; then
+    sleep $INTERVAL
+    continue
+  fi
+  
+  # Parse counts
+  failed=$(echo "$batch_json" | jq -r '.runningSummary.failedTests // 0')
+  unresolved=$(echo "$batch_json" | jq -r '.runningSummary.unresolvedTests // 0')
+  new_tests=$(echo "$batch_json" | jq -r '.runningSummary.newTests // 0')
+  
+  # Decide status and header
+  if (( failed > 0 )); then
+    status="rejected"
+    header="❌ *Visual Review Rejected*"
+  elif (( failed==0 && unresolved==0 && new_tests==0 )); then
+    status="approved"
+    header="✅ *Visual Review Approved*"
+  else
+    # Still pending new or unresolved tests
+    sleep $INTERVAL
+    continue
+  fi
+  
+  # Build updated progress message
+  body=$(printf "%s\n• <%s|View GitHub Run> | <%s|View Applitools Batch>" \
+    "$header" "$RUN_URL" "$APPLITOOLS_LINK")
+  text=$(printf "*E2E Pipeline for:* %s\n> [████████] 100%% | %s\n%s" \
+    "$DISPLAY" "$header" "$body")
+  
+  # Send the update
+  send_slack_update "$text"
+  
+  # Exit loop early
+  break
+  done
 
-echo "Checking Applitools batch: $APPLITOOLS_BATCH_ID"
-echo "Time range: $START_DATE to $END_DATE"
+# Export final status for GitHub Actions
+# e.g. status=approved, rejected, or timeout
+{
+  echo "status=$status"
+} >> "$GITHUB_OUTPUT"
 
-# Fetch up to 100 batches in the given time range
-response=$(curl -s -X GET \
-  -H "X-Eyes-Api-Key: $APPLITOOLS_API_KEY" \
-  "${APPLITOOLS_SERVER_URL}/api/v1/batches?start=${START_DATE}&end=${END_DATE}&pageSize=100")
-
-# Filter the JSON to find the batch with ID == APPLITOOLS_BATCH_ID
-batch_json=$(echo "$response" | jq -c --arg BID "$APPLITOOLS_BATCH_ID" '.batches[] | select(.id == $BID)')
-
-if [ -z "$batch_json" ]; then
-  echo "No batch found with ID $APPLITOOLS_BATCH_ID in the last day."
-  # If we can't find the batch, assume we need review to be safe:
-  echo "true"
-  exit 0
-fi
-
-batch_status=$(echo "$batch_json" | jq -r '.status')
-unresolved=$(echo "$batch_json" | jq -r '.unresolved')
-new_count=$(echo "$batch_json" | jq -r '.new')
-
-echo "Batch status: $batch_status"
-echo "Unresolved tests: $unresolved"
-echo "New tests: $new_count"
-
-# If status != Passed or there's unresolved/new tests, we need manual review
-if [ "$batch_status" != "Passed" ] || [ "$unresolved" -gt 0 ] || [ "$new_count" -gt 0 ]; then
-  echo "true"
-else
-  echo "false"
-fi
+exit 0
