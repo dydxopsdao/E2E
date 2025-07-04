@@ -67,4 +67,3 @@ case "$STATUS" in
     send_slack_message "⚠️ *Review Timed Out* ⏳\nStill unresolved after 1 hour. Please check manually.\n<$RUN_URL|View Action> | <$APPLITOOLS_LINK|View Applitools>"
     echo "status=timeout" >> "$GITHUB_OUTPUT"
     ;;
-esac
