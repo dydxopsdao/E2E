@@ -319,24 +319,16 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      SLACK_CHANNEL:       ${{ needs.e2e-test.outputs.slack_channel }}
-      THREAD_TS:           ${{ needs.e2e-test.outputs.slack_ts }}
-      FOUND_BATCH_ID:      ${{ needs.e2e-test.outputs.found_batch_id }}
-      DISPLAY:             ${{ github.event.inputs.deployment_id == 'manual' && 'manual' || needs.e2e-test.outputs.production_tag }}
+      # from the e2e-test outputs
+      SLACK_CHANNEL:      ${{ needs.e2e-test.outputs.slack_channel }}
+      THREAD_TS:          ${{ needs.e2e-test.outputs.slack_ts }}
+      FOUND_BATCH_ID:     ${{ needs.e2e-test.outputs.found_batch_id }}
+      DISPLAY:            ${{ github.event.inputs.deployment_id == 'manual' && 'manual' || needs.e2e-test.outputs.production_tag }}
 
-      # secrets / inherited top-level env
-      SLACK_BOT_TOKEN:     ${{ secrets.SLACK_BOT_TOKEN }}
-      APPLITOOLS_API_KEY:  ${{ secrets.APPLITOOLS_API_KEY }}
+      # secrets / top-level
+      SLACK_BOT_TOKEN:    ${{ secrets.SLACK_BOT_TOKEN }}
+      APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
       APPLITOOLS_SERVER_URL: https://eyesapi.applitools.com
-
-      # for constructing links
-      RUN_URL:             https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      HTML_REPORT_URL:     https://${{ secrets.S3_TRACE_BUCKET }}.s3.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/runs/${{ github.run_id }}/report/index.html
-      APPLITOOLS_LINK:     https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/
-
-      # bucket + region also inherited from top-level, but repeat if you like:
-      S3_TRACE_BUCKET:     ${{ env.S3_TRACE_BUCKET }}
-      AWS_DEFAULT_REGION:  ${{ env.AWS_DEFAULT_REGION }}
 
     steps:
       - uses: actions/checkout@v4
@@ -347,7 +339,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          # helper: in-place edit of your original Slack message
+          # Build your links now that $GITHUB_RUN_ID, $S3_TRACE_BUCKET, and $AWS_DEFAULT_REGION are in the environment:
+          RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          HTML_REPORT_URL="https://${S3_TRACE_BUCKET}.s3.${AWS_DEFAULT_REGION}.amazonaws.com/runs/${GITHUB_RUN_ID}/report/index.html"
+          APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${FOUND_BATCH_ID}/"
+
+          # Helper: edit the original Slack thread in-place
           update_slack() {
             jq -n \
               --arg channel "$SLACK_CHANNEL" \
@@ -362,24 +359,23 @@ jobs:
               >/dev/null
           }
 
-          # 1) Kick off with a “waiting for review” edit
+          # 1) Initial “waiting for review” edit, now with all three links
           update_slack "*E2E Pipeline for:* $DISPLAY  
-          ⚠️ Visual diffs detected — please <${APPLITOOLS_LINK}|review>*  
+          ⚠️ Visual diffs detected — please <${APPLITOOLS_LINK}|review>  
           • <$RUN_URL|View GitHub Run>  
           • <$HTML_REPORT_URL|View Full HTML Report>"
 
-          # 2) Poll every 30 s for up to 1 hour
+          # 2) Poll every 30s, up to 1h
           MAX=120; INTERVAL=30; i=0; status="timeout"
           while (( i < MAX )); do
             (( i++ ))
-
-            START=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)
-            END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            start=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)
+            end=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
             resp=$(curl -s -H "X-Eyes-Api-Key: $APPLITOOLS_API_KEY" \
-              "$APPLITOOLS_SERVER_URL/api/v1/batches?start=${START}&end=${END}&pageSize=100")
+              "$APPLITOOLS_SERVER_URL/api/v1/batches?start=${start}&end=${end}&pageSize=100")
 
-            # skip on invalid JSON
+            # skip on malformed JSON
             if ! echo "$resp" | jq -e . >/dev/null; then
               sleep $INTERVAL && continue
             fi
@@ -394,16 +390,14 @@ jobs:
             N=$(echo "$batch" | jq -r '.runningSummary.newTests // 0')
 
             if (( F > 0 )); then
-              status="rejected"
-              header="❌ *Visual Review Rejected*"
+              status="rejected"; header="❌ *Visual Review Rejected*"
             elif (( F==0 && U==0 && N==0 )); then
-              status="approved"
-              header="✅ *Visual Review Approved*"
+              status="approved";  header="✅ *Visual Review Approved*"
             else
               sleep $INTERVAL && continue
             fi
 
-            # 3) One final 100% slide — include GitHub + HTML report + Applitools
+            # 3) Final 100% update (with same three links)
             progress="[████████] 100%"
             final_text="*E2E Pipeline for:* $DISPLAY  
             >${progress} | ${header}  
@@ -415,14 +409,14 @@ jobs:
             break
           done
 
-          # 4) expose status for next jobs
+          # 4) Export status for next steps
           echo "status=$status" >> "$GITHUB_OUTPUT"
 
       - name: Mark Applitools Batch as Complete
         if: steps.poll-status.outputs.status == 'approved'
         run: |
           curl -s -X POST \
-            -H "accept: */*" \
+            -H 'accept: */*' \
             "$APPLITOOLS_SERVER_URL/api/externals/github/servers/github.com/commit/${FOUND_BATCH_ID}/complete?apiKey=$APPLITOOLS_API_KEY"
 
       - name: Fail Workflow if Review Rejected
