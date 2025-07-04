@@ -345,21 +345,16 @@ jobs:
           curl -X POST -d '' \
             -H 'accept:*/*' \
             "$APPLITOOLS_SERVER_URL/api/externals/github/servers/github.com/commit/${{ needs.e2e-test.outputs.found_batch_id }}/complete?apiKey=$APPLITOOLS_API_KEY"
-      - name: Post Slack Thread (All Passed)
+      - name: Update Slack Progress with Applitools Link
         run: |
-          APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/"
-          GITHUB_RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          MSG="Additional details posted:\n• <${APPLITOOLS_LINK}|View Applitools Batch>\n• <${GITHUB_RUN_URL}|View GitHub Action>"
-          jq -n \
-            --arg channel "${{ needs.e2e-test.outputs.slack_channel }}" \
-            --arg ts "${{ needs.e2e-test.outputs.slack_ts }}" \
-            --arg text "$MSG" \
-            '{channel: $channel, thread_ts: $ts, text: $text}' \
-          | curl -s -X POST \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-              --data @- \
-              https://slack.com/api/chat.postMessage
+          # Set MESSAGE_TEXT to just the Applitools batch link
+          export MESSAGE_TEXT="• <https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/|View Applitools Batch>"
+          # Edit the original message in place
+          scripts/update-slack-progress.sh
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL:   ${{ needs.e2e-test.outputs.slack_channel }}
+          MESSAGE_TS:      ${{ needs.e2e-test.outputs.slack_ts }}
 
   batch-status-polling:
     name: "Applitools Batch Status Polling"
