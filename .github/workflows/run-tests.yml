@@ -216,19 +216,68 @@ jobs:
         id: check-batch
         if: always()
         env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
-          MESSAGE_TS:      ${{ steps.slack_progress_message.outputs.message_ts }}
-          DISPLAY:         ${{ inputs.deployment_id == 'manual' && 'manual' || steps.prod-tag.outputs.production-tag }}
+          APPLITOOLS_SERVER_URL: ${{ env.APPLITOOLS_SERVER_URL }}
+          APPLITOOLS_API_KEY:    ${{ secrets.APPLITOOLS_API_KEY }}
+          POINTER_ID:            ${{ env.APPLITOOLS_BATCH_ID }}
         run: |
-          TEXT=$(
-            printf "*E2E Pipeline for:* %s\n" "$DISPLAY"
-            printf ">[███████░] 95%% | Checking Applitools for visual diffs...\n"
-            printf "<%s|View full logs>\n" "$RUN_URL"
-          )
-          export MESSAGE_TEXT="$TEXT"
-          scripts/update-slack-progress.sh
-          ./scripts/checkApplitoolsBatchByPointer.sh "$APPLITOOLS_SERVER_URL" "$APPLITOOLS_API_KEY" "$APPLITOOLS_BATCH_ID"
+          set -euo pipefail
+
+          echo "=== Applitools Batch Check Start ===" >&2
+
+          # 1) build a 24h window (or adjust as needed)
+          START_DATE="$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ)"
+          END_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Fetching Applitools batches from $START_DATE to $END_DATE..." >&2
+
+          # 2) fetch
+          response=$(curl -s -H "X-Eyes-Api-Key: $APPLITOOLS_API_KEY" \
+            "$APPLITOOLS_SERVER_URL/api/v1/batches?start=${START_DATE}&end=${END_DATE}&pageSize=100")
+
+          echo "Looking for batches with pointerId: $POINTER_ID" >&2
+
+          # 3) ensure valid JSON
+          if ! echo "$response" | jq empty 2>/dev/null; then
+            echo "Error: Invalid JSON response from Applitools API" >&2
+            echo "Response: $response" >&2
+            # fail the step so we can see the bad payload
+            exit 1
+          fi
+
+          # 4) filter & sort
+          filtered=$(echo "$response" \
+            | jq --arg p "$POINTER_ID" \
+                 '[.batches[] | select(.pointerId == $p)] | sort_by(.startedAt)')
+
+          count=$(echo "$filtered" | jq 'length')
+          echo "Found $count batches with pointerId=$POINTER_ID" >&2
+
+          if [ "$count" -eq 0 ]; then
+            echo "No batch found; defaulting to needsReview=true" >&2
+            echo "foundBatchID="     >> "$GITHUB_OUTPUT"
+            echo "needsReview=true"   >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 5) pick the latest
+          latest=$(echo "$filtered" | jq '.[-1]')
+          batch_id=$(echo "$latest" | jq -r '.id')
+          failed=$(echo "$latest" | jq -r '.runningSummary.failedTests // 0')
+          unresolved=$(echo "$latest" | jq -r '.runningSummary.unresolvedTests // 0')
+
+          echo "Found batch id=$batch_id (failed=$failed, unresolved=$unresolved)" >&2
+
+          # 6) write outputs
+          echo "foundBatchID=$batch_id" >> "$GITHUB_OUTPUT"
+          if [ "$failed" -gt 0 ] || [ "$unresolved" -gt 0 ]; then
+            echo "needsReview=true"   >> "$GITHUB_OUTPUT"
+            echo "Batch needs review." >&2
+          else
+            echo "needsReview=false"  >> "$GITHUB_OUTPUT"
+            echo "Batch passed all checks." >&2
+          fi
+
+          echo "=== Applitools Batch Check Complete ===" >&2
+
 
       - name: ✅ Post Final Result to Slack
         if: always()
