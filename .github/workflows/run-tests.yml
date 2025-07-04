@@ -317,16 +317,17 @@ jobs:
     if: needs.e2e-test.outputs.needs_review == 'true'
     needs: e2e-test
     runs-on: ubuntu-latest
+
     env:
-      SLACK_CHANNEL:         ${{ needs.e2e-test.outputs.slack_channel }}
-      MESSAGE_TS:            ${{ needs.e2e-test.outputs.slack_ts }}
-      SLACK_BOT_TOKEN:       ${{ secrets.SLACK_BOT_TOKEN }}
-      APPLITOOLS_API_KEY:    ${{ secrets.APPLITOOLS_API_KEY }}
-      APPLITOOLS_SERVER_URL: ${{ secrets.APPLITOOLS_SERVER_URL }}
-      FOUND_BATCH_ID:        ${{ needs.e2e-test.outputs.found_batch_id }}
-      RUN_URL:               https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      APPLITOOLS_LINK:       https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/
-      DISPLAY:               ${{ github.event.inputs.deployment_id == 'manual' && 'manual' || needs.e2e-test.outputs.production_tag }}
+      SLACK_CHANNEL:       ${{ needs.e2e-test.outputs.slack_channel }}
+      THREAD_TS:           ${{ needs.e2e-test.outputs.slack_ts }}
+      SLACK_BOT_TOKEN:     ${{ secrets.SLACK_BOT_TOKEN }}
+      APPLITOOLS_API_KEY:  ${{ secrets.APPLITOOLS_API_KEY }}
+      APPLITOOLS_SERVER_URL: ${{ env.APPLITOOLS_SERVER_URL }}
+      FOUND_BATCH_ID:      ${{ needs.e2e-test.outputs.found_batch_id }}
+      RUN_URL:             https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      APPLITOOLS_LINK:     https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/
+      DISPLAY:             ${{ github.event.inputs.deployment_id == 'manual' && 'manual' || needs.e2e-test.outputs.production_tag }}
 
     steps:
       - uses: actions/checkout@v4
@@ -335,17 +336,83 @@ jobs:
         id: poll-status
         shell: bash
         run: |
-          chmod +x scripts/pollApplitoolsBatch.sh
-          bash scripts/pollApplitoolsBatch.sh
+          set -euo pipefail
 
+          # Helper: edit the original Slack message
+          update_slack() {
+            jq -n \
+              --arg channel "$SLACK_CHANNEL" \
+              --arg ts      "$THREAD_TS" \
+              --arg text    "$1" \
+              '{channel:$channel,ts:$ts,text:$text}' \
+            | curl -s -X POST \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+                --data @- \
+                https://slack.com/api/chat.update \
+              >/dev/null
+          }
+
+          # Initial “waiting for review” edit
+          update_slack "*E2E Pipeline for:* $DISPLAY  
+          ⚠️ Visual diffs detected—<${APPLITOOLS_LINK}|please review>"
+
+          MAX=120; INTERVAL=30; i=0; status="timeout"
+
+          while (( i < MAX )); do
+            (( i++ ))
+            start=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)
+            end=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+            resp=$(curl -s -H "X-Eyes-Api-Key: $APPLITOOLS_API_KEY" \
+              "${APPLITOOLS_SERVER_URL}/api/v1/batches?start=${start}&end=${end}&pageSize=100")
+
+            # bail on bad JSON
+            if ! echo "$resp" | jq -e . >/dev/null 2>&1; then
+              sleep $INTERVAL && continue
+            fi
+
+            batch=$(echo "$resp" | jq -c --arg id "$FOUND_BATCH_ID" \
+                      '.batches[] | select(.id==$id)')
+
+            [[ -z "$batch" || "$batch" == "null" ]] && sleep $INTERVAL && continue
+
+            F=$(echo "$batch" | jq -r '.runningSummary.failedTests // 0')
+            U=$(echo "$batch" | jq -r '.runningSummary.unresolvedTests // 0')
+            N=$(echo "$batch" | jq -r '.runningSummary.newTests // 0')
+
+            if (( F > 0 )); then
+              status="rejected"
+              header="❌ *Visual Review Rejected*"
+            elif (( F==0 && U==0 && N==0 )); then
+              status="approved"
+              header="✅ *Visual Review Approved*"
+            else
+              sleep $INTERVAL && continue
+            fi
+
+            # final 100% update
+            bar="[████████] 100%"
+            text="*E2E Pipeline for:* $DISPLAY  
+            >${bar} | ${header}  
+            • <$RUN_URL|View GitHub Run> • <$APPLITOOLS_LINK|View Applitools Batch>"
+            update_slack "$text"
+
+            break
+          done
+
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      
       - name: Mark Applitools Batch as Complete
         if: steps.poll-status.outputs.status == 'approved'
         run: |
-          curl -X POST -d '' \
-            -H 'accept:*/*' \
-            "$APPLITOOLS_SERVER_URL/api/externals/github/servers/github.com/commit/${FOUND_BATCH_ID}/complete?apiKey=$APPLITOOLS_API_KEY"
-
+          echo "Completing the batch after approval."
+          curl -X POST -d '' -H "accept:*/*" \
+            "${{ env.APPLITOOLS_SERVER_URL }}/api/externals/github/servers/github.com/commit/${{ needs.e2e-test.outputs.found_batch_id }}/complete?apiKey=${{ env.APPLITOOLS_API_KEY }}"
+      
       - name: Fail Workflow if Review Rejected
         if: steps.poll-status.outputs.status == 'rejected'
-        run: exit 1
-
+        run: |
+          echo "Visual tests were rejected. Failing the workflow."
+          exit 1
