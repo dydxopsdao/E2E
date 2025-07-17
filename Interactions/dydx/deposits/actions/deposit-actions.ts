@@ -44,6 +44,10 @@ export async function deposit(
 
     await maybeVisualCheck(eyes, performEyesCheck, "Deposit - Start");
 
+    // Select the asset from the dropdown
+    logger.step("Selecting Asset dropdown option");
+    await selectAssetDropdownOptionDeposit(page, optionSelector);
+
     // Fill in the deposit amount
     logger.debug(`Filling deposit amount: ${amount}`);
     await page.fill(DepositsSelectors.amountInput, amount.toString());
@@ -53,12 +57,6 @@ export async function deposit(
       performEyesCheck,
       "Instant Deposit - Entered amount"
     );
-
-    // Select the asset from the dropdown
-    logger.step("Selecting Asset dropdown option");
-    await selectAssetDropdownOptionDeposit(page, optionSelector);
-
-
 
     // Wait for and click Confirm Order
     logger.step("Waiting for Confirm Order and clicking it");
