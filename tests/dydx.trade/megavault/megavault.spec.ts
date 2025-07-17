@@ -2,6 +2,7 @@ import { openDydxConnectMetaMask } from "@wallets/metamask/actions/connect-metam
 import { metamaskEyesTest as test } from "@fixtures/metamaskEyesFixture";
 import { navigateToViaHeader } from "@interactions/dydx/general/actions/navigation.actions";
 import { vaultTransaction } from "@interactions/dydx/megavault/actions/megavault.actions";
+import { NotificationSelectors } from "@interactions/dydx/notifications/selectors/notification-selectors";
 import { logger } from "@utils/logger/logging-utils";
 
 // Override the default seed phrase for all tests in this file
@@ -20,6 +21,16 @@ test.describe("Megavault flows", () => {
       await openDydxConnectMetaMask(page, metamaskContext);
       await page.bringToFront();
       await navigateToViaHeader(page, "VAULT");
+      try {
+        // Click on any instant deposit toast notifications that appear
+
+          await page.locator(".sc-tbzx68-0.bMrJvQ.sc-w1wpg0-1.bfKQCL").click();
+          await page.waitForTimeout(250);
+          await page.locator(".sc-tbzx68-0.bMrJvQ.sc-w1wpg0-1.jEYdsf").click();
+          await page.waitForTimeout(250);
+      } catch (error) {
+        logger.info("Nonotifications found or failed to click");
+      }
       
       // Step 1: Perform deposit
       const depositAmount = 12;
