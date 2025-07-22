@@ -340,6 +340,9 @@ jobs:
       SLACK_BOT_TOKEN:    ${{ secrets.SLACK_BOT_TOKEN }}
       APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
     steps:
+      - uses: actions/checkout@v4
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
       - name: Mark Applitools Batch as Complete
         run: |
           curl -X POST -d '' \
