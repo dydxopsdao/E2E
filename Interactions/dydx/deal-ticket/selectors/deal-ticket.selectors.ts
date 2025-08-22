@@ -2,7 +2,7 @@ export const DealTicketSelectors = {
   marketOrderBtn: "[id$='trigger-MARKET']",
   limitOrderBtn: "[id$='trigger-LIMIT']",
   amountInput: "#trade-amount",
-  placeOrderBtnInactive:"button.sc-l0nx5c-0.disEvY.sc-1xochuw-0.jBZBHI.sc-513u37-4.eSofcy",
+  placeOrderBtnInactive:"button.sc-l0nx5c-0.disEvY.sc-1xochuw-0.lgUxil.sc-513u37-4.eSofcy",
   placeOrderBtnActive:
     "button.sc-l0nx5c-0.disEvY.sc-1xochuw-0.cZjKzs.sc-513u37-4.eSofcy",
   closePositionBtn:

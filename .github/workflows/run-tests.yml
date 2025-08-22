@@ -348,12 +348,22 @@ jobs:
           curl -X POST -d '' \
             -H 'accept:*/*' \
             "$APPLITOOLS_SERVER_URL/api/externals/github/servers/github.com/commit/${{ needs.e2e-test.outputs.found_batch_id }}/complete?apiKey=$APPLITOOLS_API_KEY"
-      - name: Update Slack Progress with Applitools Link
+      - name: Add Applitools link as thread reply (don’t overwrite header)
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL:   ${{ needs.e2e-test.outputs.slack_channel }}
+          ROOT_THREAD_TS:  ${{ needs.e2e-test.outputs.slack_ts }}
         run: |
-          # Set MESSAGE_TEXT to just the Applitools batch link
-          export MESSAGE_TEXT="• <https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/|View Applitools Batch>"
-          # Edit the original message in place
-          scripts/update-slack-progress.sh
+          jq -n \
+            --arg channel "$SLACK_CHANNEL" \
+            --arg text "• <https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/|View Applitools Batch>" \
+            --arg ts "$ROOT_THREAD_TS" \
+            '{channel:$channel, text:$text, thread_ts:$ts}' \
+          | curl -s -X POST \
+              -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data @- \
+              https://slack.com/api/chat.postMessage
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ needs.e2e-test.outputs.slack_channel }}
