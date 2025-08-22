@@ -364,10 +364,6 @@ jobs:
               -H "Content-Type: application/json" \
               --data @- \
               https://slack.com/api/chat.postMessage
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL:   ${{ needs.e2e-test.outputs.slack_channel }}
-          MESSAGE_TS:      ${{ needs.e2e-test.outputs.slack_ts }}
 
   batch-status-polling:
     name: "Applitools Batch Status Polling"
