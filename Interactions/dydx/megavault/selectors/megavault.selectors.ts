@@ -4,7 +4,7 @@ export const MegaVaultSelectors = {
   removeFundsButton: 'button:has-text("Remove funds")',
 
   // Amount input and Max button
-  amountInput: "input.sc-1pevboq-1.fwvplW",
+  amountInput: "input.sc-1pevboq-1.jOnwtS",
   maxButton: 'button:has-text("Max")',
 
   // Specific Vault Balance and All-time P&L outputs

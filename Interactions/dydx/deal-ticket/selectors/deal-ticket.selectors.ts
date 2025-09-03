@@ -2,9 +2,9 @@ export const DealTicketSelectors = {
   marketOrderBtn: "[id$='trigger-MARKET']",
   limitOrderBtn: "[id$='trigger-LIMIT']",
   amountInput: "#trade-amount",
-  placeOrderBtnInactive:"button.sc-l0nx5c-0.disEvY.sc-1xochuw-0.lgUxil.sc-513u37-4.eSofcy",
+  placeOrderBtnInactive:"button.sc-l0nx5c-0.disEvY.sc-1xochuw-0.lgUxil.sc-513u37-5.dszKgz",
   placeOrderBtnActive:
-    "button.sc-l0nx5c-0.disEvY.sc-1xochuw-0.cZjKzs.sc-513u37-4.eSofcy",
+    "button.sc-l0nx5c-0.disEvY.sc-1xochuw-0.cZjKzs.sc-513u37-5.dszKgz",
   closePositionBtn:
     "button.sc-l0nx5c-0.disEvY.sc-1xochuw-0.lkayIT.sc-513u37-4.eSofcy",
   swapAssetBtn: ".sc-l0nx5c-0.cEjITF.sc-1t8tdl7-0.eyyfia.sc-11am3s5-0.iDexSE",
@@ -19,5 +19,5 @@ export const DealTicketSelectors = {
     "dt:has-text('Position Leverage') + dd output:has-text('×')",
   fee: "dt:has-text('Fee') + dd output:has-text('$')",
   estimatedRewards:
-    "dt:has-text('Estimated Rewards') + dd output[title*='DYDX']",
+    "dt:has-text('Rewards') + dd output[title*='DYDX']",
 };
