@@ -33,7 +33,6 @@ test("btc-usd market order LONG", async ({
     await swapAsset(page, "USD");
 
     await page.click(DealTicketSelectors.marketOrderBtn);
-    await page.pause();
     // Assert that the Place Market Order button is disabled
     await expect(
       page.locator(DealTicketSelectors.placeOrderBtnInactive)
@@ -96,7 +95,6 @@ test("btc-usd market order LONG", async ({
         throw error;
       }
     }
-    await page.pause();
     await page.click(DealTicketSelectors.placeOrderBtnActive);
     await page.waitForTimeout(10000);
     // TODO: assert Pending notification
