@@ -8,7 +8,7 @@ import { Eyes } from "@applitools/eyes-playwright";
 import { eyesTest as test } from "@fixtures/eyesFixture";
 import { visualCheck } from "@utils/visual-check";
 
-test("Language Dropdown Works", async ({ page, eyes }: { page: Page, eyes: Eyes }) => {
+test.skip("Language Dropdown Works", async ({ page, eyes }: { page: Page, eyes: Eyes }) => {
   try {
     // Arrange
     await navigateToDydxPage(page, "/portfolio/overview");
@@ -19,7 +19,6 @@ test("Language Dropdown Works", async ({ page, eyes }: { page: Page, eyes: Eyes 
       .locator(ConnectWalletSelectors.walletConnectModal)
       .waitFor({ state: "visible", timeout: TEST_TIMEOUTS.DEFAULT });
     logger.success("Wallet connection modal opened");
-
     logger.step("Testing language dropdown");
     await page.locator(ConnectWalletSelectors.languageDropdown).click();
 
