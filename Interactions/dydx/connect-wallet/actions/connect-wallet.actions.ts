@@ -10,6 +10,8 @@ export async function triggerWalletConnectionModal(page: Page): Promise<void> {
     await page.bringToFront();
     await page.waitForTimeout(1000);
     await page.locator(ConnectWalletSelectors.connectWallet).click({ force: true });
+    await page.waitForTimeout(1000);
+    await page.locator(ConnectWalletSelectors.signInWithWallet).click({ force: true });
     await page.waitForSelector(ConnectWalletSelectors.walletConnectModal, {
       state: "visible",
       timeout: TEST_TIMEOUTS.ELEMENT,
