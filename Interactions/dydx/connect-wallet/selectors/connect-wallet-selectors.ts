@@ -1,7 +1,7 @@
 
 export const ConnectWalletSelectors = {
   metaMaskWalletSelect: 'button:has-text("MetaMask")',
-  connectWallet: 'button.sc-l0nx5c-0.gGcved.sc-1xochuw-0.clpMjm',
+  connectWallet: 'button.sc-l0nx5c-0.igFLxS.sc-1xochuw-0.ceoGDh',
   signInWithWallet: '.sc-1el3d8t-9.bNpMWz',
   walletConnectModal: 'div[role="dialog"]',
   languageDropdown: 'button:has-text("English")',

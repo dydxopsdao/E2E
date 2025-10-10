@@ -162,7 +162,6 @@ export async function openDydxConnectMetaMask(
     }
     // Trigger wallet connection modal and select MetaMask
     await triggerWalletConnectionModal(page);
-    await page.pause();
     await selectWallet(page, WALLET_CONSTANTS.SUPPORTED_WALLETS[0]); // MetaMask
     // Perform first MetaMask confirmation with faster detection
     await confirmMetaMaskAction(

@@ -65,7 +65,6 @@ test("btc-usd market order LONG", async ({
       try {
         // Get all elements matching the selector
         const elements = await page.locator(selector).all();
-        await page.pause();
         // Check if we found any elements
         expect(elements.length).toBeGreaterThan(0);
         
