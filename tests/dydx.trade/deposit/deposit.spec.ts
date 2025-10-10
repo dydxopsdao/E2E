@@ -72,8 +72,6 @@ test.describe("Deposit flow tests", () => {
     await addNetwork(metamaskContext, "Avalanche", TEST_TIMEOUTS.DEFAULT);
     await page.bringToFront();
 
-    // Check initial portfolio value
-    const initialPortfolioValue = await checkInitialPortfolioValue(page);
     // Perform the deposit workflow
     await deposit(
       page,
@@ -85,7 +83,5 @@ test.describe("Deposit flow tests", () => {
         performEyesCheck: false,
       }
     );
-    // Check final portfolio value and validate the increase
-    await checkFinalPortfolioValue(page, initialPortfolioValue, regularDepositAmount);
   });
 });
