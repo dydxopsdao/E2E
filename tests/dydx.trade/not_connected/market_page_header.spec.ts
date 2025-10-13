@@ -25,7 +25,7 @@ test.describe('Market Page Header Stats', () => {
   ] as const;
 
   test('Market stats are visible and valid', async ({ page }) => {
-    await navigateToDydxPage(page, "/trade/ETH-USD", { waitForSelector: ['.sc-1h5n0ah-2.fQXTnK'] }); // Market Price
+    await navigateToDydxPage(page, "/trade/ETH-USD", { waitForSelector: ['.sc-1h5n0ah-2'] }); // Market Price
 
     // First verify all stats are present
     const stats = await page.locator(MarketPageSelectors.marketStats).count();

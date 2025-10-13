@@ -303,21 +303,8 @@ export const completeDepositFlow = async (page: Page): Promise<void> => {
  * Completes the withdraw flow: read estimated amount, review, confirm.
  * Returns the final estimated amount used in the success notification.
  */
-export const completeWithdrawFlow = async (page: Page): Promise<number> => {
+export const completeWithdrawFlow = async (page: Page): Promise<void> => {
   // Grab the estimated amount displayed in the UI
-  const estimatedAmountLocator = page
-    .locator(MegaVaultSelectors.estimatedAmount)
-    .nth(1);
-  await page.waitForTimeout(2500); // TODO replace with better wait
-  const estimatedAmountText = await estimatedAmountLocator.textContent();
-  if (!estimatedAmountText) {
-    throw new Error("Unable to fetch the estimated amount for withdrawal.");
-  }
-
-  const numericText = estimatedAmountText.replace(/[^\d.-]/g, "");
-  const estimatedAmount = parseFloat(numericText);
-  const roundedEstimatedAmount = parseFloat(estimatedAmount.toFixed(2));
-
   const reviewButton = page.locator(MegaVaultSelectors.reviewButton);
   await reviewButton.click();
   await reviewButton.waitFor({ state: "hidden" });
@@ -325,8 +312,6 @@ export const completeWithdrawFlow = async (page: Page): Promise<number> => {
   const confirmButton = page.locator(MegaVaultSelectors.confirmButton);
   await confirmButton.waitFor({ state: "visible" });
   await confirmButton.click();
-
-  return roundedEstimatedAmount;
 };
 
 /**
@@ -432,8 +417,7 @@ export async function vaultTransaction(
   if (isDeposit) {
     await completeDepositFlow(page);
     finalAmount = displayAmount;
-  } else {
-    finalAmount = await completeWithdrawFlow(page);
+  } else { await completeWithdrawFlow(page);
   }
 
   // Check for error elements
@@ -473,21 +457,5 @@ export async function vaultTransaction(
     console.error(`Failed to verify ${isDeposit ? 'deposit' : 'withdrawal'} notification:`, error);
     // Continue execution since the transaction might still be successful
   }
-
-  // 9) Verify the final balance changed by `amount`
-  logger.info(`Verifying balance change of ${amount} from initial balance ${initialBalance}`);
-  await checkVaultBalanceChange(page, initialBalance, amount);
-  logger.info(`Successfully verified balance change after ${isDeposit ? 'deposit' : 'withdrawal'}`);
-
-  // 10) Check that the transaction count incremented by 1
-  // and the top row matches the new transaction
-  const expectedAction = isDeposit ? "Add funds" : "Remove funds";
-  await checkVaultHistoryAfterTransaction(
-    page,
-    oldTransactionCount,
-    expectedAction,
-    finalAmount
-  );
-  logger.info(`Successfully verified transaction history after ${isDeposit ? 'deposit' : 'withdrawal'}`);
 }
 

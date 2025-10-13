@@ -1,3 +1,3 @@
 export const OrderbookSelectors = {
-  orderbook: ".sc-1ihv8zl-3.vpGBP",
+  orderbook: ".sc-1ihv8zl-9.dPFxHg",
 };

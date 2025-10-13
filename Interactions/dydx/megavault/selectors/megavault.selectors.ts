@@ -4,12 +4,12 @@ export const MegaVaultSelectors = {
   removeFundsButton: 'button:has-text("Remove funds")',
 
   // Amount input and Max button
-  amountInput: "input.sc-1pevboq-1.jOnwtS",
+  amountInput: "input.sc-1pevboq-1",
   maxButton: 'button:has-text("Max")',
 
   // Specific Vault Balance and All-time P&L outputs
-  vaultBalanceNumber: "div.sc-1wo185u-10.dlfyHT",
-  allTimePnlOutput: "div.sc-1wo185u-10.dlfyHT",
+  vaultBalanceNumber: ".sc-1wo185u-10.cYMsng",
+  allTimePnlOutput: ".sc-1wo185u-3.dVoDRh",
 
   // Cross Free Collateral and Cross Margin Usage
   crossFreeCollateral: 'div:has-text("Cross Free Collateral") + div',
@@ -25,5 +25,5 @@ export const MegaVaultSelectors = {
 
   // History view button
   historyViewButton: 'button:has-text("View")',
-  historyTable: "div.sc-1drcdyj-0.feSemO.sc-1n2lg04-1.eNcqQE",
+  historyTable: ".sc-1n2lg04-2.hHEBQz",
 };

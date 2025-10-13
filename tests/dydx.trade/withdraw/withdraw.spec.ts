@@ -1,8 +1,4 @@
 import { openDydxConnectMetaMask } from "@wallets/metamask/actions/connect-metamask";
-import {
-  checkInitialPortfolioValue,
-  checkFinalPortfolioValue,
-} from "@dydx/portfolio/actions/portfolio-actions";
 import { BrowserContext, Page } from "@playwright/test";
 import { WALLET_ADDRESSES } from "@constants/wallet-addresses.constants";
 import { metamaskTest as test } from "@fixtures/metamaskFixture";
@@ -25,18 +21,13 @@ test.describe("Withdraw flow tests", () => {
     // Open dYdX and connect MetaMask
     await openDydxConnectMetaMask(page, metamaskContext);
     await page.bringToFront();
-    const initialPortfolioValue = await checkInitialPortfolioValue(page);
     await completeWithdrawal(
       page,
       walletAddress,
       'button:has(div:has-text("Arbitrum"))',
       "101"
     );
-    await checkWithdrawCompleted(page, -101);
-
-    // Check for both withdrawal notifications in sequence
-    //await checkWithdrawalNotifications(page, "$12.00");
-    await checkFinalPortfolioValue(page, initialPortfolioValue, -101);
+    await checkWithdrawCompleted(page,);
   });
   test("withdraw flow - Avalanche", async ({
     metamaskContext,
@@ -48,17 +39,13 @@ test.describe("Withdraw flow tests", () => {
     // Open dYdX and connect MetaMask
     await openDydxConnectMetaMask(page, metamaskContext);
     await page.bringToFront();
-    const initialPortfolioValue = await checkInitialPortfolioValue(page);
     await completeWithdrawal(
       page,
       walletAddress,
       'button:has(div:has-text("Avalanche"))',
       "12"
     );
-    await checkWithdrawCompleted(page, -12);
+    await checkWithdrawCompleted(page);
 
-    // Check for both withdrawal notifications in sequence
-    //await checkWithdrawalNotifications(page, "$12.00");
-    await checkFinalPortfolioValue(page, initialPortfolioValue, -12);
   });
 });

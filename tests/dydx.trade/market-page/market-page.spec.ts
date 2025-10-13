@@ -57,10 +57,10 @@ test("eth-usd market page connected landing page", async ({ metamaskContext, eye
     // Add a small wait to ensure page is fully loaded
     await page.waitForTimeout(2000);
     
-    try{ await page.hover(".sc-6q7ny7-4.bQbFa-d");}
+    /* try{ await page.hover(".sc-6q7ny7-4.bQbFa-d");}
       catch(error){
-        logger.warning(`Hover action failed for ${name}: ${(error as Error).message}. Proceeding.`);
-      }
+        logger.warning(`Hover action failed for: ${(error as Error).message}. Proceeding.`);
+      } */
     await page.waitForSelector('#tv-price-chart iframe', { state: 'attached' });
 
     // Create a FrameLocator pointing at that iframe
@@ -70,8 +70,8 @@ test("eth-usd market page connected landing page", async ({ metamaskContext, eye
     await expect(
       chartFrame.locator('canvas[aria-label^="Chart for"]')
     ).toBeAttached({ timeout: 30_000 });
-    await expect(page.locator(".sc-1ihv8zl-9.fa-djxL")).toBeAttached();
-    await expect(page.locator(".sc-1ea9mg3-0.sc-1ihv8zl-6.ZlGxv.RTcMI").first()).toBeAttached();
+    await expect(page.locator(".sc-1ihv8zl-9")).toBeAttached();
+    await expect(page.locator(".sc-1ea9mg3-0.sc-1ihv8zl-6").first()).toBeAttached();
     // Act - perform visual check only once
     await visualCheck(eyes, {
       name: "eth-usd market page connected landing page",

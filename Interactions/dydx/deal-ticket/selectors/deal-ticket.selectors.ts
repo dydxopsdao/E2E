@@ -2,13 +2,13 @@ export const DealTicketSelectors = {
   marketOrderBtn: "[id$='trigger-MARKET']",
   limitOrderBtn: "[id$='trigger-LIMIT']",
   amountInput: "#trade-amount",
-  placeOrderBtnInactive:"button.sc-l0nx5c-0.disEvY.sc-1xochuw-0.lgUxil.sc-513u37-5.dszKgz",
+  placeOrderBtnInactive:"button.sc-l0nx5c-0.etvDqn.sc-1xochuw-0.iRFwWq.sc-513u37-5.kRaPnM",
   placeOrderBtnActive:
-    "button.sc-l0nx5c-0.disEvY.sc-1xochuw-0.cZjKzs.sc-513u37-5.dszKgz",
+    "button.sc-l0nx5c-0.etvDqn.sc-1xochuw-0.ePmoNb.sc-513u37-5.kRaPnM",
   closePositionBtn:
     "button.sc-l0nx5c-0.disEvY.sc-1xochuw-0.lkayIT.sc-513u37-4.eSofcy",
-  swapAssetBtn: ".sc-l0nx5c-0.cEjITF.sc-1t8tdl7-0.eyyfia.sc-11am3s5-0.iDexSE",
-  assetSelected: ".sc-dshm8q-0.sc-1711qo3-0.eGHGbY.gdNLGA",
+  swapAssetBtn: ".sc-l0nx5c-0.ergVgG.sc-1t8tdl7-0.fUjRkd.sc-11am3s5-0.gOOlRj",
+  assetSelected: ".sc-dshm8q-0.sc-1711qo3-0.RegAL.kzlJbD",
 
   // Fee & Order Details
   expectedPrice: "dt:has-text('Expected Price') + dd output",

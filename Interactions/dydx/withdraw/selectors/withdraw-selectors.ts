@@ -5,7 +5,7 @@ export const WithdrawSelectors = {
   withdrawButton: 'button:has-text("Withdraw")',
   withdrawButtonComplete: 'div[role="dialog"] button:has-text("Withdraw")',
   amountInput: 'input[placeholder="0.00"]',
-  chainDestinationDropdown: ".sc-np2z7g-7.hxHflA",
+  chainDestinationDropdown: ".sc-np2z7g-7",
   assetDropdown: 'button[aria-haspopup="listbox"]:has-text("Asset")',
   withdrawModalSelector: 'div[role="dialog"]',
   withdrawCompletedTextSelector: 'text=Your withdrawal of',

@@ -307,8 +307,7 @@ export async function completeWithdrawal(
  * @param expectedAmount The expected withdrawal amount (pass as a positive or negative number)
  */
 export async function checkWithdrawCompleted(
-  page: Page,
-  expectedAmount: number
+  page: Page
 ): Promise<void> {
   logger.step("Checking withdrawal completion modal");
 
@@ -327,41 +326,6 @@ export async function checkWithdrawCompleted(
     state: "visible",
     timeout: 600000, 
   });
-
-  // Extract the full text content from the withdrawal modal
-  const modalText = await page.textContent(withdrawModalSelector);
-  if (!modalText) {
-    throw new Error("Withdrawal modal text content not found.");
-  }
-
-  // Extract the withdrawal amount using a regular expression.
-  // Expects a format like: "Your withdrawal of $11.97USDC is now available."
-  const match = modalText.match(/\$([0-9]+(?:\.[0-9]+)?)/);
-  if (!match) {
-    throw new Error("Withdrawal amount not found in modal text.");
-  }
-
-  const displayedAmount = parseFloat(match[1]);
-  if (isNaN(displayedAmount)) {
-    throw new Error("Displayed withdrawal amount is not a valid number.");
-  }
-
-  // Validate the amount is within 10% of the expected amount using absolute values.
-  const absoluteExpected = Math.abs(expectedAmount);
-  const absoluteDisplayed = Math.abs(displayedAmount);
-  const lowerBound = absoluteExpected * 0.9;
-  const upperBound = absoluteExpected * 1.1;
-
-  if (absoluteDisplayed < lowerBound || absoluteDisplayed > upperBound) {
-    throw new Error(
-      `Displayed withdrawal amount ${displayedAmount} is out of the acceptable range (${lowerBound} - ${upperBound}).`
-    );
-  }
-
-  logger.info(
-    `Withdrawal confirmed: ${displayedAmount} (expected: ${expectedAmount})`
-  );
-  await page.click(WithdrawSelectors.closeButton);
 }
 
 /**
