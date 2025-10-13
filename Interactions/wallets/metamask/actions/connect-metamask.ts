@@ -203,7 +203,7 @@ export async function openDydxConnectMetaMask(
     logger.success("MetaMask connection steps completed successfully", {
       url: page.url(),
     });
-    await page.locator(".sc-1awgn7r-0.klQslm").waitFor({ state: "visible", timeout: TEST_TIMEOUTS.DEPOSIT_SUCCESS });
+    await page.locator(".sc-vuzslv-7.irgnMY").waitFor({ state: "visible", timeout: TEST_TIMEOUTS.DEPOSIT_SUCCESS }); // address visible
     await page.bringToFront();
     try {
       await page.click(NotificationSelectors.withdrawalMessage);
