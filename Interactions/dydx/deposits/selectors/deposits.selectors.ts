@@ -5,7 +5,7 @@ export const DepositsSelectors = {
   depositFundsButton: 'button:has-text("Deposit Funds")',
   amountInput: ".sc-1d2nw9n-1.dfIHhz",
   loadingStates: ["Estimating gas...", "Preparing your quote..."],
-  assetDropdown: ".sc-1d2nw9n-2",
+  assetDropdown: ".sc-1jt7k6f-2",
   instantDepositSelect: '//button[descendant::*[text()="Instant"]]',
   instantDepositSelect2: ".sc-jJBjNq.hwnNNF",
   // Success state selectors
