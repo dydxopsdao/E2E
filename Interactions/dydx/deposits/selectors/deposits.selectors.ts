@@ -3,7 +3,7 @@ export const DepositsSelectors = {
   depositButton: 'button:has-text("Deposit")',
   continueButton: 'button:has-text("Continue")',
   depositFundsButton: 'button:has-text("Deposit Funds")',
-  amountInput: ".sc-1d2nw9n-1.dfIHhz",
+  amountInput: 'input[placeholder="0.00"]',
   loadingStates: ["Estimating gas...", "Preparing your quote..."],
   assetDropdown: ".sc-1jt7k6f-2",
   instantDepositSelect: '//button[descendant::*[text()="Instant"]]',
