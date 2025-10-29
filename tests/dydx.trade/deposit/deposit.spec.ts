@@ -77,7 +77,7 @@ test.describe("Deposit flow tests", () => {
       page,
       regularDepositAmount,
       metamaskContext,
-      'button:has(div:has-text("Avalanche"))',
+      'button:has(div:has-text("USDC")):has(div:has-text("Avalanche"))',
       {
         eyes,
         performEyesCheck: false,
