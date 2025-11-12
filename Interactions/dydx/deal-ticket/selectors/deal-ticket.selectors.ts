@@ -4,7 +4,7 @@ export const DealTicketSelectors = {
   amountInput: "#trade-amount",
   placeOrderBtnInactive:"button:has-text('Enter amount')",
   placeOrderBtnActive:
-    "button.sc-l0nx5c-0.etvDqn.sc-1xochuw-0.ePmoNb.sc-513u37-5.kRaPnM",
+    "button:has-text('Place Market Order')",
   closePositionBtn:
     "button.sc-l0nx5c-0.disEvY.sc-1xochuw-0.lkayIT.sc-513u37-4.eSofcy",
   swapAssetBtn: ".sc-l0nx5c-0.ergVgG.sc-1t8tdl7-0.fUjRkd.sc-11am3s5-0.gOOlRj",
