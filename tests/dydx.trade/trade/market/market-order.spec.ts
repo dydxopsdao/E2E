@@ -57,8 +57,9 @@ test("btc-usd market order LONG", async ({
       "liquidationPrice",
       "positionMargin",
       "positionLeverage",
-      "fee",
-      "estimatedRewards",
+      //Fees and rewards are 0 during the Fee holiday
+      //"fee",
+      //"estimatedRewards",
     ]) {
       const selector = DealTicketSelectors[key as keyof typeof DealTicketSelectors];
       logger.step(`Verifying key "${key}" with selector "${selector}"`);
