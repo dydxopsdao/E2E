@@ -294,26 +294,28 @@ jobs:
         run: |
           set -e
 
-          # Determine header and, for visual diffs, add the Applitools link
+          # Compose two-line header: E2E line + Visual line
           if [ "${{ steps.run-e2e.outcome }}" != "success" ]; then
-            HEADER="❌ E2E Tests Failed"
-            EXTRA=""
-          elif [ "${{ steps.check-batch.outputs.needsReview }}" = "true" ]; then
-            HEADER="⚠️ E2E Tests Passed with Visual Diffs"
-            EXTRA="• <$APPLITOOLS_LINK|View Applitools Batch>"
+            E2E_LINE="❌ E2E Tests Failed"
+            VISUAL_LINE=""
           else
-            HEADER="✅ E2E Tests Passed"
-            EXTRA=""
+            E2E_LINE="✅ E2E Tests Passed"
+            if [ "${{ steps.check-batch.outputs.needsReview }}" = "true" ]; then
+              VISUAL_LINE="⚠️ Visual diffs detected — please review"
+            else
+              VISUAL_LINE="✅ Visual tests passed"
+            fi
           fi
 
-          # Build the message
+          # Build the message (edit the original post)
           MESSAGE_TEXT=$(
             printf "%s\n" \
-              "$HEADER" \
+              "$E2E_LINE" \
+              "$VISUAL_LINE" \
               "• Deployment: $DISPLAY" \
               "• <$RUN_URL|View GitHub Run>" \
               "• <$REPORT_URL|View Full HTML Report>" \
-              "${EXTRA}"
+              "• <$APPLITOOLS_LINK|View Applitools Batch>"
           )
 
           export MESSAGE_TEXT
@@ -342,6 +344,8 @@ jobs:
       SLACK_BOT_TOKEN:    ${{ secrets.SLACK_BOT_TOKEN }}
       APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
       DISPLAY:            ${{ github.event.inputs.deployment_id == 'manual' && 'manual' || needs.e2e-test.outputs.production_tag }}
+      S3_TRACE_BUCKET:    ${{ secrets.S3_TRACE_BUCKET }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
     steps:
       - uses: actions/checkout@v4
       - name: Make scripts executable
@@ -351,7 +355,7 @@ jobs:
           curl -X POST -d '' \
             -H 'accept:*/*' \
             "$APPLITOOLS_SERVER_URL/api/externals/github/servers/github.com/commit/${{ needs.e2e-test.outputs.found_batch_id }}/complete?apiKey=$APPLITOOLS_API_KEY"
-      - name: Post visual review approval summary to Slack thread
+      - name: Edit original message with 'Visual tests passed'
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ needs.e2e-test.outputs.slack_channel }}
@@ -361,21 +365,22 @@ jobs:
           RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           HTML_REPORT_URL="https://${S3_TRACE_BUCKET}.s3.${AWS_DEFAULT_REGION}.amazonaws.com/runs/${GITHUB_RUN_ID}/report/index.html"
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/"
-          TEXT="✅ *Visual Review Approved*  
-          • Deployment: ${DISPLAY}  
-          • <${RUN_URL}|View GitHub Run>  
-          • <${HTML_REPORT_URL}|View Full HTML Report>  
-          • <${APPLITOOLS_LINK}|View Applitools Batch>"
+          TEXT="✅ E2E Tests Passed
+✅ Visual tests passed
+• Deployment: ${DISPLAY}
+• <${RUN_URL}|View GitHub Run>
+• <${HTML_REPORT_URL}|View Full HTML Report>
+• <${APPLITOOLS_LINK}|View Applitools Batch>"
           jq -n \
             --arg channel "$SLACK_CHANNEL" \
             --arg ts "$ROOT_THREAD_TS" \
             --arg text "$TEXT" \
-            '{channel:$channel, thread_ts:$ts, text:$text}' \
+            '{channel:$channel, ts:$ts, text:$text}' \
           | curl -s -X POST \
               -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
               -H "Content-Type: application/json" \
               --data @- \
-              https://slack.com/api/chat.postMessage
+              https://slack.com/api/chat.update
 
   batch-status-polling:
     name: "Applitools Batch Status Polling"
@@ -424,11 +429,13 @@ jobs:
               >/dev/null
           }
 
-          # 1) Initial “waiting for review” edit, now with all three links
-          update_slack "*E2E Pipeline for:* $DISPLAY  
-          ⚠️ Visual diffs detected — please <${APPLITOOLS_LINK}|review>  
-          • <$RUN_URL|View GitHub Run>  
-          • <$HTML_REPORT_URL|View Full HTML Report>"
+          # 1) Initial “waiting for review” edit (keep two-line format)
+          update_slack "✅ E2E Tests Passed
+⚠️ Visual diffs detected — please review
+• Deployment: $DISPLAY
+• <$RUN_URL|View GitHub Run>
+• <$HTML_REPORT_URL|View Full HTML Report>
+• <$APPLITOOLS_LINK|View Applitools Batch>"
 
           # 2) Poll every 30s, up to 1h
           MAX=120; INTERVAL=30; i=0; status="timeout"
@@ -462,13 +469,18 @@ jobs:
               sleep $INTERVAL && continue
             fi
 
-            # 3) Final 100% update (with same three links)
-            progress="[████████] 100%"
-            final_text="*E2E Pipeline for:* $DISPLAY  
-            >${progress} | ${header}  
-            • <$RUN_URL|View GitHub Run>  
-            • <$HTML_REPORT_URL|View HTML Report>  
-            • <$APPLITOOLS_LINK|View Applitools Batch>"
+            # 3) Final update: set second line to Approved/Rejected
+            if [ "$status" = "approved" ]; then
+              visual_line="✅ Visual Review Approved"
+            else
+              visual_line="❌ Visual Review Rejected"
+            fi
+            final_text="✅ E2E Tests Passed
+${visual_line}
+• Deployment: $DISPLAY
+• <$RUN_URL|View GitHub Run>
+• <$HTML_REPORT_URL|View Full HTML Report>
+• <$APPLITOOLS_LINK|View Applitools Batch>"
 
             update_slack "$final_text"
             break
