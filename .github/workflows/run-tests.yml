@@ -365,12 +365,14 @@ jobs:
           RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           HTML_REPORT_URL="https://${S3_TRACE_BUCKET}.s3.${AWS_DEFAULT_REGION}.amazonaws.com/runs/${GITHUB_RUN_ID}/report/index.html"
           APPLITOOLS_LINK="https://eyes.applitools.com/app/test-results/${{ needs.e2e-test.outputs.found_batch_id }}/"
-          TEXT="✅ E2E Tests Passed
-✅ Visual tests passed
-• Deployment: ${DISPLAY}
-• <${RUN_URL}|View GitHub Run>
-• <${HTML_REPORT_URL}|View Full HTML Report>
-• <${APPLITOOLS_LINK}|View Applitools Batch>"
+          TEXT=$(
+            printf "✅ E2E Tests Passed\n"
+            printf "✅ Visual tests passed\n"
+            printf "• Deployment: %s\n" "${DISPLAY}"
+            printf "• <%s|View GitHub Run>\n" "${RUN_URL}"
+            printf "• <%s|View Full HTML Report>\n" "${HTML_REPORT_URL}"
+            printf "• <%s|View Applitools Batch>\n" "${APPLITOOLS_LINK}"
+          )
           jq -n \
             --arg channel "$SLACK_CHANNEL" \
             --arg ts "$ROOT_THREAD_TS" \
@@ -430,12 +432,15 @@ jobs:
           }
 
           # 1) Initial “waiting for review” edit (keep two-line format)
-          update_slack "✅ E2E Tests Passed
-⚠️ Visual diffs detected — please review
-• Deployment: $DISPLAY
-• <$RUN_URL|View GitHub Run>
-• <$HTML_REPORT_URL|View Full HTML Report>
-• <$APPLITOOLS_LINK|View Applitools Batch>"
+          initial_text=$(
+            printf "✅ E2E Tests Passed\n"
+            printf "⚠️ Visual diffs detected — please review\n"
+            printf "• Deployment: %s\n" "$DISPLAY"
+            printf "• <%s|View GitHub Run>\n" "$RUN_URL"
+            printf "• <%s|View Full HTML Report>\n" "$HTML_REPORT_URL"
+            printf "• <%s|View Applitools Batch>\n" "$APPLITOOLS_LINK"
+          )
+          update_slack "$initial_text"
 
           # 2) Poll every 30s, up to 1h
           MAX=120; INTERVAL=30; i=0; status="timeout"
@@ -475,12 +480,14 @@ jobs:
             else
               visual_line="❌ Visual Review Rejected"
             fi
-            final_text="✅ E2E Tests Passed
-${visual_line}
-• Deployment: $DISPLAY
-• <$RUN_URL|View GitHub Run>
-• <$HTML_REPORT_URL|View Full HTML Report>
-• <$APPLITOOLS_LINK|View Applitools Batch>"
+            final_text=$(
+              printf "✅ E2E Tests Passed\n"
+              printf "%s\n" "$visual_line"
+              printf "• Deployment: %s\n" "$DISPLAY"
+              printf "• <%s|View GitHub Run>\n" "$RUN_URL"
+              printf "• <%s|View Full HTML Report>\n" "$HTML_REPORT_URL"
+              printf "• <%s|View Applitools Batch>\n" "$APPLITOOLS_LINK"
+            )
 
             update_slack "$final_text"
             break
