@@ -261,14 +261,16 @@ jobs:
           # 5) pick the latest
           latest=$(echo "$filtered" | jq '.[-1]')
           batch_id=$(echo "$latest" | jq -r '.id')
-          failed=$(echo "$latest" | jq -r '.runningSummary.failedTests // 0')
-          unresolved=$(echo "$latest" | jq -r '.runningSummary.unresolvedTests // 0')
+          # Use final batch fields (not runningSummary which can be 0 at completion)
+          failed=$(echo "$latest" | jq -r '.failed // 0')
+          unresolved=$(echo "$latest" | jq -r '.unresolved // 0')
+          new_tests=$(echo "$latest" | jq -r '.new // 0')
 
-          echo "Found batch id=$batch_id (failed=$failed, unresolved=$unresolved)" >&2
+          echo "Found batch id=$batch_id (failed=$failed, unresolved=$unresolved, new=$new_tests)" >&2
 
           # 6) write outputs
           echo "foundBatchID=$batch_id" >> "$GITHUB_OUTPUT"
-          if [ "$failed" -gt 0 ] || [ "$unresolved" -gt 0 ]; then
+          if [ "$failed" -gt 0 ] || [ "$unresolved" -gt 0 ] || [ "$new_tests" -gt 0 ]; then
             echo "needsReview=true"   >> "$GITHUB_OUTPUT"
             echo "Batch needs review." >&2
           else
