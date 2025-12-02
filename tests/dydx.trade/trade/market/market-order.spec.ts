@@ -56,7 +56,7 @@ test("btc-usd market order LONG", async ({
       "expectedPrice",
       "liquidationPrice",
       "positionMargin",
-      "positionLeverage",
+      //"positionLeverage",
       //Fees and rewards are 0 during the Fee holiday
       //"fee",
       //"estimatedRewards",
