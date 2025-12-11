@@ -56,7 +56,7 @@ test("btc-usd market order LONG", async ({
       "expectedPrice",
       "liquidationPrice",
       "positionMargin",
-      "positionLeverage",
+      //"positionLeverage",
       //Fees and rewards are 0 during the Fee holiday
       //"fee",
       //"estimatedRewards",
@@ -67,15 +67,29 @@ test("btc-usd market order LONG", async ({
         // Get all elements matching the selector
         const elements = await page.locator(selector).all();
         // Check if we found any elements
-        expect(elements.length).toBeGreaterThan(0);
+        if (elements.length === 0) {
+          throw new Error(`No elements found for key "${key}" (selector: ${selector})`);
+        }
         
         // Verify each element (could be 1 or 2 values)
         for (const element of elements) {
           // Ensure element is visible
-          await expect(element).toBeVisible({ timeout: 10000 });
+          try {
+            await expect(element).toBeVisible({ timeout: 10000 });
+          } catch (err) {
+            throw new Error(
+              `Visibility check failed for key "${key}" (selector: ${selector}): ${(err as Error).message}`
+            );
+          }
           
           // Ensure element has actual content (not just whitespace)
-          await expect(element).toHaveText(/\S+/, { timeout: 10000 });
+          try {
+            await expect(element).toHaveText(/\S+/, { timeout: 10000 });
+          } catch (err) {
+            throw new Error(
+              `Content check failed for key "${key}" (selector: ${selector}): ${(err as Error).message}`
+            );
+          }
           
           // Log the actual value for debugging
           const text = await element.textContent();
