@@ -51,6 +51,7 @@ jobs:
       found_batch_id: ${{ steps.check-batch.outputs.foundBatchID }}
       slack_channel:  ${{ env.SLACK_CHANNEL }}
       production_tag: ${{ steps.prod-tag.outputs.production-tag }}
+      e2e_exit_code:  ${{ steps.run-e2e.outputs.exit_code }}
 
     steps:
       # 1) Checkout E2E repo
@@ -189,8 +190,15 @@ jobs:
           export MESSAGE_TEXT="$TEXT"
           scripts/update-slack-progress.sh
 
+          set +e
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
             npx playwright test --workers=2 --reporter=html
+          E2E_EXIT=$?
+          echo "exit_code=$E2E_EXIT" >> "$GITHUB_OUTPUT"
+          if [ "$E2E_EXIT" -ne 0 ]; then
+            echo "Playwright exited with $E2E_EXIT" >&2
+          fi
+          # do not rethrow; later steps rely on outputs
 
       # 9) Sync report to S3
       - name: Sync full HTML report to S3
@@ -295,7 +303,7 @@ jobs:
           set -e
 
           # Compose two-line header: E2E line + Visual line
-          if [ "${{ steps.run-e2e.outcome }}" != "success" ]; then
+          if [ "${{ steps.run-e2e.outputs.exit_code }}" != "0" ]; then
             E2E_LINE="❌ E2E Tests Failed"
             VISUAL_LINE=""
           else
@@ -335,7 +343,7 @@ jobs:
 
   applitools-auto-complete:
     name: "Applitools Auto-Completion"
-    if: needs.e2e-test.outputs.needs_review == 'false'
+    if: needs.e2e-test.outputs.needs_review == 'false' && needs.e2e-test.outputs.e2e_exit_code == '0'
     needs: e2e-test
     runs-on: ubuntu-latest
     env:
@@ -386,7 +394,7 @@ jobs:
 
   batch-status-polling:
     name: "Applitools Batch Status Polling"
-    if: needs.e2e-test.outputs.needs_review == 'true'
+    if: needs.e2e-test.outputs.needs_review == 'true' && needs.e2e-test.outputs.e2e_exit_code == '0'
     needs: e2e-test
     runs-on: ubuntu-latest
 
