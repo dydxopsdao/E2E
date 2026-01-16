@@ -18,6 +18,11 @@ const urls = [
     name: "Markets page",
     elementLocator: '[data-key="BTC-USD-priceChange24HChart"]',
     useDom: true,
+    regionSelector: 'table[aria-label="Markets"]',
+    regionNth: 1,
+    beforeRenderScreenshotHook:
+      "document.querySelector('header').style.position='relative';document.querySelector('tfoot').style.position='static';document.querySelector('footer').style.position='static';",
+  
   },
   {
     url: "https://dydx.trade/portfolio",
@@ -54,6 +59,9 @@ async function performVisualCheck({
   elementLocator2,
   useDom,
   clickBeforeCheck,
+  regionSelector,
+  regionNth,
+  beforeRenderScreenshotHook,
 }: {
   page: Page;
   eyes: any;
@@ -63,6 +71,9 @@ async function performVisualCheck({
   elementLocator2?: string;
   useDom?: boolean;
   clickBeforeCheck?: boolean;
+  regionSelector?: string;
+  regionNth?: number;
+  beforeRenderScreenshotHook?: string;
 }): Promise<void> {
   let attempt = 0;
   const maxAttempts = 2;
@@ -129,7 +140,15 @@ async function performVisualCheck({
       }
 
       // Perform the visual check.
-      await visualCheck(eyes, { name, useDom: Boolean(useDom) });
+      const regionLocator = regionSelector
+        ? currentPage.locator(regionSelector).nth(regionNth ?? 0)
+        : undefined;
+      await visualCheck(eyes, {
+        name,
+        useDom: Boolean(useDom),
+        regionLocator,
+        beforeRenderScreenshotHook,
+      });
       logger.success(`Completed visual check for ${name} on attempt ${attempt}`);
       testPassed = true;
     } catch (error) {
@@ -146,7 +165,18 @@ async function performVisualCheck({
 }
 
 // Create a separate test for each URL
-urls.forEach(({ url, name, elementLocator, elementLocator2, useDom, clickBeforeCheck }) => {
+urls.forEach(
+  ({
+    url,
+    name,
+    elementLocator,
+    elementLocator2,
+    useDom,
+    clickBeforeCheck,
+    regionSelector,
+    regionNth,
+    beforeRenderScreenshotHook,
+  }) => {
   test(`${name} visual check`, async ({ page, eyes }) => {
     await performVisualCheck({
       page,
@@ -157,6 +187,9 @@ urls.forEach(({ url, name, elementLocator, elementLocator2, useDom, clickBeforeC
       elementLocator2,
       useDom,
       clickBeforeCheck,
+      regionSelector,
+      regionNth,
+      beforeRenderScreenshotHook,
     });
   });
 });

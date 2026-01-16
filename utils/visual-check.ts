@@ -1,5 +1,5 @@
 import { Eyes, Target } from "@applitools/eyes-playwright";
-import { Page } from "@playwright/test";
+import { Locator, Page } from "@playwright/test";
 import { logger } from "@utils/logger/logging-utils";
 
 export interface VisualCheckOptions {
@@ -9,6 +9,8 @@ export interface VisualCheckOptions {
   useDom?: boolean; // Option to override DOM usage
   page?: Page; // Add page parameter to allow element interactions
   clickSelector?: string | false; // Optional selector to click before check, or false to skip
+  regionLocator?: Locator; // Optional region to limit the visual check
+  beforeRenderScreenshotHook?: string; // Optional Applitools hook to run before screenshot
 }
 
 export async function visualCheck(eyes: Eyes, opts: VisualCheckOptions) {
@@ -17,6 +19,8 @@ export async function visualCheck(eyes: Eyes, opts: VisualCheckOptions) {
     fully = true, 
     matchLevel = "Layout", 
     useDom = true,
+    regionLocator,
+    beforeRenderScreenshotHook,
   } = opts;
   
   
@@ -24,9 +28,9 @@ export async function visualCheck(eyes: Eyes, opts: VisualCheckOptions) {
   logger.step(`Performing visual check: ${name}`);
 
   // Create the target
-  let target = Target.window();
+  let target = regionLocator ? Target.region(regionLocator) : Target.window();
 
-  if (fully) {
+  if (fully && !regionLocator) {
     target = target.fully();
   }
 
@@ -38,6 +42,10 @@ export async function visualCheck(eyes: Eyes, opts: VisualCheckOptions) {
   // Override DOM usage if specified
   if (useDom === false) {
     target = target.useDom(false);
+  }
+
+  if (beforeRenderScreenshotHook) {
+    target = target.beforeRenderScreenshotHook(beforeRenderScreenshotHook);
   }
 
   // Perform the check
