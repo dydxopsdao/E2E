@@ -269,15 +269,23 @@ jobs:
           # 5) pick the latest
           latest=$(echo "$filtered" | jq '.[-1]')
           batch_id=$(echo "$latest" | jq -r '.id')
-          # Use final batch fields (not runningSummary which can be 0 at completion)
+          # Guard against incomplete batches; force review/polling until complete
+          is_completed=$(echo "$latest" | jq -r '.isCompleted // empty')
+          status=$(echo "$latest" | jq -r '.status // empty')
+          # Use final batch fields when complete (runningSummary can be 0 at completion)
           failed=$(echo "$latest" | jq -r '.failed // 0')
           unresolved=$(echo "$latest" | jq -r '.unresolved // 0')
           new_tests=$(echo "$latest" | jq -r '.new // 0')
 
-          echo "Found batch id=$batch_id (failed=$failed, unresolved=$unresolved, new=$new_tests)" >&2
+          echo "Found batch id=$batch_id (status=$status, isCompleted=$is_completed, failed=$failed, unresolved=$unresolved, new=$new_tests)" >&2
 
           # 6) write outputs
           echo "foundBatchID=$batch_id" >> "$GITHUB_OUTPUT"
+          if [ "$is_completed" != "true" ] && [ "$status" != "Completed" ] && [ "$status" != "completed" ]; then
+            echo "Batch not complete yet; defaulting to needsReview=true" >&2
+            echo "needsReview=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ "$failed" -gt 0 ] || [ "$unresolved" -gt 0 ] || [ "$new_tests" -gt 0 ]; then
             echo "needsReview=true"   >> "$GITHUB_OUTPUT"
             echo "Batch needs review." >&2
