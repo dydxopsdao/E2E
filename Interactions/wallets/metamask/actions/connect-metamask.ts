@@ -160,6 +160,14 @@ export async function openDydxConnectMetaMask(
       const element = page.locator("text=Connect your wallet to deposit funds & start trading.");
       await expect(element).toBeVisible({ timeout: TEST_TIMEOUTS.NAVIGATION });
     }
+   
+    // Close chat box if open before triggering wallet connection modal
+    const chatBox = page.locator('.sc-1opvvl2-2.cCftIQ');
+    if (await chatBox.isVisible()) {
+      await page.locator('.sc-l0nx5c-0.ergVgG.sc-1xochuw-0.ibmTXw.sc-mg0yzv-0.bFLbGV.sc-1opvvl2-6.bpTdGr').click();
+      await chatBox.waitFor({ state: 'hidden', timeout: TEST_TIMEOUTS.ACTION });
+    }
+
     // Trigger wallet connection modal and select MetaMask
     await triggerWalletConnectionModal(page);
     await selectWallet(page, WALLET_CONSTANTS.SUPPORTED_WALLETS[0]); // MetaMask

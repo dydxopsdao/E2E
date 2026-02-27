@@ -25,7 +25,7 @@ test.describe("Withdraw flow tests", () => {
       page,
       walletAddress,
       'button:has(div:has-text("Arbitrum"))',
-      "101"
+      "23"
     );
     await checkWithdrawCompleted(page,);
   });

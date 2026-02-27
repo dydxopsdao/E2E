@@ -10,7 +10,7 @@ import { deposit } from "@interactions/dydx/deposits/actions/deposit-actions";
 import { BrowserContext, Page } from "@playwright/test";
 import { Eyes } from "@applitools/eyes-playwright";
 
-const instantDepositAmount = 101;
+const instantDepositAmount = 23;
 const regularDepositAmount = 12;
 
 test.describe("Deposit flow tests", () => {
