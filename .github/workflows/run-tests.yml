@@ -172,6 +172,13 @@ jobs:
           scripts/update-slack-progress.sh
           npm install
 
+      - name: Configure Datadog Test Optimization
+        uses: datadog/test-visibility-github-action@v2
+        with:
+          languages: js
+          api_key: ${{ secrets.DD_API_KEY }}
+          site: ap1.datadoghq.com
+
       - name: ► Run All E2E Tests
         id: run-e2e
         continue-on-error: true
@@ -180,6 +187,7 @@ jobs:
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:      ${{ steps.slack_progress_message.outputs.message_ts }}
           DISPLAY:         ${{ inputs.deployment_id == 'manual' && 'manual' || steps.prod-tag.outputs.production-tag }}
+          NODE_OPTIONS: -r ${{ env.DD_TRACE_PACKAGE }}
         run: |
           # update Slack to 80% complete
           TEXT=$(
