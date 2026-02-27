@@ -198,6 +198,9 @@ jobs:
           export MESSAGE_TEXT="$TEXT"
           scripts/update-slack-progress.sh
 
+          echo "DD_TRACE_PACKAGE=$DD_TRACE_PACKAGE"
+          echo "NODE_OPTIONS=$NODE_OPTIONS"
+
           set +e
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
             npx playwright test --workers=2 --reporter=html
