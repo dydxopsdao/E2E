@@ -172,13 +172,6 @@ jobs:
           scripts/update-slack-progress.sh
           npm install
 
-      - name: Configure Datadog Test Optimization
-        uses: datadog/test-visibility-github-action@v2
-        with:
-          languages: js
-          api_key: ${{ secrets.DD_API_KEY }}
-          site: ap1.datadoghq.com
-
       - name: ► Run All E2E Tests
         id: run-e2e
         continue-on-error: true
@@ -187,7 +180,12 @@ jobs:
           SLACK_CHANNEL:   ${{ env.SLACK_CHANNEL }}
           MESSAGE_TS:      ${{ steps.slack_progress_message.outputs.message_ts }}
           DISPLAY:         ${{ inputs.deployment_id == 'manual' && 'manual' || steps.prod-tag.outputs.production-tag }}
-          NODE_OPTIONS: -r ${{ env.DD_TRACE_PACKAGE }}
+          DD_CIVISIBILITY_AGENTLESS_ENABLED: "true"
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: ap1.datadoghq.com
+          JOB_ID: ${{ github.run_id }}
+          NODE_OPTIONS: "-r dd-trace/ci/init"
+          DD_TRACE_DEBUG: "1"
         run: |
           # update Slack to 80% complete
           TEXT=$(
@@ -197,9 +195,6 @@ jobs:
           )
           export MESSAGE_TEXT="$TEXT"
           scripts/update-slack-progress.sh
-
-          echo "DD_TRACE_PACKAGE=$DD_TRACE_PACKAGE"
-          echo "NODE_OPTIONS=$NODE_OPTIONS"
 
           set +e
           xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
