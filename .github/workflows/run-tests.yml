@@ -172,6 +172,9 @@ jobs:
           scripts/update-slack-progress.sh
           npm install
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
       - name: ► Run All E2E Tests
         id: run-e2e
         continue-on-error: true
