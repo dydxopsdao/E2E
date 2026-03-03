@@ -240,6 +240,9 @@ export async function completeWithdrawal(
 
   logger.step("Starting the complete withdrawal process");
 
+  // Close the Global Chat panel if it is currently visible.
+  await closeChatIfPresent(page);
+
   // Step 1: Click the initial Withdraw button
   await performStep(
     "Clicking the initial Withdraw button",
@@ -281,6 +284,7 @@ export async function completeWithdrawal(
       page
     }
   );
+
 
   // Step 4: Click the Withdraw button
   await performStep(
@@ -326,6 +330,22 @@ export async function checkWithdrawCompleted(
     state: "visible",
     timeout: 600000, 
   });
+}
+
+/**
+ * Closes the Global Chat panel if it is currently visible.
+ * @param page Playwright Page object
+ */
+async function closeChatIfPresent(page: Page): Promise<void> {
+  try {
+    const chatCloseButton = page.locator('.sc-l0nx5c-0.ergVgG.sc-1xochuw-0.ibmTXw.sc-mg0yzv-0.bFLbGV.sc-1opvvl2-6.bpTdGr');
+    await chatCloseButton.waitFor({ state: "visible", timeout: 3000 });
+    logger.step("Global Chat panel detected. Closing it.");
+    await chatCloseButton.click();
+    await randomDelay(300, 600);
+  } catch {
+    logger.step("Global Chat panel not visible, proceeding.");
+  }
 }
 
 /**
